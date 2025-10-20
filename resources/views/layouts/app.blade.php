@@ -36,12 +36,12 @@
     </script>
 </head>
 <body class="bg-gray-100">
-    <div class="min-h-screen flex">
-        <!-- Sidebar con menú -->
+    <div class="min-h-screen">
+        <!-- Sidebar con menú (fijo) -->
         <x-sidebar />
 
-        <!-- Contenido principal -->
-        <div class="flex-1 flex flex-col">
+        <!-- Contenido principal (con margen izquierdo para el sidebar) -->
+        <div class="ml-64 flex flex-col min-h-screen">
             <!-- Header -->
             <x-header />
 
