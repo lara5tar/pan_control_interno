@@ -6,6 +6,12 @@
 @section('page-description', 'Resumen general del sistema')
 
 @section('content')
+<!-- Título de la página -->
+<div class="mb-6">
+    <h3 class="text-xl font-semibold text-gray-800">Panel de Control</h3>
+    <p class="text-gray-600 text-sm mt-1">Resumen general del inventario y movimientos</p>
+</div>
+
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
     <!-- Card de estadísticas -->
     <x-card>

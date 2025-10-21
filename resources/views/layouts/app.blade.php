@@ -35,18 +35,15 @@
         }
     </script>
 </head>
-<body class="bg-gray-100">
+<body class="bg-white">
     <div class="min-h-screen">
-        <!-- Sidebar con menú (fijo) -->
+        <!-- Sidebar con menú -->
         <x-sidebar />
 
         <!-- Contenido principal (con margen izquierdo para el sidebar) -->
-        <div class="ml-64 flex flex-col min-h-screen">
-            <!-- Header -->
-            <x-header />
-
+        <div class="ml-56 flex flex-col min-h-screen">
             <!-- Contenido -->
-            <main class="flex-1 p-6">
+            <main class="flex-1 p-6 bg-gray-50">
                 <div class="max-w-7xl mx-auto">
                     @if(session('success'))
                         <x-alert type="success" :message="session('success')" />
@@ -59,9 +56,6 @@
                     @yield('content')
                 </div>
             </main>
-
-            <!-- Footer -->
-            <x-footer />
         </div>
     </div>
 

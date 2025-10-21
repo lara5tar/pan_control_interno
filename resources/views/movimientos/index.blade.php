@@ -22,6 +22,49 @@
         </x-button>
     </div>
 
+    <!-- Estadísticas rápidas -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <x-card>
+            <div class="flex items-center">
+                <div class="p-3 bg-green-100 rounded-full">
+                    <i class="fas fa-arrow-up text-green-600 text-2xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm text-gray-600">Total Entradas</p>
+                    <p class="text-2xl font-bold text-gray-900">
+                        {{ $movimientos->where('tipo_movimiento', 'entrada')->sum('cantidad') }}
+                    </p>
+                </div>
+            </div>
+        </x-card>
+
+        <x-card>
+            <div class="flex items-center">
+                <div class="p-3 bg-red-100 rounded-full">
+                    <i class="fas fa-arrow-down text-red-600 text-2xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm text-gray-600">Total Salidas</p>
+                    <p class="text-2xl font-bold text-gray-900">
+                        {{ $movimientos->where('tipo_movimiento', 'salida')->sum('cantidad') }}
+                    </p>
+                </div>
+            </div>
+        </x-card>
+
+        <x-card>
+            <div class="flex items-center">
+                <div class="p-3 bg-blue-100 rounded-full">
+                    <i class="fas fa-exchange-alt text-blue-600 text-2xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm text-gray-600">Movimientos</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ $movimientos->total() }}</p>
+                </div>
+            </div>
+        </x-card>
+    </div>
+
     <!-- Filtros -->
     <x-card class="overflow-visible">
         <form method="GET" action="{{ route('movimientos.index') }}" class="overflow-visible">
@@ -182,48 +225,5 @@
             </div>
         @endif
     </x-card>
-
-    <!-- Estadísticas rápidas -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <x-card>
-            <div class="flex items-center">
-                <div class="p-3 bg-green-100 rounded-full">
-                    <i class="fas fa-arrow-up text-green-600 text-2xl"></i>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm text-gray-600">Total Entradas</p>
-                    <p class="text-2xl font-bold text-gray-900">
-                        {{ $movimientos->where('tipo_movimiento', 'entrada')->sum('cantidad') }}
-                    </p>
-                </div>
-            </div>
-        </x-card>
-
-        <x-card>
-            <div class="flex items-center">
-                <div class="p-3 bg-red-100 rounded-full">
-                    <i class="fas fa-arrow-down text-red-600 text-2xl"></i>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm text-gray-600">Total Salidas</p>
-                    <p class="text-2xl font-bold text-gray-900">
-                        {{ $movimientos->where('tipo_movimiento', 'salida')->sum('cantidad') }}
-                    </p>
-                </div>
-            </div>
-        </x-card>
-
-        <x-card>
-            <div class="flex items-center">
-                <div class="p-3 bg-blue-100 rounded-full">
-                    <i class="fas fa-exchange-alt text-blue-600 text-2xl"></i>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm text-gray-600">Movimientos</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ $movimientos->total() }}</p>
-                </div>
-            </div>
-        </x-card>
-    </div>
 </div>
 @endsection
