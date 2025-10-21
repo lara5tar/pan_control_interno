@@ -22,9 +22,23 @@ class MovimientoController extends Controller
             $query->where('libro_id', $request->libro_id);
         }
 
-        // Filtrar por tipo de movimiento
+        // Filtrar por tipo de movimiento (unificado)
         if ($request->filled('tipo_movimiento')) {
-            $query->where('tipo_movimiento', $request->tipo_movimiento);
+            $tipoMovimiento = $request->tipo_movimiento;
+            
+            // Verificar si es un tipo específico (entrada_compra, salida_venta, etc.)
+            if (str_starts_with($tipoMovimiento, 'entrada_')) {
+                $tipo = str_replace('entrada_', '', $tipoMovimiento);
+                $query->where('tipo_movimiento', 'entrada')
+                      ->where('tipo_entrada', $tipo);
+            } elseif (str_starts_with($tipoMovimiento, 'salida_')) {
+                $tipo = str_replace('salida_', '', $tipoMovimiento);
+                $query->where('tipo_movimiento', 'salida')
+                      ->where('tipo_salida', $tipo);
+            } else {
+                // Es un filtro general (solo "entrada" o "salida")
+                $query->where('tipo_movimiento', $tipoMovimiento);
+            }
         }
 
         // Filtrar por fecha
@@ -35,7 +49,7 @@ class MovimientoController extends Controller
             $query->whereDate('created_at', '<=', $request->fecha_hasta);
         }
 
-        $movimientos = $query->paginate(15);
+        $movimientos = $query->paginate(10);
         $libros = Libro::orderBy('nombre')->get();
 
         return view('movimientos.index', compact('movimientos', 'libros'));

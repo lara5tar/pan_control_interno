@@ -91,7 +91,7 @@
         <!-- Paginación -->
         @if($libros->hasPages())
             <div class="mt-4 px-6 py-4 border-t border-gray-200">
-                {{ $libros->links() }}
+                {{ $libros->appends(request()->query())->links() }}
             </div>
         @endif
     </x-card>

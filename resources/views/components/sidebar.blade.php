@@ -1,11 +1,12 @@
 <aside class="fixed left-0 top-0 h-screen w-64 bg-gradient-to-b from-primary-500 to-primary-600 text-white shadow-lg overflow-y-auto">
-    <div class="p-6">
-        <h1 class="text-2xl font-bold text-center">
-            <i class="fas fa-book-open"></i> Control Interno
+    <div class="p-6 text-center">
+        <i class="fas fa-book-open text-5xl mb-3"></i>
+        <h1 class="text-2xl font-bold">
+            Pan de Vida
         </h1>
     </div>
 
-    <nav class="mt-6 pb-24">
+    <nav class="mt-0 pb-24">
         <x-menu-item 
             icon="fas fa-home" 
             label="Dashboard" 

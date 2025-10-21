@@ -7,8 +7,12 @@
 
 @section('content')
 <div class="space-y-6">
-    <!-- Botón de acción y filtros -->
-    <div class="flex flex-col lg:flex-row justify-between gap-4">
+    <!-- Encabezado con botón -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h3 class="text-xl font-semibold text-gray-800">Historial de Movimientos</h3>
+            <p class="text-gray-600 text-sm mt-1">Total: {{ $movimientos->total() }} movimientos</p>
+        </div>
         <x-button 
             variant="primary" 
             icon="fas fa-plus-circle"
@@ -16,44 +20,86 @@
         >
             Registrar Movimiento
         </x-button>
-
-        <!-- Filtros -->
-        <form method="GET" action="{{ route('movimientos.index') }}" class="flex gap-2 flex-wrap">
-            <select name="libro_id" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-                <option value="">Todos los libros</option>
-                @foreach($libros as $libro)
-                    <option value="{{ $libro->id }}" {{ request('libro_id') == $libro->id ? 'selected' : '' }}>
-                        {{ $libro->nombre }}
-                    </option>
-                @endforeach
-            </select>
-
-            <select name="tipo_movimiento" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-                <option value="">Todos los tipos</option>
-                <option value="entrada" {{ request('tipo_movimiento') == 'entrada' ? 'selected' : '' }}>Entradas</option>
-                <option value="salida" {{ request('tipo_movimiento') == 'salida' ? 'selected' : '' }}>Salidas</option>
-            </select>
-
-            <input type="date" name="fecha_desde" value="{{ request('fecha_desde') }}" 
-                   class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                   placeholder="Desde">
-
-            <input type="date" name="fecha_hasta" value="{{ request('fecha_hasta') }}" 
-                   class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                   placeholder="Hasta">
-
-            <x-button type="submit" variant="secondary" icon="fas fa-filter">
-                Filtrar
-            </x-button>
-
-            @if(request()->hasAny(['libro_id', 'tipo_movimiento', 'fecha_desde', 'fecha_hasta']))
-                <x-button type="button" variant="secondary" icon="fas fa-times" 
-                          onclick="window.location='{{ route('movimientos.index') }}'">
-                    Limpiar
-                </x-button>
-            @endif
-        </form>
     </div>
+
+    <!-- Filtros -->
+    <x-card class="overflow-visible">
+        <form method="GET" action="{{ route('movimientos.index') }}" class="overflow-visible">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1fr_auto_auto_auto] gap-4 mb-4 overflow-visible items-end">
+                <!-- Filtro por Libro -->
+                <div>
+                    <x-libro-search-filter 
+                        name="libro_id" 
+                        :libros="$libros"
+                        :selected="request('libro_id')"
+                        label="Libro"
+                    />
+                </div>
+
+                <!-- Filtro por Tipo de Movimiento Unificado -->
+                <div class="w-full md:w-48">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-exchange-alt text-gray-400"></i> Tipo de Movimiento
+                    </label>
+                    <select name="tipo_movimiento" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        <option value="">Todos los movimientos</option>
+                        <option value="entrada" {{ request('tipo_movimiento') == 'entrada' && !str_starts_with(request('tipo_movimiento'), 'entrada_') ? 'selected' : '' }}>
+                            ↑ Entrada (general)
+                        </option>
+                        @foreach(\App\Models\Movimiento::tiposEntrada() as $key => $label)
+                            <option value="entrada_{{ $key }}" {{ request('tipo_movimiento') == 'entrada_'.$key ? 'selected' : '' }}>
+                                ↑ {{ $label }}
+                            </option>
+                        @endforeach
+                        <option value="salida" {{ request('tipo_movimiento') == 'salida' && !str_starts_with(request('tipo_movimiento'), 'salida_') ? 'selected' : '' }}>
+                            ↓ Salida (general)
+                        </option>
+                        @foreach(\App\Models\Movimiento::tiposSalida() as $key => $label)
+                            <option value="salida_{{ $key }}" {{ request('tipo_movimiento') == 'salida_'.$key ? 'selected' : '' }}>
+                                ↓ {{ $label }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- Filtro Fecha Desde -->
+                <div class="w-full md:w-40">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-calendar-alt text-gray-400"></i> Fecha Desde
+                    </label>
+                    <input type="date" 
+                           name="fecha_desde" 
+                           value="{{ request('fecha_desde') }}" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                </div>
+
+                <!-- Filtro Fecha Hasta -->
+                <div class="w-full md:w-40">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-calendar-check text-gray-400"></i> Fecha Hasta
+                    </label>
+                    <input type="date" 
+                           name="fecha_hasta" 
+                           value="{{ request('fecha_hasta') }}" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                </div>
+            </div>
+
+            <!-- Botones de acción -->
+            <div class="flex gap-3 pt-4 border-t border-gray-200">
+                <x-button type="submit" variant="primary" icon="fas fa-filter">
+                    Aplicar Filtros
+                </x-button>
+
+                @if(request()->hasAny(['libro_id', 'tipo_movimiento', 'tipo_especifico', 'fecha_desde', 'fecha_hasta']))
+                    <x-button type="button" variant="secondary" icon="fas fa-times" 
+                              onclick="window.location='{{ route('movimientos.index') }}'">
+                        Limpiar Filtros
+                    </x-button>
+                @endif
+            </div>
+        </form>
+    </x-card>
 
     <!-- Alertas -->
     @if(session('success'))
@@ -132,7 +178,7 @@
         <!-- Paginación -->
         @if($movimientos->hasPages())
             <div class="px-6 py-4 border-t border-gray-200">
-                {{ $movimientos->links() }}
+                {{ $movimientos->appends(request()->query())->links() }}
             </div>
         @endif
     </x-card>

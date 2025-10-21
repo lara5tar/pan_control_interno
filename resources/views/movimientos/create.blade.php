@@ -13,12 +13,17 @@
 
             <div class="space-y-6">
                 <!-- Selección de Libro con Buscador -->
-                <x-libro-selector 
+                <x-libro-search-filter 
                     name="libro_id"
                     :libros="$libros"
                     :selected="old('libro_id')"
+                    label="Libro"
                     :required="true"
                 />
+                
+                @error('libro_id')
+                    <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
+                @enderror
 
                 <!-- Tipo de Movimiento -->
                 <div>
