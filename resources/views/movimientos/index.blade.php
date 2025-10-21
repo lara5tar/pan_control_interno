@@ -11,7 +11,7 @@
     <div class="flex justify-between items-center">
         <div>
             <h3 class="text-xl font-semibold text-gray-800">Historial de Movimientos</h3>
-            <p class="text-gray-600 text-sm mt-1">Total: {{ $movimientos->total() }} movimientos</p>
+            <p class="text-gray-600 text-sm mt-1">Total: {{ $totalMovimientos }} movimientos</p>
         </div>
         <x-button 
             variant="primary" 
@@ -32,7 +32,7 @@
                 <div class="ml-4">
                     <p class="text-sm text-gray-600">Total Entradas</p>
                     <p class="text-2xl font-bold text-gray-900">
-                        {{ $movimientos->where('tipo_movimiento', 'entrada')->sum('cantidad') }}
+                        {{ $totalEntradas }}
                     </p>
                 </div>
             </div>
@@ -46,7 +46,7 @@
                 <div class="ml-4">
                     <p class="text-sm text-gray-600">Total Salidas</p>
                     <p class="text-2xl font-bold text-gray-900">
-                        {{ $movimientos->where('tipo_movimiento', 'salida')->sum('cantidad') }}
+                        {{ $totalSalidas }}
                     </p>
                 </div>
             </div>
@@ -59,7 +59,7 @@
                 </div>
                 <div class="ml-4">
                     <p class="text-sm text-gray-600">Movimientos</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ $movimientos->total() }}</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ $totalMovimientos }}</p>
                 </div>
             </div>
         </x-card>

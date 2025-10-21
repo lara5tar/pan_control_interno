@@ -49,10 +49,15 @@ class MovimientoController extends Controller
             $query->whereDate('created_at', '<=', $request->fecha_hasta);
         }
 
+        // Calcular estadísticas antes de paginar (sobre todos los registros filtrados)
+        $totalEntradas = (clone $query)->where('tipo_movimiento', 'entrada')->sum('cantidad');
+        $totalSalidas = (clone $query)->where('tipo_movimiento', 'salida')->sum('cantidad');
+        $totalMovimientos = (clone $query)->count();
+
         $movimientos = $query->paginate(10);
         $libros = Libro::orderBy('nombre')->get();
 
-        return view('movimientos.index', compact('movimientos', 'libros'));
+        return view('movimientos.index', compact('movimientos', 'libros', 'totalEntradas', 'totalSalidas', 'totalMovimientos'));
     }
 
     /**

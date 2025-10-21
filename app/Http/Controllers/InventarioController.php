@@ -14,8 +14,8 @@ class InventarioController extends Controller
     {
         $query = Libro::query();
 
-        // Búsqueda
-        if ($request->has('search') && $request->search != '') {
+        // Búsqueda por nombre o código de barras
+        if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->where('nombre', 'like', "%{$search}%")
@@ -23,7 +23,66 @@ class InventarioController extends Controller
             });
         }
 
-        $libros = $query->orderBy('id', 'desc')->paginate(10);
+        // Filtro por stock
+        if ($request->filled('stock_filter')) {
+            switch ($request->stock_filter) {
+                case 'sin_stock':
+                    $query->where('stock', 0);
+                    break;
+                case 'bajo_stock':
+                    $query->where('stock', '>', 0)->where('stock', '<=', 5);
+                    break;
+                case 'stock_medio':
+                    $query->whereBetween('stock', [6, 20]);
+                    break;
+                case 'stock_alto':
+                    $query->where('stock', '>', 20);
+                    break;
+            }
+        }
+
+        // Filtro por rango de precio
+        if ($request->filled('precio_filter')) {
+            switch ($request->precio_filter) {
+                case 'bajo':
+                    $query->where('precio', '<=', 50);
+                    break;
+                case 'medio':
+                    $query->whereBetween('precio', [51, 150]);
+                    break;
+                case 'alto':
+                    $query->where('precio', '>', 150);
+                    break;
+            }
+        }
+
+        // Ordenamiento
+        $ordenar = $request->get('ordenar', 'reciente');
+        switch ($ordenar) {
+            case 'nombre_asc':
+                $query->orderBy('nombre', 'asc');
+                break;
+            case 'nombre_desc':
+                $query->orderBy('nombre', 'desc');
+                break;
+            case 'precio_asc':
+                $query->orderBy('precio', 'asc');
+                break;
+            case 'precio_desc':
+                $query->orderBy('precio', 'desc');
+                break;
+            case 'stock_asc':
+                $query->orderBy('stock', 'asc');
+                break;
+            case 'stock_desc':
+                $query->orderBy('stock', 'desc');
+                break;
+            default: // reciente
+                $query->orderBy('id', 'desc');
+                break;
+        }
+
+        $libros = $query->paginate(10);
 
         return view('inventario.index', compact('libros'));
     }
