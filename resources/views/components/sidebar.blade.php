@@ -20,6 +20,13 @@
             :active="request()->routeIs('inventario.*')"
         />
 
+        <x-menu-item 
+            icon="fas fa-exchange-alt" 
+            label="Movimientos" 
+            route="movimientos.index" 
+            :active="request()->routeIs('movimientos.*')"
+        />
+
         <!-- Aquí se pueden agregar más items del menú -->
     </nav>
 

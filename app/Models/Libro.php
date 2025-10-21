@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Libro extends Model
 {
@@ -19,4 +20,10 @@ class Libro extends Model
         'precio' => 'double',
         'stock' => 'integer',
     ];
+
+    // Relación con movimientos
+    public function movimientos(): HasMany
+    {
+        return $this->hasMany(Movimiento::class);
+    }
 }
