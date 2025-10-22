@@ -147,15 +147,15 @@
                     </label>
 
                     <div class="flex gap-3 justify-end">
-                        <x-button type="submit" variant="primary" icon="fas fa-file-import">
-                            Importar Libros
-                        </x-button>
-                        
                         <x-button type="button" 
                                   variant="secondary" 
                                   icon="fas fa-times"
                                   onclick="window.location='{{ route('inventario.index') }}'">
                             Cancelar
+                        </x-button>
+                        
+                        <x-button type="submit" variant="primary" icon="fas fa-file-import">
+                            Importar Libros
                         </x-button>
                     </div>
                 </div>
