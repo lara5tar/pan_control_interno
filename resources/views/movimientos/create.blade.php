@@ -6,12 +6,22 @@
 @section('page-description', 'Registra una entrada o salida de libros')
 
 @section('content')
-<div class="max-w-3xl mx-auto">
-    <x-card>
-        <form action="{{ route('movimientos.store') }}" method="POST" id="movimientoForm">
-            @csrf
+<div class="space-y-6">
+    <!-- Encabezado -->
+    <x-page-header 
+        title="Registrar Movimiento"
+        description="Registra una entrada o salida de libros del inventario"
+        button-text="Volver a Movimientos"
+        button-icon="fas fa-arrow-left"
+        :button-route="route('movimientos.index')"
+    />
 
-            <div class="space-y-6">
+    <div class="max-w-3xl mx-auto">
+        <x-card>
+            <form action="{{ route('movimientos.store') }}" method="POST" id="movimientoForm">
+                @csrf
+
+                <div class="space-y-6">
                 <!-- Selección de Libro con Buscador -->
                 <x-libro-search-filter 
                     name="libro_id"
@@ -141,6 +151,7 @@
             </div>
         </form>
     </x-card>
+</div>
 </div>
 
 <script>

@@ -1,4 +1,4 @@
-@props(['type' => 'info', 'message'])
+@props(['type' => 'info', 'message' => null])
 
 @php
     $classes = [
@@ -20,7 +20,7 @@
     <div class="flex items-center justify-between">
         <div class="flex items-center">
             <i class="{{ $icons[$type] }} mr-2"></i>
-            <p>{{ $message }}</p>
+            <p>{{ $message ?? $slot }}</p>
         </div>
         <button onclick="this.parentElement.parentElement.remove()" class="text-gray-500 hover:text-gray-700 ml-4">
             <i class="fas fa-times"></i>

@@ -8,61 +8,39 @@
 @section('content')
 <div class="space-y-6">
     <!-- Encabezado con botón -->
-    <div class="flex justify-between items-center">
-        <div>
-            <h3 class="text-xl font-semibold text-gray-800">Historial de Movimientos</h3>
-            <p class="text-gray-600 text-sm mt-1">Total: {{ $totalMovimientos }} movimientos</p>
-        </div>
-        <x-button 
-            variant="primary" 
-            icon="fas fa-plus-circle"
-            onclick="window.location='{{ route('movimientos.create') }}'"
-        >
-            Registrar Movimiento
-        </x-button>
-    </div>
+    <x-page-header 
+        title="Historial de Movimientos"
+        description="Total: {{ $totalMovimientos }} movimientos"
+        button-text="Registrar Movimiento"
+        button-icon="fas fa-plus"
+        :button-route="route('movimientos.create')"
+    />
 
     <!-- Estadísticas rápidas -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <x-card>
-            <div class="flex items-center">
-                <div class="p-3 bg-green-100 rounded-full">
-                    <i class="fas fa-arrow-up text-green-600 text-2xl"></i>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm text-gray-600">Total Entradas</p>
-                    <p class="text-2xl font-bold text-gray-900">
-                        {{ $totalEntradas }}
-                    </p>
-                </div>
-            </div>
-        </x-card>
+        <x-stat-card 
+            icon="fas fa-arrow-up"
+            label="Total Entradas"
+            :value="$totalEntradas"
+            bg-color="bg-green-100"
+            icon-color="text-green-600"
+        />
 
-        <x-card>
-            <div class="flex items-center">
-                <div class="p-3 bg-red-100 rounded-full">
-                    <i class="fas fa-arrow-down text-red-600 text-2xl"></i>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm text-gray-600">Total Salidas</p>
-                    <p class="text-2xl font-bold text-gray-900">
-                        {{ $totalSalidas }}
-                    </p>
-                </div>
-            </div>
-        </x-card>
+        <x-stat-card 
+            icon="fas fa-arrow-down"
+            label="Total Salidas"
+            :value="$totalSalidas"
+            bg-color="bg-red-100"
+            icon-color="text-red-600"
+        />
 
-        <x-card>
-            <div class="flex items-center">
-                <div class="p-3 bg-blue-100 rounded-full">
-                    <i class="fas fa-exchange-alt text-blue-600 text-2xl"></i>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm text-gray-600">Movimientos</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ $totalMovimientos }}</p>
-                </div>
-            </div>
-        </x-card>
+        <x-stat-card 
+            icon="fas fa-exchange-alt"
+            label="Movimientos"
+            :value="$totalMovimientos"
+            bg-color="bg-blue-100"
+            icon-color="text-blue-600"
+        />
     </div>
 
     <!-- Filtros -->
@@ -144,14 +122,6 @@
         </form>
     </x-card>
 
-    <!-- Alertas -->
-    @if(session('success'))
-        <x-alert type="success">{{ session('success') }}</x-alert>
-    @endif
-    @if(session('warning'))
-        <x-alert type="warning">{{ session('warning') }}</x-alert>
-    @endif
-
     <!-- Tabla de movimientos -->
     <x-card>
         <x-table 
@@ -208,7 +178,7 @@
                     </x-table-cell>
                     <x-table-cell align="center">
                         <a href="{{ route('movimientos.show', $movimiento) }}" 
-                           class="text-primary-500 hover:text-primary-700 transition-colors inline-flex items-center"
+                           class="text-gray-800 hover:text-gray-900 transition-colors inline-flex items-center"
                            title="Ver detalles">
                             <i class="fas fa-eye mr-1"></i>
                             <span class="text-xs">Ver</span>

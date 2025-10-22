@@ -26,32 +26,41 @@ class InventarioController extends Controller
         // Filtro por stock
         if ($request->filled('stock_filter')) {
             switch ($request->stock_filter) {
-                case 'sin_stock':
-                    $query->where('stock', 0);
+                case '0-100':
+                    $query->where('stock', '<', 100);
                     break;
-                case 'bajo_stock':
-                    $query->where('stock', '>', 0)->where('stock', '<=', 5);
+                case '100-200':
+                    $query->whereBetween('stock', [100, 200]);
                     break;
-                case 'stock_medio':
-                    $query->whereBetween('stock', [6, 20]);
+                case '200-300':
+                    $query->whereBetween('stock', [200, 300]);
                     break;
-                case 'stock_alto':
-                    $query->where('stock', '>', 20);
+                case '300-400':
+                    $query->whereBetween('stock', [300, 400]);
+                    break;
+                case '400-up':
+                    $query->where('stock', '>=', 400);
                     break;
             }
         }
 
-        // Filtro por rango de precio
+        // Filtro por precio
         if ($request->filled('precio_filter')) {
             switch ($request->precio_filter) {
-                case 'bajo':
-                    $query->where('precio', '<=', 50);
+                case '0-100':
+                    $query->where('precio', '<', 100);
                     break;
-                case 'medio':
-                    $query->whereBetween('precio', [51, 150]);
+                case '100-200':
+                    $query->whereBetween('precio', [100, 200]);
                     break;
-                case 'alto':
-                    $query->where('precio', '>', 150);
+                case '200-300':
+                    $query->whereBetween('precio', [200, 300]);
+                    break;
+                case '300-400':
+                    $query->whereBetween('precio', [300, 400]);
+                    break;
+                case '400-up':
+                    $query->where('precio', '>=', 400);
                     break;
             }
         }
@@ -65,26 +74,19 @@ class InventarioController extends Controller
             case 'nombre_desc':
                 $query->orderBy('nombre', 'desc');
                 break;
-            case 'precio_asc':
-                $query->orderBy('precio', 'asc');
-                break;
-            case 'precio_desc':
-                $query->orderBy('precio', 'desc');
-                break;
-            case 'stock_asc':
-                $query->orderBy('stock', 'asc');
-                break;
-            case 'stock_desc':
-                $query->orderBy('stock', 'desc');
-                break;
             default: // reciente
                 $query->orderBy('id', 'desc');
                 break;
         }
 
+        // Calcular estadísticas antes de paginar (sobre todos los registros filtrados)
+        $totalLibros = (clone $query)->count();
+        $stockTotal = (clone $query)->sum('stock');
+        $valorTotal = (clone $query)->selectRaw('SUM(stock * precio) as valor')->value('valor');
+
         $libros = $query->paginate(10);
 
-        return view('inventario.index', compact('libros'));
+        return view('inventario.index', compact('libros', 'totalLibros', 'stockTotal', 'valorTotal'));
     }
 
     /**

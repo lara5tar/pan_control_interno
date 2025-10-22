@@ -8,14 +8,39 @@
 @section('content')
 <div class="space-y-6">
     <!-- Encabezado con botón de acción -->
-    <div class="flex justify-between items-center">
-        <div>
-            <h3 class="text-xl font-semibold text-gray-800">Listado de Libros</h3>
-            <p class="text-gray-600 text-sm mt-1">Total de libros: {{ $libros->total() }}</p>
-        </div>
-        <x-button variant="primary" icon="fas fa-plus" onclick="window.location='{{ route('inventario.create') }}'">
-            Agregar Libro
-        </x-button>
+    <x-page-header 
+        title="Listado de Libros"
+        description="Total: {{ $totalLibros }} libros"
+        button-text="Registrar Libro"
+        button-icon="fas fa-plus"
+        :button-route="route('inventario.create')"
+    />
+
+    <!-- Estadísticas rápidas -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <x-stat-card 
+            icon="fas fa-book"
+            label="Total Libros"
+            :value="$totalLibros"
+            bg-color="bg-gray-800"
+            icon-color="text-white"
+        />
+
+        <x-stat-card 
+            icon="fas fa-boxes"
+            label="Stock Total"
+            :value="$stockTotal"
+            bg-color="bg-green-100"
+            icon-color="text-green-600"
+        />
+
+        <x-stat-card 
+            icon="fas fa-dollar-sign"
+            label="Valor Total"
+            :value="'$' . number_format($valorTotal, 2)"
+            bg-color="bg-purple-100"
+            icon-color="text-purple-600"
+        />
     </div>
 
     <!-- Filtros y búsqueda -->
@@ -43,23 +68,26 @@
                     </label>
                     <select name="stock_filter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
                         <option value="">Todos</option>
-                        <option value="sin_stock" {{ request('stock_filter') == 'sin_stock' ? 'selected' : '' }}>Sin stock</option>
-                        <option value="bajo_stock" {{ request('stock_filter') == 'bajo_stock' ? 'selected' : '' }}>Stock bajo (≤5)</option>
-                        <option value="stock_medio" {{ request('stock_filter') == 'stock_medio' ? 'selected' : '' }}>Stock medio (6-20)</option>
-                        <option value="stock_alto" {{ request('stock_filter') == 'stock_alto' ? 'selected' : '' }}>Stock alto (>20)</option>
+                        <option value="0-100" {{ request('stock_filter') == '0-100' ? 'selected' : '' }}>Menos de 100</option>
+                        <option value="100-200" {{ request('stock_filter') == '100-200' ? 'selected' : '' }}>100 a 200</option>
+                        <option value="200-300" {{ request('stock_filter') == '200-300' ? 'selected' : '' }}>200 a 300</option>
+                        <option value="300-400" {{ request('stock_filter') == '300-400' ? 'selected' : '' }}>300 a 400</option>
+                        <option value="400-up" {{ request('stock_filter') == '400-up' ? 'selected' : '' }}>400 o más</option>
                     </select>
                 </div>
 
-                <!-- Filtro por rango de precio -->
+                <!-- Filtro por precio -->
                 <div class="w-full md:w-40">
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         <i class="fas fa-dollar-sign text-gray-400"></i> Precio
                     </label>
                     <select name="precio_filter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
                         <option value="">Todos</option>
-                        <option value="bajo" {{ request('precio_filter') == 'bajo' ? 'selected' : '' }}>Bajo ($0-$50)</option>
-                        <option value="medio" {{ request('precio_filter') == 'medio' ? 'selected' : '' }}>Medio ($51-$150)</option>
-                        <option value="alto" {{ request('precio_filter') == 'alto' ? 'selected' : '' }}>Alto (>$150)</option>
+                        <option value="0-100" {{ request('precio_filter') == '0-100' ? 'selected' : '' }}>Menos de $100</option>
+                        <option value="100-200" {{ request('precio_filter') == '100-200' ? 'selected' : '' }}>$100 a $200</option>
+                        <option value="200-300" {{ request('precio_filter') == '200-300' ? 'selected' : '' }}>$200 a $300</option>
+                        <option value="300-400" {{ request('precio_filter') == '300-400' ? 'selected' : '' }}>$300 a $400</option>
+                        <option value="400-up" {{ request('precio_filter') == '400-up' ? 'selected' : '' }}>$400 o más</option>
                     </select>
                 </div>
 
@@ -72,10 +100,6 @@
                         <option value="reciente" {{ request('ordenar', 'reciente') == 'reciente' ? 'selected' : '' }}>Más recientes</option>
                         <option value="nombre_asc" {{ request('ordenar') == 'nombre_asc' ? 'selected' : '' }}>Nombre (A-Z)</option>
                         <option value="nombre_desc" {{ request('ordenar') == 'nombre_desc' ? 'selected' : '' }}>Nombre (Z-A)</option>
-                        <option value="precio_asc" {{ request('ordenar') == 'precio_asc' ? 'selected' : '' }}>Precio (menor)</option>
-                        <option value="precio_desc" {{ request('ordenar') == 'precio_desc' ? 'selected' : '' }}>Precio (mayor)</option>
-                        <option value="stock_asc" {{ request('ordenar') == 'stock_asc' ? 'selected' : '' }}>Stock (menor)</option>
-                        <option value="stock_desc" {{ request('ordenar') == 'stock_desc' ? 'selected' : '' }}>Stock (mayor)</option>
                     </select>
                 </div>
             </div>
@@ -118,12 +142,12 @@
                     <x-table-cell>
                         <div class="flex items-center space-x-3">
                             <a href="{{ route('inventario.show', $libro->id) }}" 
-                               class="text-primary-500 hover:text-primary-700 transition-colors"
+                               class="text-gray-800 hover:text-gray-900 transition-colors"
                                title="Ver detalles">
                                 <i class="fas fa-eye"></i>
                             </a>
                             <a href="{{ route('inventario.edit', $libro->id) }}" 
-                               class="text-primary-500 hover:text-primary-700 transition-colors"
+                               class="text-gray-800 hover:text-gray-900 transition-colors"
                                title="Editar">
                                 <i class="fas fa-edit"></i>
                             </a>
