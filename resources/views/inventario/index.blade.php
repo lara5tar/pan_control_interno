@@ -15,7 +15,7 @@
 >
     <x-slot name="header">
         <x-button 
-            variant="secondary" 
+            variant="primary" 
             icon="fas fa-plus"
             onclick="window.location='{{ route('inventario.create') }}'"
         >

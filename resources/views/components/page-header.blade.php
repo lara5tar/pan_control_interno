@@ -11,7 +11,7 @@
     <div class="flex gap-3 flex-shrink-0">
         @if($buttonText && $buttonRoute)
             <x-button 
-                variant="primary" 
+                variant="secondary" 
                 icon="{{ $buttonIcon ?? 'fas fa-plus' }}"
                 onclick="window.location='{{ $buttonRoute }}'"
             >
