@@ -6,16 +6,14 @@
 @section('page-description', 'Información completa del libro')
 
 @section('content')
-<div class="max-w-3xl mx-auto space-y-6">
-    <!-- Encabezado -->
-    <x-page-header 
-        title="Detalle del Libro"
-        :description="'Información completa de: ' . $libro->nombre"
-        button-text="Volver al Inventario"
-        button-icon="fas fa-arrow-left"
-        :button-route="route('inventario.index')"
-    />
-
+<x-page-layout 
+    title="Detalle del Libro"
+    :description="'Información completa de: ' . $libro->nombre"
+    button-text="Volver al Inventario"
+    button-icon="fas fa-arrow-left"
+    :button-route="route('inventario.index')"
+    :centered="true"
+>
     <!-- Información principal -->
     <x-card title="Información del Libro">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -31,7 +29,9 @@
 
             <div>
                 <p class="text-sm text-gray-600 mb-1">Código de Barras</p>
-                <p class="text-lg font-semibold text-gray-800">{{ $libro->codigo_barras }}</p>
+                <p class="text-lg font-semibold {{ $libro->codigo_barras ? 'text-gray-800' : 'text-gray-400 italic' }}">
+                    {{ $libro->codigo_barras ?? 'Sin código de barras' }}
+                </p>
             </div>
 
             <div>
@@ -57,30 +57,38 @@
 
     <!-- Código QR -->
     <x-card title="Código QR">
-        <div class="flex flex-col md:flex-row gap-6 items-center">
-            <div class="flex-shrink-0">
-                <div class="bg-white p-4 rounded-lg border-2 border-gray-200 inline-block">
-                    {!! QrCode::size(200)->generate($libro->codigo_barras) !!}
+        @if($libro->codigo_barras)
+            <div class="flex flex-col md:flex-row gap-6 items-center">
+                <div class="flex-shrink-0">
+                    <div class="bg-white p-4 rounded-lg border-2 border-gray-200 inline-block">
+                        {!! QrCode::size(200)->generate($libro->codigo_barras) !!}
+                    </div>
+                </div>
+                <div class="flex-1 text-center md:text-left">
+                    <h4 class="text-lg font-semibold text-gray-800 mb-2">
+                        <i class="fas fa-qrcode text-gray-600"></i>
+                        Código QR del Libro
+                    </h4>
+                    <p class="text-gray-600 mb-4">
+                        Escanea este código QR para acceder rápidamente al código de barras: 
+                        <span class="font-mono font-semibold text-gray-800">{{ $libro->codigo_barras }}</span>
+                    </p>
+                    <div class="flex justify-center md:justify-start">
+                        <a href="{{ route('inventario.qr.download', $libro->id) }}">
+                            <x-button variant="primary" icon="fas fa-download">
+                                Descargar QR
+                            </x-button>
+                        </a>
+                    </div>
                 </div>
             </div>
-            <div class="flex-1 text-center md:text-left">
-                <h4 class="text-lg font-semibold text-gray-800 mb-2">
-                    <i class="fas fa-qrcode text-gray-600"></i>
-                    Código QR del Libro
-                </h4>
-                <p class="text-gray-600 mb-4">
-                    Escanea este código QR para acceder rápidamente al código de barras: 
-                    <span class="font-mono font-semibold text-gray-800">{{ $libro->codigo_barras }}</span>
-                </p>
-                <div class="flex justify-center md:justify-start">
-                    <a href="{{ route('inventario.qr.download', $libro->id) }}">
-                        <x-button variant="primary" icon="fas fa-download">
-                            Descargar QR
-                        </x-button>
-                    </a>
-                </div>
+        @else
+            <div class="text-center py-8">
+                <i class="fas fa-barcode text-gray-300 text-6xl mb-4"></i>
+                <p class="text-gray-500 text-lg font-medium">Sin código de barras</p>
+                <p class="text-gray-400 text-sm mt-2">Este libro no tiene código de barras asignado</p>
             </div>
-        </div>
+        @endif
     </x-card>
 
     <!-- Información de fechas -->
@@ -121,5 +129,5 @@
             </x-button>
         </form>
     </div>
-</div>
+</x-page-layout>
 @endsection

@@ -6,7 +6,14 @@
 @section('page-description', 'Información completa del movimiento de inventario')
 
 @section('content')
-<div class="max-w-4xl mx-auto space-y-6">
+<x-page-layout 
+    title="Detalle del Movimiento"
+    description="Información completa del movimiento de inventario"
+    button-text="Volver a Movimientos"
+    button-icon="fas fa-arrow-left"
+    :button-route="route('movimientos.index')"
+    :centered="true"
+>
     <!-- Información Principal -->
     <x-card>
         <div class="flex items-start justify-between mb-6">
@@ -167,5 +174,5 @@
             Ver Libro
         </x-button>
     </div>
-</div>
+</x-page-layout>
 @endsection

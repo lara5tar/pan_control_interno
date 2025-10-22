@@ -6,23 +6,22 @@
 @section('page-description', 'Gestión y control del inventario de libros')
 
 @section('content')
-<div class="space-y-6">
-    <!-- Encabezado con botón de acción -->
-    <x-page-header 
-        title="Listado de Libros"
-        description="Total: {{ $totalLibros }} libros"
-        button-text="Registrar Libro"
-        button-icon="fas fa-plus"
-        :button-route="route('inventario.create')"
-    >
+<x-page-layout 
+    title="Listado de Libros"
+    description="Total: {{ $totalLibros }} libros"
+    button-text="Importar Excel"
+    button-icon="fas fa-file-excel"
+    :button-route="route('inventario.import')"
+>
+    <x-slot name="header">
         <x-button 
             variant="secondary" 
-            icon="fas fa-file-excel"
-            onclick="window.location='{{ route('inventario.import') }}'"
+            icon="fas fa-plus"
+            onclick="window.location='{{ route('inventario.create') }}'"
         >
-            Importar Excel
+            Registrar Libro
         </x-button>
-    </x-page-header>
+    </x-slot>
 
     <!-- Estadísticas rápidas -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -182,5 +181,5 @@
             </div>
         @endif
     </x-card>
-</div>
+</x-page-layout>
 @endsection

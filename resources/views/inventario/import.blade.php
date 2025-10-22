@@ -6,16 +6,13 @@
 @section('page-description', 'Carga masiva de libros mediante archivo Excel')
 
 @section('content')
-<div class="space-y-6">
-    <!-- Encabezado -->
-    <x-page-header 
-        title="Importación Masiva de Libros"
-        description="Sube un archivo Excel con múltiples libros para registrarlos de forma automática"
-        button-text="Volver al Inventario"
-        button-icon="fas fa-arrow-left"
-        :button-route="route('inventario.index')"
-    />
-
+<x-page-layout 
+    title="Importación Masiva de Libros"
+    description="Sube un archivo Excel con múltiples libros para registrarlos de forma automática"
+    button-text="Volver al Inventario"
+    button-icon="fas fa-arrow-left"
+    :button-route="route('inventario.index')"
+>
     <!-- Mensajes de advertencia con errores -->
     @if(session('warning') && session('errors_list'))
         <x-alert type="warning">
@@ -36,6 +33,43 @@
     @endif
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Instrucciones y descarga de plantilla -->
+        <x-card>
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                <i class="fas fa-info-circle text-blue-600"></i>
+                Plantilla de Excel
+            </h3>
+            
+            <div class="space-y-4">
+                <!-- Botón de descarga de plantilla -->
+                <div class="bg-gradient-to-r from-green-50 to-emerald-50 border border-gray-200 p-4 rounded-lg">
+                    
+                    <p class="text-sm text-green-700 mb-3">
+                        Descarga la plantilla para comenzar la importación de tus libros
+                    </p>
+                    <a href="{{ route('inventario.download-template') }}" 
+                       class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors  hover:border-green-600 w-full justify-center">
+                        <i class="fas fa-download"></i>
+                        Descargar Plantilla Excel
+                    </a>
+                </div>
+
+                <!-- Notas Importantes -->
+                <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded">
+                    <h4 class="font-semibold text-amber-800 mb-2">
+                        <i class="fas fa-exclamation-triangle"></i> Importante:
+                    </h4>
+                    <ul class="list-disc list-inside space-y-1 text-sm text-amber-900">
+                        <li>No modifiques los encabezados de las columnas</li>
+                        <li>Todos los campos marcados con (*) son obligatorios</li>
+                        <li>El código de barras es opcional (puedes dejarlo vacío)</li>
+                        <li>El precio debe ser un número decimal (ej: 150.50)</li>
+                        <li>El stock debe ser un número entero positivo</li>
+                    </ul>
+                </div>
+            </div>
+        </x-card>
+
         <!-- Formulario de subida -->
         <x-card>
             <h3 class="text-lg font-semibold text-gray-800 mb-4">
@@ -99,8 +133,8 @@
                     @enderror
                 </div>
 
-                <!-- Opciones adicionales -->
-                <div class="space-y-3 pt-2">
+                <!-- Opciones y botones -->
+                <div class="space-y-3">
                     <label class="flex items-center gap-2 cursor-pointer">
                         <input type="checkbox" 
                                name="skip_errors" 
@@ -111,63 +145,26 @@
                             Continuar importación si hay errores en algunas filas
                         </span>
                     </label>
-                </div>
 
-                <!-- Botones de acción -->
-                <div class="flex gap-3 pt-4">
-                    <x-button type="submit" variant="primary" icon="fas fa-file-import">
-                        Importar Libros
-                    </x-button>
-                    
-                    <x-button type="button" 
-                              variant="secondary" 
-                              icon="fas fa-times"
-                              onclick="window.location='{{ route('inventario.index') }}'">
-                        Cancelar
-                    </x-button>
+                    <div class="flex gap-3 justify-end">
+                        <x-button type="submit" variant="primary" icon="fas fa-file-import">
+                            Importar Libros
+                        </x-button>
+                        
+                        <x-button type="button" 
+                                  variant="secondary" 
+                                  icon="fas fa-times"
+                                  onclick="window.location='{{ route('inventario.index') }}'">
+                            Cancelar
+                        </x-button>
+                    </div>
                 </div>
             </form>
         </x-card>
-
-        <!-- Instrucciones y descarga de plantilla -->
-        <x-card>
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">
-                <i class="fas fa-info-circle text-blue-600"></i>
-                Plantilla de Excel
-            </h3>
-            
-            <div class="space-y-4">
-                <!-- Botón de descarga de plantilla -->
-                <div class="bg-gradient-to-r from-green-50 to-emerald-50 border border-gray-200 p-4 rounded-lg">
-                    
-                    <p class="text-sm text-green-700 mb-3">
-                        Descarga la plantilla para comenzar la importación de tus libros
-                    </p>
-                    <a href="{{ route('inventario.download-template') }}" 
-                       class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors  hover:border-green-600 w-full justify-center">
-                        <i class="fas fa-download"></i>
-                        Descargar Plantilla Excel
-                    </a>
-                </div>
-
-                <!-- Notas Importantes -->
-                <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded">
-                    <h4 class="font-semibold text-amber-800 mb-2">
-                        <i class="fas fa-exclamation-triangle"></i> Importante:
-                    </h4>
-                    <ul class="list-disc list-inside space-y-1 text-sm text-amber-900">
-                        <li>No modifiques los encabezados de las columnas</li>
-                        <li>Todos los campos marcados con (*) son obligatorios</li>
-                        <li>El código de barras es opcional (puedes dejarlo vacío)</li>
-                        
-                    </ul>
-                </div>
-            </div>
-        </x-card>
     </div>
-</div>
 
-<x-loading />
+    <x-loading />
+</x-page-layout>
 
 @push('scripts')
 <script>

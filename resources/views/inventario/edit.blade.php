@@ -6,7 +6,14 @@
 @section('page-description', 'Actualiza la información del libro')
 
 @section('content')
-<div class="max-w-2xl mx-auto">
+<x-page-layout 
+    title="Editar Libro"
+    :description="'Actualiza la información de: ' . $libro->nombre"
+    button-text="Volver al Inventario"
+    button-icon="fas fa-arrow-left"
+    :button-route="route('inventario.index')"
+    :centered="true"
+>
     <x-card>
         <x-libro-form 
             :libro="$libro"
@@ -15,5 +22,5 @@
             submitText="Actualizar Libro"
         />
     </x-card>
-</div>
+</x-page-layout>
 @endsection

@@ -6,16 +6,13 @@
 @section('page-description', 'Historial completo de entradas y salidas')
 
 @section('content')
-<div class="space-y-6">
-    <!-- Encabezado con botón -->
-    <x-page-header 
-        title="Historial de Movimientos"
-        description="Total: {{ $totalMovimientos }} movimientos"
-        button-text="Registrar Movimiento"
-        button-icon="fas fa-plus"
-        :button-route="route('movimientos.create')"
-    />
-
+<x-page-layout 
+    title="Historial de Movimientos"
+    description="Total: {{ $totalMovimientos }} movimientos"
+    button-text="Registrar Movimiento"
+    button-icon="fas fa-plus"
+    :button-route="route('movimientos.create')"
+>
     <!-- Estadísticas rápidas -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <x-stat-card 
@@ -195,5 +192,5 @@
             </div>
         @endif
     </x-card>
-</div>
+</x-page-layout>
 @endsection

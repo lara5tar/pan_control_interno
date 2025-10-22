@@ -6,13 +6,10 @@
 @section('page-description', 'Resumen general del sistema')
 
 @section('content')
-<div class="space-y-6">
-    <!-- Título de la página -->
-    <x-page-header 
-        title="Panel de Control"
-        description="Resumen general del inventario y movimientos"
-    />
-
+<x-page-layout 
+    title="Panel de Control"
+    description="Resumen general del inventario y movimientos"
+>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <x-stat-card 
             icon="fas fa-book"
@@ -61,5 +58,5 @@
             </div>
         </x-card>
     </div>
-</div>
+</x-page-layout>
 @endsection
