@@ -36,55 +36,10 @@
     @endif
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Instrucciones y descarga de plantilla -->
-        <x-card>
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">
-                <i class="fas fa-info-circle text-blue-600"></i>
-                Instrucciones
-            </h3>
-            
-            <div class="space-y-4">
-                <div class="bg-blue-50 border-l-4 border-blue-600 p-4 rounded">
-                    <h4 class="font-semibold text-blue-800 mb-2">Pasos para importar:</h4>
-                    <ol class="list-decimal list-inside space-y-2 text-sm text-blue-900">
-                        <li>Descarga la plantilla de Excel haciendo clic en el botón de abajo</li>
-                        <li>Completa la plantilla con los datos de los libros</li>
-                        <li>Guarda el archivo Excel en tu computadora</li>
-                        <li>Sube el archivo usando el formulario de la derecha</li>
-                        <li>Revisa los resultados de la importación</li>
-                    </ol>
-                </div>
-
-                <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded">
-                    <h4 class="font-semibold text-yellow-800 mb-2">⚠️ Importante:</h4>
-                    <ul class="list-disc list-inside space-y-1 text-sm text-yellow-900">
-                        <li>No modifiques los encabezados de las columnas</li>
-                        <li>Todos los campos marcados con (*) son obligatorios</li>
-                        <li>El código de barras es opcional (puedes dejarlo vacío)</li>
-                        <li>El formato de precio debe ser numérico (ej: 150.50)</li>
-                        <li>La cantidad debe ser un número entero positivo</li>
-                    </ul>
-                </div>
-
-                <!-- Botón de descarga de plantilla -->
-                <div class="pt-4">
-                    <a href="{{ route('inventario.download-template') }}" 
-                       class="inline-flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors shadow-sm">
-                        <i class="fas fa-download"></i>
-                        Descargar Plantilla Excel
-                    </a>
-                    <p class="text-xs text-gray-500 mt-2">
-                        <i class="fas fa-file-excel text-green-600"></i>
-                        Archivo: plantilla_libros.xlsx
-                    </p>
-                </div>
-            </div>
-        </x-card>
-
         <!-- Formulario de subida -->
         <x-card>
             <h3 class="text-lg font-semibold text-gray-800 mb-4">
-                <i class="fas fa-upload text-gray-600"></i>
+                <i class="fas fa-upload text-blue-600"></i>
                 Subir Archivo Excel
             </h3>
 
@@ -172,6 +127,42 @@
                     </x-button>
                 </div>
             </form>
+        </x-card>
+
+        <!-- Instrucciones y descarga de plantilla -->
+        <x-card>
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                <i class="fas fa-info-circle text-blue-600"></i>
+                Plantilla de Excel
+            </h3>
+            
+            <div class="space-y-4">
+                <!-- Botón de descarga de plantilla -->
+                <div class="bg-gradient-to-r from-green-50 to-emerald-50 border border-gray-200 p-4 rounded-lg">
+                    
+                    <p class="text-sm text-green-700 mb-3">
+                        Descarga la plantilla para comenzar la importación de tus libros
+                    </p>
+                    <a href="{{ route('inventario.download-template') }}" 
+                       class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors  hover:border-green-600 w-full justify-center">
+                        <i class="fas fa-download"></i>
+                        Descargar Plantilla Excel
+                    </a>
+                </div>
+
+                <!-- Notas Importantes -->
+                <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded">
+                    <h4 class="font-semibold text-amber-800 mb-2">
+                        <i class="fas fa-exclamation-triangle"></i> Importante:
+                    </h4>
+                    <ul class="list-disc list-inside space-y-1 text-sm text-amber-900">
+                        <li>No modifiques los encabezados de las columnas</li>
+                        <li>Todos los campos marcados con (*) son obligatorios</li>
+                        <li>El código de barras es opcional (puedes dejarlo vacío)</li>
+                        
+                    </ul>
+                </div>
+            </div>
         </x-card>
     </div>
 </div>
