@@ -31,12 +31,13 @@
             :active="request()->routeIs('inventario.*')"
         />
 
-        <x-menu-item 
+        {{-- TEMPORAL: Módulo de Movimientos oculto --}}
+        {{-- <x-menu-item 
             icon="fas fa-exchange-alt" 
             label="Movimientos" 
             route="movimientos.index" 
             :active="request()->routeIs('movimientos.*')"
-        />
+        /> --}}
     </nav>
 
     <!-- Footer -->

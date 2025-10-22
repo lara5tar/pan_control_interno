@@ -72,9 +72,10 @@
         <x-button variant="primary" icon="fas fa-edit" onclick="window.location='{{ route('inventario.edit', $libro->id) }}'">
             Editar
         </x-button>
-        <x-button variant="secondary" icon="fas fa-exchange-alt" onclick="window.location='{{ route('movimientos.index', ['libro_id' => $libro->id]) }}'">
+        {{-- TEMPORAL: Botón de Movimientos oculto --}}
+        {{-- <x-button variant="secondary" icon="fas fa-exchange-alt" onclick="window.location='{{ route('movimientos.index', ['libro_id' => $libro->id]) }}'">
             Ver Movimientos
-        </x-button>
+        </x-button> --}}
         <x-button variant="secondary" icon="fas fa-arrow-left" onclick="window.location='{{ route('inventario.index') }}'">
             Volver al Listado
         </x-button>
