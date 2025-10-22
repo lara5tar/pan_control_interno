@@ -165,6 +165,12 @@ class LibroService
      */
     private function applySorting(Builder $query, Request $request): void
     {
+        // Si hay filtro de stock, ordenar automáticamente por stock ascendente
+        if ($request->filled('stock_filter')) {
+            $query->orderBy('stock', 'asc');
+            return;
+        }
+
         $ordenar = $request->get('ordenar', 'reciente');
         
         switch ($ordenar) {
