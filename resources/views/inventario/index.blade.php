@@ -112,17 +112,40 @@
             </div>
 
             <!-- Botones de acción -->
-            <div class="flex gap-3 pt-4 border-t border-gray-200">
-                <x-button type="submit" variant="primary" icon="fas fa-filter">
-                    Aplicar Filtros
-                </x-button>
-
-                @if(request()->hasAny(['search', 'stock_filter', 'precio_filter', 'ordenar']))
-                    <x-button type="button" variant="secondary" icon="fas fa-times" 
-                              onclick="window.location='{{ route('inventario.index') }}'">
-                        Limpiar Filtros
+            <div class="flex flex-wrap justify-between items-center gap-3 pt-2">
+                <div class="flex gap-3">
+                    <x-button type="submit" variant="primary" icon="fas fa-filter">
+                        Aplicar Filtros
                     </x-button>
-                @endif
+
+                    @if(request()->hasAny(['search', 'stock_filter', 'precio_filter', 'ordenar']))
+                        <x-button type="button" variant="secondary" icon="fas fa-times" 
+                                  onclick="window.location='{{ route('inventario.index') }}'">
+                            Limpiar Filtros
+                        </x-button>
+                    @endif
+                </div>
+
+                <!-- Botones de exportación -->
+                <div class="flex gap-3">
+                    <x-button 
+                        type="button" 
+                        variant="success" 
+                        icon="fas fa-file-excel"
+                        onclick="window.location='{{ route('inventario.export.excel', request()->query()) }}'"
+                    >
+                        Exportar Excel
+                    </x-button>
+                    
+                    <x-button 
+                        type="button" 
+                        variant="danger" 
+                        icon="fas fa-file-pdf"
+                        onclick="window.location='{{ route('inventario.export.pdf', request()->query()) }}'"
+                    >
+                        Exportar PDF
+                    </x-button>
+                </div>
             </div>
         </form>
     </x-card>

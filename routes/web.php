@@ -21,5 +21,9 @@ Route::get('/inventario-generate-barcode', [InventarioController::class, 'genera
 // Ruta para descargar código QR
 Route::get('/inventario/{id}/qr/download', [InventarioController::class, 'downloadQR'])->name('inventario.qr.download');
 
+// Rutas para exportar reportes
+Route::get('/inventario-export/excel', [InventarioController::class, 'exportExcel'])->name('inventario.export.excel');
+Route::get('/inventario-export/pdf', [InventarioController::class, 'exportPdf'])->name('inventario.export.pdf');
+
 // TEMPORAL: Rutas de movimientos comentadas
 // Route::resource('movimientos', MovimientoController::class);
