@@ -3,90 +3,39 @@
 namespace App\Http\Controllers;
 
 use App\Models\Libro;
+use App\Services\CodeGeneratorService;
+use App\Services\ExcelService;
+use App\Services\LibroService;
 use Illuminate\Http\Request;
 
 class InventarioController extends Controller
 {
+    protected $libroService;
+    protected $excelService;
+    protected $codeGenerator;
+
+    public function __construct(
+        LibroService $libroService,
+        ExcelService $excelService,
+        CodeGeneratorService $codeGenerator
+    ) {
+        $this->libroService = $libroService;
+        $this->excelService = $excelService;
+        $this->codeGenerator = $codeGenerator;
+    }
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
-        $query = Libro::query();
-
-        // Búsqueda por nombre o código de barras
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('nombre', 'like', "%{$search}%")
-                  ->orWhere('codigo_barras', 'like', "%{$search}%");
-            });
-        }
-
-        // Filtro por stock
-        if ($request->filled('stock_filter')) {
-            switch ($request->stock_filter) {
-                case '0-100':
-                    $query->where('stock', '<', 100);
-                    break;
-                case '100-200':
-                    $query->whereBetween('stock', [100, 200]);
-                    break;
-                case '200-300':
-                    $query->whereBetween('stock', [200, 300]);
-                    break;
-                case '300-400':
-                    $query->whereBetween('stock', [300, 400]);
-                    break;
-                case '400-up':
-                    $query->where('stock', '>=', 400);
-                    break;
-            }
-        }
-
-        // Filtro por precio
-        if ($request->filled('precio_filter')) {
-            switch ($request->precio_filter) {
-                case '0-100':
-                    $query->where('precio', '<', 100);
-                    break;
-                case '100-200':
-                    $query->whereBetween('precio', [100, 200]);
-                    break;
-                case '200-300':
-                    $query->whereBetween('precio', [200, 300]);
-                    break;
-                case '300-400':
-                    $query->whereBetween('precio', [300, 400]);
-                    break;
-                case '400-up':
-                    $query->where('precio', '>=', 400);
-                    break;
-            }
-        }
-
-        // Ordenamiento
-        $ordenar = $request->get('ordenar', 'reciente');
-        switch ($ordenar) {
-            case 'nombre_asc':
-                $query->orderBy('nombre', 'asc');
-                break;
-            case 'nombre_desc':
-                $query->orderBy('nombre', 'desc');
-                break;
-            default: // reciente
-                $query->orderBy('id', 'desc');
-                break;
-        }
-
-        // Calcular estadísticas antes de paginar (sobre todos los registros filtrados)
-        $totalLibros = (clone $query)->count();
-        $stockTotal = (clone $query)->sum('stock');
-        $valorTotal = (clone $query)->selectRaw('SUM(stock * precio) as valor')->value('valor');
-
+        $query = $this->libroService->buildFilteredQuery($request);
+        $statistics = $this->libroService->calculateStatistics($query);
         $libros = $query->paginate(10);
 
-        return view('inventario.index', compact('libros', 'totalLibros', 'stockTotal', 'valorTotal'));
+        return view('inventario.index', array_merge(
+            compact('libros'),
+            $statistics
+        ));
     }
 
     /**
@@ -102,20 +51,10 @@ class InventarioController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'nombre' => 'required|string|max:255',
-            'codigo_barras' => 'required|string|unique:libros,codigo_barras',
-            'precio' => 'required|numeric|min:0',
-            'stock' => 'required|integer|min:0',
-        ], [
-            'nombre.required' => 'El nombre del libro es obligatorio',
-            'codigo_barras.required' => 'El código de barras es obligatorio',
-            'codigo_barras.unique' => 'Este código de barras ya existe',
-            'precio.required' => 'El precio es obligatorio',
-            'precio.numeric' => 'El precio debe ser un número',
-            'stock.required' => 'El stock es obligatorio',
-            'stock.integer' => 'El stock debe ser un número entero',
-        ]);
+        $validated = $request->validate(
+            $this->libroService->getCreateRules(),
+            $this->libroService->getValidationMessages()
+        );
 
         Libro::create($validated);
 
@@ -148,12 +87,10 @@ class InventarioController extends Controller
     {
         $libro = Libro::findOrFail($id);
 
-        $validated = $request->validate([
-            'nombre' => 'required|string|max:255',
-            'codigo_barras' => 'required|string|unique:libros,codigo_barras,' . $id,
-            'precio' => 'required|numeric|min:0',
-            'stock' => 'required|integer|min:0',
-        ]);
+        $validated = $request->validate(
+            $this->libroService->getUpdateRules($id),
+            $this->libroService->getValidationMessages()
+        );
 
         $libro->update($validated);
 
@@ -171,5 +108,82 @@ class InventarioController extends Controller
 
         return redirect()->route('inventario.index')
             ->with('success', 'Libro eliminado exitosamente');
+    }
+
+    /**
+     * Generar código de barras aleatorio
+     */
+    public function generateBarcode()
+    {
+        $codigo = $this->libroService->generateBarcode();
+        return response()->json(['codigo' => $codigo]);
+    }
+
+    /**
+     * Mostrar vista de importación
+     */
+    public function importView()
+    {
+        return view('inventario.import');
+    }
+
+    /**
+     * Descargar plantilla de Excel
+     */
+    public function downloadTemplate()
+    {
+        $this->excelService->generateTemplate();
+    }
+
+    /**
+     * Procesar importación de Excel
+     */
+    public function importProcess(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls|max:5120',
+        ]);
+
+        try {
+            $file = $request->file('file');
+            
+            $result = $this->excelService->import($file->getPathname(), [
+                'skip_errors' => $request->boolean('skip_errors'),
+            ]);
+
+            $message = $this->excelService->buildResultMessage($result);
+
+            if (empty($result['errors'])) {
+                return redirect()->route('inventario.index')
+                    ->with('success', $message ?: 'Importación completada exitosamente');
+            } else {
+                return redirect()->route('inventario.import')
+                    ->with('warning', $message)
+                    ->with('errors_list', $result['errors']);
+            }
+
+        } catch (\Exception $e) {
+            return redirect()->route('inventario.import')
+                ->with('error', 'Error al procesar el archivo: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Descargar código QR como imagen SVG con información del libro
+     */
+    public function downloadQR($id)
+    {
+        $libro = Libro::findOrFail($id);
+        
+        $svgContent = $this->codeGenerator->generateQrSvg(
+            $libro->codigo_barras,
+            $libro->nombre
+        );
+        
+        $fileName = 'qr-' . $libro->codigo_barras . '.svg';
+        
+        return response($svgContent)
+            ->header('Content-Type', 'image/svg+xml')
+            ->header('Content-Disposition', 'attachment; filename="' . $fileName . '"');
     }
 }

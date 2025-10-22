@@ -14,7 +14,15 @@
         button-text="Registrar Libro"
         button-icon="fas fa-plus"
         :button-route="route('inventario.create')"
-    />
+    >
+        <x-button 
+            variant="secondary" 
+            icon="fas fa-file-excel"
+            onclick="window.location='{{ route('inventario.import') }}'"
+        >
+            Importar Excel
+        </x-button>
+    </x-page-header>
 
     <!-- Estadísticas rápidas -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">

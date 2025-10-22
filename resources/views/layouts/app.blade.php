@@ -53,6 +53,10 @@
                         <x-alert type="error" :message="session('error')" />
                     @endif
 
+                    @if(session('warning'))
+                        <x-alert type="warning" :message="session('warning')" />
+                    @endif
+
                     @yield('content')
                 </div>
             </main>
@@ -62,5 +66,7 @@
     <!-- Componentes globales de JavaScript puro -->
     <x-loading />
     <x-confirm-dialog />
+
+    @stack('scripts')
 </body>
 </html>

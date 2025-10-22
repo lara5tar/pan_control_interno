@@ -8,13 +8,17 @@
         @endif
     </div>
     
-    @if($buttonText && $buttonRoute)
-        <x-button 
-            variant="primary" 
-            icon="{{ $buttonIcon ?? 'fas fa-plus' }}"
-            onclick="window.location='{{ $buttonRoute }}'"
-        >
-            {{ $buttonText }}
-        </x-button>
-    @endif
+    <div class="flex gap-3">
+        @if($buttonText && $buttonRoute)
+            <x-button 
+                variant="primary" 
+                icon="{{ $buttonIcon ?? 'fas fa-plus' }}"
+                onclick="window.location='{{ $buttonRoute }}'"
+            >
+                {{ $buttonText }}
+            </x-button>
+        @endif
+        
+        {{ $slot }}
+    </div>
 </div>

@@ -7,6 +7,15 @@
 
 @section('content')
 <div class="max-w-3xl mx-auto space-y-6">
+    <!-- Encabezado -->
+    <x-page-header 
+        title="Detalle del Libro"
+        :description="'Información completa de: ' . $libro->nombre"
+        button-text="Volver al Inventario"
+        button-icon="fas fa-arrow-left"
+        :button-route="route('inventario.index')"
+    />
+
     <!-- Información principal -->
     <x-card title="Información del Libro">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -46,6 +55,34 @@
         </div>
     </x-card>
 
+    <!-- Código QR -->
+    <x-card title="Código QR">
+        <div class="flex flex-col md:flex-row gap-6 items-center">
+            <div class="flex-shrink-0">
+                <div class="bg-white p-4 rounded-lg border-2 border-gray-200 inline-block">
+                    {!! QrCode::size(200)->generate($libro->codigo_barras) !!}
+                </div>
+            </div>
+            <div class="flex-1 text-center md:text-left">
+                <h4 class="text-lg font-semibold text-gray-800 mb-2">
+                    <i class="fas fa-qrcode text-gray-600"></i>
+                    Código QR del Libro
+                </h4>
+                <p class="text-gray-600 mb-4">
+                    Escanea este código QR para acceder rápidamente al código de barras: 
+                    <span class="font-mono font-semibold text-gray-800">{{ $libro->codigo_barras }}</span>
+                </p>
+                <div class="flex justify-center md:justify-start">
+                    <a href="{{ route('inventario.qr.download', $libro->id) }}">
+                        <x-button variant="primary" icon="fas fa-download">
+                            Descargar QR
+                        </x-button>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </x-card>
+
     <!-- Información de fechas -->
     <x-card title="Registro">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -76,9 +113,6 @@
         {{-- <x-button variant="secondary" icon="fas fa-exchange-alt" onclick="window.location='{{ route('movimientos.index', ['libro_id' => $libro->id]) }}'">
             Ver Movimientos
         </x-button> --}}
-        <x-button variant="secondary" icon="fas fa-arrow-left" onclick="window.location='{{ route('inventario.index') }}'">
-            Volver al Listado
-        </x-button>
         <form action="{{ route('inventario.destroy', $libro->id) }}" method="POST" class="inline">
             @csrf
             @method('DELETE')

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('libros', function (Blueprint $table) {
             $table->id();
             $table->string('nombre');
-            $table->string('codigo_barras')->unique();
+            $table->string('codigo_barras')->nullable()->unique();
             $table->double('precio', 8, 2);
             $table->integer('stock')->default(0);
             $table->timestamps();
