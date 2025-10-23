@@ -35,16 +35,15 @@
         }
     </script>
 </head>
-<body class="bg-white overflow-y-scroll">
+<body class="bg-gray-50">
     <div class="min-h-screen">
-        <!-- Sidebar con menú -->
-        <x-sidebar />
+        <!-- Navbar -->
+        <x-navbar />
 
-        <!-- Contenido principal (con margen izquierdo para el sidebar) -->
-        <div class="ml-56 flex flex-col min-h-screen">
-            <!-- Contenido -->
-            <main class="flex-1 p-6 bg-gray-50">
-                <div class="max-w-7xl mx-auto">
+        <!-- Contenido principal -->
+        <div class="pt-16">
+            <main class="py-4 sm:py-6 lg:py-8">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     @if(session('success'))
                         <x-alert type="success" :message="session('success')" />
                     @endif
