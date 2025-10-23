@@ -12,122 +12,124 @@
     button-text="Volver al Inventario"
     button-icon="fas fa-arrow-left"
     :button-route="route('inventario.index')"
-    :centered="true"
 >
-    <!-- Información principal -->
-    <x-card title="Información del Libro">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-                <p class="text-sm text-gray-600 mb-1">ID</p>
-                <p class="text-lg font-semibold text-gray-800">{{ $libro->id }}</p>
-            </div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Información principal -->
+        <div class="lg:col-span-2">
+            <x-card title="Información del Libro" class="h-full">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">ID</p>
+                        <p class="text-lg font-semibold text-gray-800">{{ $libro->id }}</p>
+                    </div>
 
-            <div>
-                <p class="text-sm text-gray-600 mb-1">Nombre</p>
-                <p class="text-lg font-semibold text-gray-800">{{ $libro->nombre }}</p>
-            </div>
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Nombre</p>
+                        <p class="text-lg font-semibold text-gray-800">{{ $libro->nombre }}</p>
+                    </div>
 
-            <div>
-                <p class="text-sm text-gray-600 mb-1">Código de Barras</p>
-                <p class="text-lg font-semibold {{ $libro->codigo_barras ? 'text-gray-800' : 'text-gray-400 italic' }}">
-                    {{ $libro->codigo_barras ?? 'Sin código de barras' }}
-                </p>
-            </div>
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Código de Barras</p>
+                        <p class="text-lg font-semibold {{ $libro->codigo_barras ? 'text-gray-800' : 'text-gray-400 italic' }}">
+                            {{ $libro->codigo_barras ?? 'Sin código de barras' }}
+                        </p>
+                    </div>
 
-            <div>
-                <p class="text-sm text-gray-600 mb-1">Precio</p>
-                <p class="text-lg font-semibold text-green-600">${{ number_format($libro->precio, 2) }}</p>
-            </div>
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Precio</p>
+                        <p class="text-lg font-semibold text-green-600">${{ number_format($libro->precio, 2) }}</p>
+                    </div>
 
-            <div>
-                <p class="text-sm text-gray-600 mb-1">Stock Disponible</p>
-                <p class="text-lg font-semibold">
-                    <span class="px-3 py-1 rounded-full {{ $libro->stock > 10 ? 'bg-green-100 text-green-800' : ($libro->stock > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800') }}">
-                        {{ $libro->stock }} unidades
-                    </span>
-                </p>
-            </div>
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Stock Disponible</p>
+                        <p class="text-lg font-semibold">
+                            <span class="px-3 py-1 rounded-full text-sm {{ $libro->stock > 10 ? 'bg-green-100 text-green-800' : ($libro->stock > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800') }}">
+                                {{ $libro->stock }} unidades
+                            </span>
+                        </p>
+                    </div>
 
-            <div>
-                <p class="text-sm text-gray-600 mb-1">Valor Total en Stock</p>
-                <p class="text-lg font-semibold text-primary-600">${{ number_format($libro->precio * $libro->stock, 2) }}</p>
-            </div>
-        </div>
-    </x-card>
-
-    <!-- Código QR -->
-    <x-card title="Código QR">
-        @if($libro->codigo_barras)
-            <div class="flex flex-col md:flex-row gap-6 items-center">
-                <div class="flex-shrink-0">
-                    <div class="bg-white p-4 rounded-lg border-2 border-gray-200 inline-block">
-                        {!! QrCode::size(200)->generate($libro->codigo_barras) !!}
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Valor Total en Stock</p>
+                        <p class="text-lg font-semibold text-gray-800">${{ number_format($libro->precio * $libro->stock, 2) }}</p>
                     </div>
                 </div>
-                <div class="flex-1 text-center md:text-left">
-                    <h4 class="text-lg font-semibold text-gray-800 mb-2">
-                        <i class="fas fa-qrcode text-gray-600"></i>
-                        Código QR del Libro
-                    </h4>
-                    <p class="text-gray-600 mb-4">
-                        Escanea este código QR para acceder rápidamente al código de barras: 
-                        <span class="font-mono font-semibold text-gray-800">{{ $libro->codigo_barras }}</span>
-                    </p>
-                    <div class="flex justify-center md:justify-start">
-                        <a href="{{ route('inventario.qr.download', $libro->id) }}">
-                            <x-button variant="primary" icon="fas fa-download">
+            </x-card>
+        </div>
+
+        <!-- Código QR -->
+        <div class="lg:col-span-1">
+            <x-card title="Código QR" class="h-full">
+                @if($libro->codigo_barras)
+                    <div class="flex flex-col items-center justify-center h-full">
+                        <div class="bg-white p-4 rounded-lg border-2 border-gray-200 mb-4">
+                            {!! QrCode::size(180)->generate($libro->codigo_barras) !!}
+                        </div>
+                        <p class="text-sm text-gray-600 text-center mb-3">
+                            Código: <span class="font-mono font-semibold text-gray-800">{{ $libro->codigo_barras }}</span>
+                        </p>
+                        <a href="{{ route('inventario.qr.download', $libro->id) }}" class="w-full">
+                            <x-button variant="primary" icon="fas fa-download" class="w-full justify-center">
                                 Descargar QR
                             </x-button>
                         </a>
                     </div>
+                @else
+                    <div class="flex flex-col items-center justify-center h-full text-center">
+                        <i class="fas fa-barcode text-gray-300 text-5xl mb-3"></i>
+                        <p class="text-gray-500 text-sm font-medium">Sin código de barras</p>
+                        <p class="text-gray-400 text-xs mt-1">No disponible</p>
+                    </div>
+                @endif
+            </x-card>
+        </div>
+    </div>
+
+    <!-- Información de fechas y acciones -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <x-card title="Información de Registro">
+            <div class="space-y-4">
+                <div class="flex items-center justify-between py-3 border-b border-gray-100">
+                    <span class="text-gray-600 font-medium">
+                        <i class="fas fa-calendar-plus text-blue-500 mr-2"></i>
+                        Fecha de Registro
+                    </span>
+                    <span class="text-gray-800 font-semibold">
+                        {{ $libro->created_at->format('d/m/Y H:i') }}
+                    </span>
+                </div>
+                <div class="flex items-center justify-between py-3">
+                    <span class="text-gray-600 font-medium">
+                        <i class="fas fa-clock text-green-500 mr-2"></i>
+                        Última Actualización
+                    </span>
+                    <span class="text-gray-800 font-semibold">
+                        {{ $libro->updated_at->format('d/m/Y H:i') }}
+                    </span>
                 </div>
             </div>
-        @else
-            <div class="text-center py-8">
-                <i class="fas fa-barcode text-gray-300 text-6xl mb-4"></i>
-                <p class="text-gray-500 text-lg font-medium">Sin código de barras</p>
-                <p class="text-gray-400 text-sm mt-2">Este libro no tiene código de barras asignado</p>
-            </div>
-        @endif
-    </x-card>
+        </x-card>
 
-    <!-- Información de fechas -->
-    <x-card title="Registro">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-                <p class="text-sm text-gray-600 mb-1">Fecha de Creación</p>
-                <p class="text-gray-800">
-                    <i class="fas fa-calendar mr-2"></i>
-                    {{ $libro->created_at->format('d/m/Y H:i:s') }}
-                </p>
+        <!-- Acciones -->
+        <x-card title="Acciones">
+            <div class="space-y-3">
+                <x-button variant="primary" icon="fas fa-edit" onclick="window.location='{{ route('inventario.edit', $libro->id) }}'" class="w-full justify-center">
+                    Editar
+                </x-button>
+                
+                <x-button variant="secondary" icon="fas fa-arrow-left" onclick="window.location='{{ route('inventario.index') }}'" class="w-full justify-center">
+                    Volver al Listado
+                </x-button>
+                
+                <form action="{{ route('inventario.destroy', $libro->id) }}" method="POST">
+                    @csrf
+                    @method('DELETE')
+                    <x-button type="submit" variant="danger" icon="fas fa-trash" onclick="return confirm('¿Estás seguro de eliminar este libro?')" class="w-full justify-center">
+                        Eliminar
+                    </x-button>
+                </form>
             </div>
-
-            <div>
-                <p class="text-sm text-gray-600 mb-1">Última Actualización</p>
-                <p class="text-gray-800">
-                    <i class="fas fa-clock mr-2"></i>
-                    {{ $libro->updated_at->format('d/m/Y H:i:s') }}
-                </p>
-            </div>
-        </div>
-    </x-card>
-
-    <!-- Acciones -->
-    <div class="flex gap-3">
-        <x-button variant="primary" icon="fas fa-edit" onclick="window.location='{{ route('inventario.edit', $libro->id) }}'">
-            Editar
-        </x-button>
-        {{-- TEMPORAL: Botón de Movimientos oculto --}}
-        {{-- <x-button variant="secondary" icon="fas fa-exchange-alt" onclick="window.location='{{ route('movimientos.index', ['libro_id' => $libro->id]) }}'">
-            Ver Movimientos
-        </x-button> --}}
-        <form action="{{ route('inventario.destroy', $libro->id) }}" method="POST" class="inline">
-            @csrf
-            @method('DELETE')
-            <x-button type="submit" variant="danger" icon="fas fa-trash" onclick="return confirm('¿Estás seguro de eliminar este libro?')">
-                Eliminar
-            </x-button>
-        </form>
+        </x-card>
     </div>
 </x-page-layout>
 @endsection

@@ -11,20 +11,22 @@
         @method($method)
     @endif
 
-    <div class="space-y-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Nombre del Libro -->
-        <x-form-input
-            name="nombre"
-            label="Nombre del Libro"
-            :value="$libro?->nombre ?? ''"
-            :required="true"
-            placeholder="Ej: Cien años de soledad"
-            icon="fas fa-book"
-            helpText="Ingresa el nombre completo del libro"
-        />
+        <div class="lg:col-span-2">
+            <x-form-input
+                name="nombre"
+                label="Nombre del Libro"
+                :value="$libro?->nombre ?? ''"
+                :required="true"
+                placeholder="Ej: Cien años de soledad"
+                icon="fas fa-book"
+                helpText="Ingresa el nombre completo del libro"
+            />
+        </div>
 
         <!-- Código de Barras -->
-        <div>
+        <div class="lg:col-span-2">
             <label for="codigo_barras" class="block text-sm font-medium text-gray-700 mb-2">
                 Código de Barras
             </label>
@@ -42,15 +44,16 @@
                         class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all @error('codigo_barras') border-red-500 @enderror"
                     >
                 </div>
-                <button 
+                <x-button 
                     type="button"
                     id="generateBarcodeBtn"
-                    class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap"
+                    variant="secondary"
+                    icon="fas fa-sync-alt"
+                    class="whitespace-nowrap"
                     title="Generar código aleatorio"
                 >
-                    <i class="fas fa-sync-alt"></i>
                     Generar
-                </button>
+                </x-button>
             </div>
             <p class="mt-1 text-sm text-gray-500">
                 <i class="fas fa-info-circle"></i> Código único del libro (ISBN o código de barras). Usa el botón "Generar" para crear uno aleatorio.
@@ -61,17 +64,19 @@
         </div>
 
         <!-- Precio -->
-        <x-form-number
-            name="precio"
-            label="Precio"
-            :value="$libro?->precio ?? ''"
-            :required="true"
-            :min="0"
-            step="0.01"
-            prefix="$"
-            placeholder="0.00"
-            helpText="Precio de venta del libro"
-        />
+        <div>
+            <x-form-number
+                name="precio"
+                label="Precio"
+                :value="$libro?->precio ?? ''"
+                :required="true"
+                :min="0"
+                step="0.01"
+                prefix="$"
+                placeholder="0.00"
+                helpText="Precio de venta del libro"
+            />
+        </div>
 
         <!-- Stock -->
         @if($libro)
@@ -98,25 +103,27 @@
             </div>
         @else
             <!-- Campo editable cuando se está creando -->
-            <x-form-number
-                name="stock"
-                label="Stock Disponible"
-                :value="0"
-                :required="true"
-                :min="0"
-                icon="fas fa-boxes"
-                placeholder="0"
-                helpText="Cantidad de ejemplares disponibles"
-            />
+            <div>
+                <x-form-number
+                    name="stock"
+                    label="Stock Disponible"
+                    :value="0"
+                    :required="true"
+                    :min="0"
+                    icon="fas fa-boxes"
+                    placeholder="0"
+                    helpText="Cantidad de ejemplares disponibles"
+                />
+            </div>
         @endif
 
-                <!-- Botones de Acción -->
-        <div class="flex gap-3 pt-4 border-t border-gray-200">
-            <x-button type="submit" variant="primary" icon="fas fa-save">
-                {{ $submitText }}
-            </x-button>
+        <!-- Botones de Acción -->
+        <div class="lg:col-span-2 flex justify-end gap-3 pt-4 border-t border-gray-200">
             <x-button type="button" variant="secondary" icon="fas fa-times" onclick="window.location='{{ route('inventario.index') }}'">
                 Cancelar
+            </x-button>
+            <x-button type="submit" variant="primary" icon="fas fa-save">
+                {{ $submitText }}
             </x-button>
         </div>
     </div>

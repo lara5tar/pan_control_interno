@@ -12,7 +12,6 @@
     button-text="Volver al Inventario"
     button-icon="fas fa-arrow-left"
     :button-route="route('inventario.index')"
-    :centered="true"
 >
     <x-card>
         <x-libro-form 

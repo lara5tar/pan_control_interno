@@ -185,7 +185,7 @@
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" 
-                                        class="text-red-600 hover:text-red-900 transition-colors" 
+                                        class="text-red-600 hover:text-red-900 transition-colors p-1" 
                                         onclick="return confirm('¿Estás seguro de eliminar este libro?')"
                                         title="Eliminar">
                                     <i class="fas fa-trash"></i>
