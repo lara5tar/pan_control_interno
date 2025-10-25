@@ -59,9 +59,27 @@ class AuthController extends Controller
 
             // Guardar el token como codCongregante en la sesión
             if (isset($data['token'])) {
+                // Verificar que el usuario tenga el rol de Admin Librería
+                $roles = $data['roles'] ?? [];
+                $tieneRolAdminLibreria = collect($roles)->contains(function ($rol) {
+                    return isset($rol['ROL']) && 
+                           (strtoupper(trim($rol['ROL'])) === 'ADMIN LIBRERIA' || 
+                            strtoupper(trim($rol['ROL'])) === 'ADMIN LIBRERÍA');
+                });
+                
+                if (!$tieneRolAdminLibreria) {
+                    Log::warning('Usuario sin rol de Admin Librería intentó acceder', [
+                        'user' => $request->user,
+                        'roles' => $roles
+                    ]);
+                    
+                    return back()->with('error', 'No tienes permisos para acceder al sistema. Se requiere el rol de Administrador de Librería.')
+                        ->withInput($request->only('user'));
+                }
+                
                 Session::put('codCongregante', $data['token']);
                 
-                // Opcionalmente guardar también los roles y otros datos
+                // Guardar también los roles y otros datos
                 if (isset($data['roles'])) {
                     Session::put('roles', $data['roles']);
                 }

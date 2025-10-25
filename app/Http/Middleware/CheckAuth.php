@@ -22,6 +22,22 @@ class CheckAuth
                 ->with('error', 'Debes iniciar sesión para acceder al sistema.');
         }
 
+        // Verificar que el usuario tenga el rol de Admin Librería
+        $roles = Session::get('roles', []);
+        $tieneRolAdminLibreria = collect($roles)->contains(function ($rol) {
+            return isset($rol['ROL']) && 
+                   (strtoupper(trim($rol['ROL'])) === 'ADMIN LIBRERIA' || 
+                    strtoupper(trim($rol['ROL'])) === 'ADMIN LIBRERÍA');
+        });
+        
+        if (!$tieneRolAdminLibreria) {
+            // Cerrar sesión si no tiene el rol
+            Session::flush();
+            
+            return redirect()->route('login')
+                ->with('error', 'No tienes permisos para acceder al sistema. Se requiere el rol de Administrador de Librería.');
+        }
+
         return $next($request);
     }
 }

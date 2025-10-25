@@ -36,7 +36,9 @@ Route::middleware('checkauth')->group(function () {
     Route::get('/inventario-export/pdf', [InventarioController::class, 'exportPdf'])->name('inventario.export.pdf');
 
     // Rutas de Usuarios
-    Route::resource('usuarios', UsuarioController::class)->only(['index', 'create', 'store']);
+    Route::resource('usuarios', UsuarioController::class)->only(['index', 'show', 'edit', 'update']);
+    // TEMPORAL: Crear usuario comentado
+    // Route::resource('usuarios', UsuarioController::class)->only(['create', 'store']);
 
     // TEMPORAL: Rutas de movimientos comentadas
     // Route::resource('movimientos', MovimientoController::class);

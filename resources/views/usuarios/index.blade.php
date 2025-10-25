@@ -6,10 +6,19 @@
 <x-page-layout 
     title="Gestión de Usuarios"
     description="Administra los usuarios del sistema"
-    button-text="Nuevo Usuario"
-    button-icon="fas fa-user-plus"
-    :button-route="route('usuarios.create')"
 >
+    {{-- Botón Nuevo Usuario temporalmente deshabilitado --}}
+    {{-- 
+    <x-slot name="header">
+        <x-button 
+            variant="primary" 
+            icon="fas fa-user-plus"
+            onclick="window.location='{{ route('usuarios.create') }}'"
+        >
+            Nuevo Usuario
+        </x-button>
+    </x-slot>
+    --}}
     @if($error)
         <x-alert type="danger" :message="$error" />
     @endif
@@ -90,7 +99,7 @@
         <x-data-table 
             :headers="['Código', 'Nombre Completo', 'Contacto', 'Ciudad', 'Status', 'Email']"
             :rows="$congregantes"
-            :showActions="false"
+            :showActions="true"
             emptyMessage="No se encontraron congregantes"
             emptyIcon="fas fa-users"
         >
@@ -150,6 +159,10 @@
                             <span class="text-gray-400 italic">Sin email</span>
                         @endif
                     </x-data-table-cell>
+                    <x-data-table-actions
+                        :viewRoute="route('usuarios.show', $congregante['CODCONGREGANTE'])"
+                        :editRoute="route('usuarios.edit', $congregante['CODCONGREGANTE'])"
+                    />
                 </x-data-table-row>
             @endforeach
         </x-data-table>

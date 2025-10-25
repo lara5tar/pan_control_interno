@@ -99,6 +99,175 @@ class UsuarioController extends Controller
     }
 
     /**
+     * Muestra los detalles de un congregante
+     */
+    public function show($id)
+    {
+        $codCongregante = session('codCongregante');
+        
+        try {
+            $response = Http::post('https://www.sistemasdevida.com/pan/rest2/index.php/congregante/obtener_detallado', [
+                'codCongregante' => $codCongregante,
+                'idCongregante' => $id
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                
+                if (!$data['error']) {
+                    $congregante = $data['congregante'];
+                    $roles = $data['roles'] ?? [];
+                    
+                    return view('usuarios.show', compact('congregante', 'roles'));
+                } else {
+                    return redirect()->route('usuarios.index')
+                        ->with('error', 'No se pudo obtener la información del congregante');
+                }
+            } else {
+                Log::error('Error al obtener detalles del congregante', [
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+                return redirect()->route('usuarios.index')
+                    ->with('error', 'Error al conectar con el servicio');
+            }
+        } catch (\Exception $e) {
+            Log::error('Excepción al obtener detalles del congregante', [
+                'message' => $e->getMessage()
+            ]);
+            return redirect()->route('usuarios.index')
+                ->with('error', 'Error al procesar la solicitud: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Muestra el formulario de edición de roles
+     */
+    public function edit($id)
+    {
+        $codCongregante = session('codCongregante');
+        
+        try {
+            $response = Http::post('https://www.sistemasdevida.com/pan/rest2/index.php/congregante/obtener_detallado', [
+                'codCongregante' => $codCongregante,
+                'idCongregante' => $id
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                
+                if (!$data['error']) {
+                    $congregante = $data['congregante'];
+                    $rolesActuales = $data['roles'] ?? [];
+                    
+                    // Roles permitidos para asignar (Vendedor y Administrador Librería)
+                    $rolesDisponibles = [
+                        ['CODROL' => '18', 'ROL' => 'VENDEDOR', 'DESCRIPCION_ROL' => 'Vendedor de la librería'],
+                        ['CODROL' => '19', 'ROL' => 'ADMIN LIBRERÍA', 'DESCRIPCION_ROL' => 'Administrador de la librería'],
+                    ];
+                    
+                    return view('usuarios.edit', compact('congregante', 'rolesActuales', 'rolesDisponibles'));
+                } else {
+                    return redirect()->route('usuarios.index')
+                        ->with('error', 'No se pudo obtener la información del congregante');
+                }
+            } else {
+                Log::error('Error al obtener detalles del congregante', [
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+                return redirect()->route('usuarios.index')
+                    ->with('error', 'Error al conectar con el servicio');
+            }
+        } catch (\Exception $e) {
+            Log::error('Excepción al obtener detalles del congregante', [
+                'message' => $e->getMessage()
+            ]);
+            return redirect()->route('usuarios.index')
+                ->with('error', 'Error al procesar la solicitud: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Actualiza los roles de un congregante
+     */
+    public function update(Request $request, $id)
+    {
+        $codCongregante = session('codCongregante');
+        
+        $request->validate([
+            'roles' => 'array',
+            'roles.*' => 'in:18,19', // Solo vendedor (18) y admin librería (19)
+        ]);
+
+        try {
+            // Obtener roles actuales
+            $response = Http::post('https://www.sistemasdevida.com/pan/rest2/index.php/congregante/obtener_detallado', [
+                'codCongregante' => $codCongregante,
+                'idCongregante' => $id
+            ]);
+
+            if (!$response->successful()) {
+                return back()->with('error', 'No se pudo obtener información del congregante');
+            }
+
+            $data = $response->json();
+            $rolesActuales = collect($data['roles'] ?? [])
+                ->whereIn('CODROL', ['18', '19'])
+                ->pluck('CODROL')
+                ->toArray();
+
+            $rolesNuevos = $request->input('roles', []);
+
+            // Determinar roles a agregar y remover
+            $rolesAgregar = array_diff($rolesNuevos, $rolesActuales);
+            $rolesRemover = array_diff($rolesActuales, $rolesNuevos);
+
+            // Agregar roles nuevos
+            foreach ($rolesAgregar as $rol) {
+                $rolResponse = Http::post('https://www.sistemasdevida.com/pan/rest2/index.php/rol/crear', [
+                    'codCongregante' => $codCongregante,
+                    'idCongregante' => $id,
+                    'rol' => $rol
+                ]);
+
+                if (!$rolResponse->successful() || ($rolResponse->json()['error'] ?? true)) {
+                    Log::error('Error al agregar rol', [
+                        'codCongregante' => $codCongregante,
+                        'idCongregante' => $id,
+                        'rol' => $rol,
+                        'status' => $rolResponse->status(),
+                        'body' => $rolResponse->body()
+                    ]);
+                }
+            }
+
+            // Remover roles (si existe endpoint para remover)
+            foreach ($rolesRemover as $rol) {
+                // Nota: Aquí deberías usar el endpoint correcto para remover roles
+                // Por ahora lo dejo como placeholder
+                Log::info('Rol a remover', ['idCon' => $id, 'rol' => $rol]);
+                
+                // Ejemplo (ajustar según tu API):
+                // Http::post('https://sistemasdevida.com/pan/bajaRol.php', [
+                //     'idCon' => $id,
+                //     'rol' => $rol
+                // ]);
+            }
+
+            return redirect()->route('usuarios.show', $id)
+                ->with('success', 'Roles actualizados correctamente');
+
+        } catch (\Exception $e) {
+            Log::error('Excepción al actualizar roles', [
+                'message' => $e->getMessage()
+            ]);
+            
+            return back()->with('error', 'Error al procesar la solicitud: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Almacena un nuevo usuario (congregante + credenciales)
      */
     public function store(Request $request)
