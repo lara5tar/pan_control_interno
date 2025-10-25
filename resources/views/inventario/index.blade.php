@@ -152,50 +152,32 @@
 
     <!-- Tabla de libros -->
     <x-card>
-        <x-table 
-            :headers="['ID', 'Nombre', 'Código de Barras', 'Precio', 'Stock', 'Acciones']"
-            :items="$libros"
+        <x-data-table 
+            :headers="['ID', 'Nombre', 'Código de Barras', 'Precio', 'Stock']"
+            :rows="$libros"
             emptyMessage="No hay libros registrados"
             emptyIcon="fas fa-book"
         >
             @foreach($libros as $libro)
-                <x-table-row>
-                    <x-table-cell>{{ $libro->id }}</x-table-cell>
-                    <x-table-cell class="font-medium">{{ $libro->nombre }}</x-table-cell>
-                    <x-table-cell class="text-gray-600">{{ $libro->codigo_barras }}</x-table-cell>
-                    <x-table-cell>${{ number_format($libro->precio, 2) }}</x-table-cell>
-                    <x-table-cell>
+                <x-data-table-row>
+                    <x-data-table-cell bold>{{ $libro->id }}</x-data-table-cell>
+                    <x-data-table-cell bold>{{ $libro->nombre }}</x-data-table-cell>
+                    <x-data-table-cell>{{ $libro->codigo_barras }}</x-data-table-cell>
+                    <x-data-table-cell>${{ number_format($libro->precio, 2) }}</x-data-table-cell>
+                    <x-data-table-cell>
                         <x-badge :type="$libro->stock > 10 ? 'success' : ($libro->stock > 0 ? 'warning' : 'danger')">
                             {{ $libro->stock }}
                         </x-badge>
-                    </x-table-cell>
-                    <x-table-cell>
-                        <div class="flex items-center space-x-3">
-                            <a href="{{ route('inventario.show', $libro->id) }}" 
-                               class="text-gray-800 hover:text-gray-900 transition-colors"
-                               title="Ver detalles">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                            <a href="{{ route('inventario.edit', $libro->id) }}" 
-                               class="text-gray-800 hover:text-gray-900 transition-colors"
-                               title="Editar">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            <form action="{{ route('inventario.destroy', $libro->id) }}" method="POST" class="inline">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" 
-                                        class="text-red-600 hover:text-red-900 transition-colors p-1" 
-                                        onclick="return confirm('¿Estás seguro de eliminar este libro?')"
-                                        title="Eliminar">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </form>
-                        </div>
-                    </x-table-cell>
-                </x-table-row>
+                    </x-data-table-cell>
+                    <x-data-table-actions
+                        :viewRoute="route('inventario.show', $libro->id)"
+                        :editRoute="route('inventario.edit', $libro->id)"
+                        :deleteRoute="route('inventario.destroy', $libro->id)"
+                        deleteMessage="¿Estás seguro de eliminar este libro?"
+                    />
+                </x-data-table-row>
             @endforeach
-        </x-table>
+        </x-data-table>
 
         <!-- Paginación -->
         @if($libros->hasPages())

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class UsuarioController extends Controller
 {
@@ -14,13 +15,11 @@ class UsuarioController extends Controller
     public function index(Request $request)
     {
         $codCongregante = session('codCongregante');
-        $pagina = $request->get('pagina', 0);
+        $page = $request->get('page', 1); // Laravel usa 'page' en base 1
+        $pagina = $page - 1; // La API usa base 0
         $termino = $request->get('search', '');
         
         $congregantes = [];
-        $totalPaginas = 0;
-        $paginaActual = 0;
-        $totalRegistros = 0;
         $totalActivos = 0;
         $totalNuevos = 0;
         $error = null;
@@ -47,12 +46,25 @@ class UsuarioController extends Controller
                 $data = $response->json();
                 
                 if (!$data['error']) {
-                    $congregantes = $data['congregantes'] ?? [];
-                    $paginaActual = $data['pagina_actual'] ?? 0;
-                    $totalPaginas = $data['total_paginas'] ?? 0;
+                    $congregantesArray = $data['congregantes'] ?? [];
                     $totalRegistros = $data['total_registros'] ?? 0;
                     $totalActivos = $data['total_activos'] ?? 0;
                     $totalNuevos = $data['total_nuevos'] ?? 0;
+                    
+                    // Calcular items por página basado en los items actuales
+                    $perPage = count($congregantesArray) > 0 ? count($congregantesArray) : 10;
+                    
+                    // Crear paginador de Laravel
+                    $congregantes = new LengthAwarePaginator(
+                        $congregantesArray,
+                        $totalRegistros,
+                        $perPage,
+                        $page,
+                        [
+                            'path' => $request->url(),
+                            'query' => $request->query(),
+                        ]
+                    );
                 } else {
                     $error = 'Error al obtener congregantes de la API';
                 }
@@ -70,7 +82,12 @@ class UsuarioController extends Controller
             ]);
         }
 
-        return view('usuarios.index', compact('congregantes', 'paginaActual', 'totalPaginas', 'totalRegistros', 'totalActivos', 'totalNuevos', 'error'));
+        // Si hubo error, crear paginador vacío
+        if ($error && empty($congregantes)) {
+            $congregantes = new LengthAwarePaginator([], 0, 20, 1);
+        }
+
+        return view('usuarios.index', compact('congregantes', 'totalActivos', 'totalNuevos', 'error'));
     }
 
     /**
