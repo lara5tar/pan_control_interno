@@ -104,17 +104,19 @@
             </div>
 
             <!-- Botones de acción -->
-            <div class="flex gap-3 pt-4 border-t border-gray-200">
-                <x-button type="submit" variant="primary" icon="fas fa-filter">
-                    Aplicar Filtros
-                </x-button>
-
-                @if(request()->hasAny(['libro_id', 'tipo_movimiento', 'tipo_especifico', 'fecha_desde', 'fecha_hasta']))
-                    <x-button type="button" variant="secondary" icon="fas fa-times" 
-                              onclick="window.location='{{ route('movimientos.index') }}'">
-                        Limpiar Filtros
+            <div class="flex flex-wrap justify-between items-center gap-3 pt-2">
+                <div class="flex gap-3">
+                    <x-button type="submit" variant="primary" icon="fas fa-filter">
+                        Aplicar Filtros
                     </x-button>
-                @endif
+
+                    @if(request()->hasAny(['libro_id', 'tipo_movimiento', 'tipo_especifico', 'fecha_desde', 'fecha_hasta']))
+                        <x-button type="button" variant="secondary" icon="fas fa-times" 
+                                  onclick="window.location='{{ route('movimientos.index') }}'">
+                            Limpiar Filtros
+                        </x-button>
+                    @endif
+                </div>
             </div>
         </form>
     </x-card>

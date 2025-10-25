@@ -33,6 +33,15 @@
                     Inventario
                 </a>
                 
+                <a href="{{ route('movimientos.index') }}" 
+                   class="px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150
+                          {{ request()->routeIs('movimientos.*') 
+                              ? 'bg-gray-800 text-white' 
+                              : 'text-gray-700 hover:bg-gray-100' }}">
+                    <i class="fas fa-exchange-alt mr-2"></i>
+                    Movimientos
+                </a>
+                
                 <a href="{{ route('usuarios.index') }}" 
                    class="px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150
                           {{ request()->routeIs('usuarios.*') 
@@ -41,16 +50,6 @@
                     <i class="fas fa-users mr-2"></i>
                     Usuarios
                 </a>
-                
-                {{-- TEMPORAL: Módulo de Movimientos oculto --}}
-                {{-- <a href="{{ route('movimientos.index') }}" 
-                   class="px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150
-                          {{ request()->routeIs('movimientos.*') 
-                              ? 'bg-gray-800 text-white' 
-                              : 'text-gray-700 hover:bg-gray-100' }}">
-                    <i class="fas fa-exchange-alt mr-2"></i>
-                    Movimientos
-                </a> --}}
             </div>
 
             <!-- Usuario Desktop -->
@@ -138,6 +137,15 @@
                 <span class="ml-3">Inventario</span>
             </a>
             
+            <a href="{{ route('movimientos.index') }}" 
+               class="flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors duration-150
+                      {{ request()->routeIs('movimientos.*') 
+                          ? 'bg-gray-800 text-white' 
+                          : 'text-gray-700 hover:bg-gray-100' }}">
+                <i class="fas fa-exchange-alt w-6"></i>
+                <span class="ml-3">Movimientos</span>
+            </a>
+            
             <a href="{{ route('usuarios.index') }}" 
                class="flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors duration-150
                       {{ request()->routeIs('usuarios.*') 
@@ -146,16 +154,6 @@
                 <i class="fas fa-users w-6"></i>
                 <span class="ml-3">Usuarios</span>
             </a>
-            
-            {{-- TEMPORAL: Módulo de Movimientos oculto --}}
-            {{-- <a href="{{ route('movimientos.index') }}" 
-               class="flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors duration-150
-                      {{ request()->routeIs('movimientos.*') 
-                          ? 'bg-gray-800 text-white' 
-                          : 'text-gray-700 hover:bg-gray-100' }}">
-                <i class="fas fa-exchange-alt w-6"></i>
-                <span class="ml-3">Movimientos</span>
-            </a> --}}
 
             <!-- Usuario en móvil -->
             <div class="px-4 py-3 mt-4 border-t border-gray-200">

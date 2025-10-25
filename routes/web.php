@@ -5,8 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InventarioController;
 use App\Http\Controllers\UsuarioController;
-// TEMPORAL: Controller de Movimientos comentado
-// use App\Http\Controllers\MovimientoController;
+use App\Http\Controllers\MovimientoController;
 
 // Rutas públicas de autenticación
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -40,7 +39,7 @@ Route::middleware('checkauth')->group(function () {
     // TEMPORAL: Crear usuario comentado
     // Route::resource('usuarios', UsuarioController::class)->only(['create', 'store']);
 
-    // TEMPORAL: Rutas de movimientos comentadas
-    // Route::resource('movimientos', MovimientoController::class);
+    // Rutas de movimientos
+    Route::resource('movimientos', MovimientoController::class);
     
 });
