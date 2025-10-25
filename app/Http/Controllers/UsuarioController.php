@@ -11,11 +11,66 @@ class UsuarioController extends Controller
     /**
      * Muestra el listado de usuarios
      */
-    public function index()
+    public function index(Request $request)
     {
-        // Por ahora solo mostramos la vista
-        // Más adelante se puede agregar funcionalidad para obtener usuarios de la API
-        return view('usuarios.index');
+        $codCongregante = session('codCongregante');
+        $pagina = $request->get('pagina', 0);
+        $termino = $request->get('search', '');
+        
+        $congregantes = [];
+        $totalPaginas = 0;
+        $paginaActual = 0;
+        $totalRegistros = 0;
+        $totalActivos = 0;
+        $totalNuevos = 0;
+        $error = null;
+
+        try {
+            // Determinar si es búsqueda o listado completo
+            $endpoint = !empty($termino) 
+                ? 'https://www.sistemasdevida.com/pan/rest2/index.php/congregante/buscar_paginado'
+                : 'https://www.sistemasdevida.com/pan/rest2/index.php/congregante/todos';
+
+            $params = [
+                'codCongregante' => $codCongregante,
+                'pagina' => $pagina
+            ];
+
+            // Agregar término de búsqueda si existe
+            if (!empty($termino)) {
+                $params['termino'] = $termino;
+            }
+
+            $response = Http::post($endpoint, $params);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                
+                if (!$data['error']) {
+                    $congregantes = $data['congregantes'] ?? [];
+                    $paginaActual = $data['pagina_actual'] ?? 0;
+                    $totalPaginas = $data['total_paginas'] ?? 0;
+                    $totalRegistros = $data['total_registros'] ?? 0;
+                    $totalActivos = $data['total_activos'] ?? 0;
+                    $totalNuevos = $data['total_nuevos'] ?? 0;
+                } else {
+                    $error = 'Error al obtener congregantes de la API';
+                }
+            } else {
+                $error = 'No se pudo conectar con el servicio de congregantes';
+                Log::error('Error al obtener congregantes', [
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+            }
+        } catch (\Exception $e) {
+            $error = 'Error al procesar la solicitud: ' . $e->getMessage();
+            Log::error('Excepción al obtener congregantes', [
+                'message' => $e->getMessage()
+            ]);
+        }
+
+        return view('usuarios.index', compact('congregantes', 'paginaActual', 'totalPaginas', 'totalRegistros', 'totalActivos', 'totalNuevos', 'error'));
     }
 
     /**
