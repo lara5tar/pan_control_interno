@@ -18,10 +18,10 @@
 
 <button 
     type="{{ $type }}"
-    {{ $attributes->merge(['class' => $sizes[$size] . ' rounded-lg font-medium transition-colors duration-200 flex items-center ' . $classes[$variant]]) }}
+    {{ $attributes->merge(['class' => $sizes[$size] . ' rounded-lg font-medium transition-colors duration-200 flex items-center justify-center ' . $classes[$variant]]) }}
 >
     @if($icon)
-        <i class="{{ $icon }} mr-2"></i>
+        <i class="{{ $icon }} {{ $slot->isNotEmpty() ? 'max-sm:mr-0 sm:mr-2' : '' }}"></i>
     @endif
-    {{ $slot }}
+    <span class="max-sm:hidden">{{ $slot }}</span>
 </button>
