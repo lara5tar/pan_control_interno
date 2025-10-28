@@ -120,12 +120,86 @@
                 :min="1"
                 icon="fas fa-hashtag"
                 placeholder="Ej: 10"
-                helpText="Número de ejemplares"
             />
+            <p class="mt-1 text-sm text-gray-500">
+                <i class="fas fa-info-circle"></i> Número de unidades del movimiento
+            </p>
+            
+            <!-- Información del Stock Actual -->
+            <div id="stockInfo" class="hidden mt-2 p-2 bg-gray-50 border border-gray-200 rounded-lg">
+                <p class="text-xs text-gray-700">
+                    <i class="fas fa-boxes text-gray-400 mr-1"></i>
+                    Stock actual: <span class="font-semibold text-gray-900" id="stockActual">-</span>
+                    <span class="mx-2 text-gray-400">•</span>
+                    <span id="stockResultanteTexto">-</span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Descuento -->
+        <div>
+            <label for="descuento" class="block text-sm font-medium text-gray-700 mb-2">
+                Descuento (%)
+            </label>
+            <div class="relative">
+                <span class="absolute left-3 top-2.5 text-gray-400">
+                    <i class="fas fa-percent"></i>
+                </span>
+                <input 
+                    type="number" 
+                    name="descuento" 
+                    id="descuento" 
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value="{{ old('descuento', 0) }}"
+                    class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 @error('descuento') border-red-500 @enderror"
+                    placeholder="0">
+            </div>
+            <p class="mt-1 text-sm text-gray-500">
+                <i class="fas fa-info-circle"></i> Porcentaje de descuento (0-100%)
+            </p>
+            @error('descuento')
+                <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
+            @enderror
+            
+            <!-- Información del Precio con Descuento -->
+            <div id="precioInfo" class="hidden mt-2 p-2 bg-gray-50 border border-gray-200 rounded-lg">
+                <p class="text-xs text-gray-700">
+                    <i class="fas fa-dollar-sign text-gray-400 mr-1"></i>
+                    Precio original: <span class="font-semibold text-gray-900" id="precioOriginal">-</span>
+                    <span class="mx-2 text-gray-400">•</span>
+                    <span id="precioFinalTexto">-</span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Fecha -->
+        <div>
+            <label for="fecha" class="block text-sm font-medium text-gray-700 mb-2">
+                Fecha del Movimiento
+            </label>
+            <div class="relative">
+                <span class="absolute left-3 top-2.5 text-gray-400">
+                    <i class="fas fa-calendar"></i>
+                </span>
+                <input 
+                    type="date" 
+                    name="fecha" 
+                    id="fecha" 
+                    value="{{ old('fecha', date('Y-m-d')) }}"
+                    class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 @error('fecha') border-red-500 @enderror">
+            </div>
+            <p class="mt-1 text-sm text-gray-500">
+                <i class="fas fa-info-circle"></i> Fecha en que ocurrió el movimiento
+            </p>
+            @error('fecha')
+                <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
+            @enderror
         </div>
 
         <!-- Observaciones -->
-        <div>
+        <div class="lg:col-span-2">
             <label for="observaciones" class="block text-sm font-medium text-gray-700 mb-2">
                 Observaciones
             </label>
@@ -162,10 +236,124 @@ document.addEventListener('DOMContentLoaded', function() {
     const tipoMovimiento = document.querySelectorAll('input[name="tipo_movimiento"]');
     const tipoEntradaContainer = document.getElementById('tipoEntradaContainer');
     const tipoSalidaContainer = document.getElementById('tipoSalidaContainer');
+    const stockInfo = document.getElementById('stockInfo');
+    const stockActualSpan = document.getElementById('stockActual');
+    const stockResultanteTexto = document.getElementById('stockResultanteTexto');
+    const cantidadInput = document.getElementById('cantidad');
+    const libroIdInput = document.getElementById('libro_id');
+    const descuentoInput = document.getElementById('descuento');
+    const precioInfo = document.getElementById('precioInfo');
+    const precioOriginalSpan = document.getElementById('precioOriginal');
+    const precioFinalTexto = document.getElementById('precioFinalTexto');
+    
+    // Verificar que los elementos existan
+    if (!cantidadInput || !libroIdInput || !stockInfo || !descuentoInput || !precioInfo) {
+        console.error('Elementos del formulario no encontrados');
+        return;
+    }
+    
+    let currentStock = null;
+    let currentTipo = null;
+    let currentPrecio = null;
+    
+    // Función para actualizar el precio con descuento
+    function updatePrecioConDescuento() {
+        if (currentPrecio === null) {
+            precioFinalTexto.textContent = '-';
+            return;
+        }
+        
+        const descuentoPorcentaje = parseFloat(descuentoInput.value) || 0;
+        
+        if (descuentoPorcentaje > 0) {
+            if (descuentoPorcentaje > 100) {
+                precioFinalTexto.innerHTML = `<span class="font-semibold text-red-600">⚠️ El descuento no puede ser mayor a 100%</span>`;
+            } else {
+                const montoDescuento = (currentPrecio * descuentoPorcentaje) / 100;
+                const precioFinal = currentPrecio - montoDescuento;
+                precioFinalTexto.innerHTML = `Precio final: <span class="font-semibold text-green-700">$${precioFinal.toFixed(2)}</span> <span class="text-gray-500">(${descuentoPorcentaje}% off = -$${montoDescuento.toFixed(2)})</span>`;
+            }
+        } else {
+            precioFinalTexto.innerHTML = `Precio final: <span class="font-semibold text-gray-700">$${currentPrecio.toFixed(2)}</span>`;
+        }
+    }
+    
+    // Función para actualizar el stock resultante
+    function updateStockResultante() {
+        console.log('updateStockResultante', {currentStock, currentTipo, cantidad: cantidadInput.value});
+        
+        if (currentStock === null || !cantidadInput.value || !currentTipo) {
+            stockResultanteTexto.textContent = '-';
+            return;
+        }
+        
+        const cantidad = parseInt(cantidadInput.value) || 0;
+        let stockResultante = currentStock;
+        let texto = '';
+        
+        if (currentTipo === 'entrada') {
+            stockResultante = currentStock + cantidad;
+            texto = `Después de guardar tendrá <span class="font-semibold text-green-700">${stockResultante} unidades</span>`;
+        } else if (currentTipo === 'salida') {
+            stockResultante = currentStock - cantidad;
+            
+            if (stockResultante < 0) {
+                texto = `Después de guardar tendrá <span class="font-semibold text-red-600">${stockResultante} unidades</span> <span class="text-red-600">(insuficiente)</span>`;
+            } else if (stockResultante < 10) {
+                texto = `Después de guardar tendrá <span class="font-semibold text-amber-600">${stockResultante} unidades</span> <span class="text-amber-600">(stock bajo)</span>`;
+            } else {
+                texto = `Después de guardar tendrá <span class="font-semibold text-blue-700">${stockResultante} unidades</span>`;
+            }
+        }
+        
+        stockResultanteTexto.innerHTML = texto;
+    }
+    
+    // Escuchar cambios en el libro seleccionado
+    const librosData = @json($libros);
+    
+    libroIdInput.addEventListener('change', function() {
+        console.log('Libro cambiado:', this.value);
+        if (this.value) {
+            const libro = librosData.find(l => l.id == this.value);
+            console.log('Libro encontrado:', libro);
+            if (libro) {
+                currentStock = libro.stock;
+                currentPrecio = parseFloat(libro.precio);
+                stockActualSpan.textContent = `${currentStock} unidades`;
+                precioOriginalSpan.textContent = `$${currentPrecio.toFixed(2)}`;
+                stockInfo.classList.remove('hidden');
+                precioInfo.classList.remove('hidden');
+                updateStockResultante();
+                updatePrecioConDescuento();
+            }
+        } else {
+            stockInfo.classList.add('hidden');
+            precioInfo.classList.add('hidden');
+            currentStock = null;
+            currentPrecio = null;
+        }
+    });
+    
+    // Observar cambios en el input hidden para detectar selección de libro
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.attributeName === 'value') {
+                console.log('MutationObserver detectó cambio');
+                const event = new Event('change');
+                libroIdInput.dispatchEvent(event);
+            }
+        });
+    });
+    
+    observer.observe(libroIdInput, { attributes: true });
 
     // Mostrar/ocultar tipos según el movimiento
     tipoMovimiento.forEach(radio => {
         radio.addEventListener('change', function() {
+            currentTipo = this.value;
+            console.log('Tipo de movimiento cambiado:', currentTipo);
+            
             if (this.value === 'entrada') {
                 tipoEntradaContainer.classList.remove('hidden');
                 tipoSalidaContainer.classList.add('hidden');
@@ -177,13 +365,46 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('tipo_salida').required = true;
                 document.getElementById('tipo_entrada').required = false;
             }
+            
+            updateStockResultante();
         });
+    });
+    
+    // Actualizar stock resultante cuando cambie la cantidad
+    cantidadInput.addEventListener('input', function() {
+        console.log('Cantidad input:', this.value);
+        updateStockResultante();
+    });
+    
+    // También actualizar al cambiar con las flechas o scroll
+    cantidadInput.addEventListener('change', function() {
+        console.log('Cantidad change:', this.value);
+        updateStockResultante();
+    });
+
+    // Actualizar precio con descuento cuando cambie el descuento
+    descuentoInput.addEventListener('input', function() {
+        console.log('Descuento input:', this.value);
+        updatePrecioConDescuento();
+    });
+    
+    descuentoInput.addEventListener('change', function() {
+        console.log('Descuento change:', this.value);
+        updatePrecioConDescuento();
     });
 
     // Inicializar el estado según old values
     const checkedRadio = document.querySelector('input[name="tipo_movimiento"]:checked');
     if (checkedRadio) {
+        currentTipo = checkedRadio.value;
+        console.log('Radio inicial:', currentTipo);
         checkedRadio.dispatchEvent(new Event('change'));
+    }
+    
+    // Si hay un libro seleccionado al cargar, disparar el evento
+    if (libroIdInput.value) {
+        console.log('Libro inicial:', libroIdInput.value);
+        libroIdInput.dispatchEvent(new Event('change'));
     }
 
     // Validación de stock al enviar
@@ -191,17 +412,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const tipo = document.querySelector('input[name="tipo_movimiento"]:checked');
         const libroInput = document.getElementById('libro_id');
         
-        if (tipo && tipo.value === 'salida' && libroInput.value) {
-            // Obtener el stock del libro seleccionado desde el stock_actual span
-            const stockSpan = document.getElementById('libro_id_stock_actual');
-            if (stockSpan) {
-                const stock = parseInt(stockSpan.textContent);
-                const cantidad = parseInt(document.getElementById('cantidad').value);
-                
-                if (cantidad > stock) {
-                    e.preventDefault();
-                    alert('No hay suficiente stock. Stock actual: ' + stock);
-                }
+        if (tipo && tipo.value === 'salida' && libroInput.value && currentStock !== null) {
+            const cantidad = parseInt(cantidadInput.value);
+            
+            if (cantidad > currentStock) {
+                e.preventDefault();
+                alert(`Stock Insuficiente\n\nStock actual: ${currentStock} unidades\nCantidad solicitada: ${cantidad} unidades\nFaltante: ${cantidad - currentStock} unidades`);
             }
         }
     });

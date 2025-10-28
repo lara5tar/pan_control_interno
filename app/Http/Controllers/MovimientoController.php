@@ -80,7 +80,8 @@ class MovimientoController extends Controller
             'tipo_entrada' => 'required_if:tipo_movimiento,entrada',
             'tipo_salida' => 'required_if:tipo_movimiento,salida',
             'cantidad' => 'required|integer|min:1',
-            'precio_unitario' => 'nullable|numeric|min:0',
+            'descuento' => 'nullable|numeric|min:0|max:100',
+            'fecha' => 'nullable|date',
             'observaciones' => 'nullable|string|max:500',
         ], [
             'libro_id.required' => 'Debes seleccionar un libro',
@@ -90,6 +91,10 @@ class MovimientoController extends Controller
             'tipo_salida.required_if' => 'Debes seleccionar el tipo de salida',
             'cantidad.required' => 'La cantidad es obligatoria',
             'cantidad.min' => 'La cantidad debe ser al menos 1',
+            'descuento.numeric' => 'El descuento debe ser un número',
+            'descuento.min' => 'El descuento no puede ser negativo',
+            'descuento.max' => 'El descuento no puede ser mayor a 100%',
+            'fecha.date' => 'La fecha debe ser válida',
         ]);
 
         DB::beginTransaction();
@@ -109,7 +114,9 @@ class MovimientoController extends Controller
                 'tipo_entrada' => $request->tipo_movimiento === 'entrada' ? $request->tipo_entrada : null,
                 'tipo_salida' => $request->tipo_movimiento === 'salida' ? $request->tipo_salida : null,
                 'cantidad' => $request->cantidad,
-                'precio_unitario' => $request->precio_unitario,
+                'precio_unitario' => $libro->precio, // Usar el precio del libro
+                'descuento' => $request->descuento,
+                'fecha' => $request->fecha ?? now()->toDateString(),
                 'observaciones' => $request->observaciones,
                 'usuario' => 'Admin' // Aquí puedes usar auth()->user()->name cuando tengas autenticación
             ]);
@@ -138,7 +145,15 @@ class MovimientoController extends Controller
     public function show(Movimiento $movimiento)
     {
         $movimiento->load('libro');
-        return view('movimientos.show', compact('movimiento'));
+        
+        // Obtener los últimos 5 movimientos del mismo libro (excluyendo el actual)
+        $movimientosLibro = Movimiento::where('libro_id', $movimiento->libro_id)
+            ->where('id', '!=', $movimiento->id)
+            ->orderBy('created_at', 'desc')
+            ->take(5)
+            ->get();
+        
+        return view('movimientos.show', compact('movimiento', 'movimientosLibro'));
     }
 
     /**

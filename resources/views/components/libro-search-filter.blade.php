@@ -75,9 +75,10 @@
             <button 
                 type="button" 
                 id="{{ $name }}_remove"
-                class="ml-2 text-red-600 hover:text-red-800"
+                class="ml-2 text-red-600 hover:text-red-800 transition-colors"
+                title="Quitar libro"
             >
-                <i class="fas fa-times-circle"></i>
+                <i class="fas fa-times"></i>
             </button>
         </div>
     </div>

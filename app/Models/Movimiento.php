@@ -14,13 +14,17 @@ class Movimiento extends Model
         'tipo_salida',
         'cantidad',
         'precio_unitario',
+        'descuento',
         'observaciones',
-        'usuario'
+        'usuario',
+        'fecha'
     ];
 
     protected $casts = [
         'cantidad' => 'integer',
         'precio_unitario' => 'decimal:2',
+        'descuento' => 'decimal:2',
+        'fecha' => 'date',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
