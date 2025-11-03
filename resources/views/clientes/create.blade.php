@@ -83,4 +83,13 @@
         </div>
     </x-card>
 </x-page-layout>
+
+@if(session('nuevo_cliente_id'))
+<script>
+    // Guardar el cliente recién creado en sessionStorage para el formulario de ventas
+    sessionStorage.setItem('nuevo_cliente_id', '{{ session('nuevo_cliente_id') }}');
+    sessionStorage.setItem('nuevo_cliente_nombre', '{{ session('nuevo_cliente_nombre') }}');
+    sessionStorage.setItem('nuevo_cliente_telefono', '{{ session('nuevo_cliente_telefono') ?? '' }}');
+</script>
+@endif
 @endsection

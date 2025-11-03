@@ -46,7 +46,7 @@
     </div>
     
     <!-- Botón crear cliente -->
-    <button type="button" id="btnNuevoCliente" class="mt-2 text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors">
+    <a href="{{ route('clientes.create', ['return_url' => url()->current()]) }}" id="btnNuevoCliente" class="mt-2 inline-block text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors">
         <i class="fas fa-plus-circle"></i> Crear nuevo cliente
-    </button>
+    </a>
 </div>

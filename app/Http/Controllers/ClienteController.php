@@ -14,9 +14,19 @@ class ClienteController extends Controller
     {
         $search = $request->get('q');
         
-        $clientes = Cliente::where('nombre', 'like', "%{$search}%")
-            ->orWhere('telefono', 'like', "%{$search}%")
-            ->limit(10)
+        $query = Cliente::query();
+        
+        // Si hay búsqueda, filtrar por nombre o teléfono
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('nombre', 'like', "%{$search}%")
+                  ->orWhere('telefono', 'like', "%{$search}%");
+            });
+        }
+        
+        // Obtener resultados (limitados a 20 para la carga inicial)
+        $clientes = $query->orderBy('nombre', 'asc')
+            ->limit(20)
             ->get(['id', 'nombre', 'telefono']);
 
         return response()->json($clientes);
@@ -63,8 +73,13 @@ class ClienteController extends Controller
     /**
      * Mostrar formulario de creación
      */
-    public function create()
+    public function create(Request $request)
     {
+        // Guardar URL de retorno si viene desde ventas
+        if ($request->has('return_url')) {
+            $request->session()->put('return_to_ventas', $request->get('return_url'));
+        }
+        
         return view('clientes.create');
     }
 
@@ -92,8 +107,25 @@ class ClienteController extends Controller
         }
 
         // Si es una petición normal
-        Cliente::create($validated);
+        $cliente = Cliente::create($validated);
 
+        // Verificar si viene desde el formulario de ventas
+        $returnUrl = $request->session()->get('return_to_ventas');
+        
+        if ($returnUrl) {
+            // Limpiar la sesión de return_url
+            $request->session()->forget('return_to_ventas');
+            
+            // Guardar el ID del cliente recién creado en sesión (SOLO para ventas)
+            $request->session()->flash('nuevo_cliente_id', $cliente->id);
+            $request->session()->flash('nuevo_cliente_nombre', $cliente->nombre);
+            $request->session()->flash('nuevo_cliente_telefono', $cliente->telefono);
+            
+            return redirect($returnUrl)
+                ->with('success', 'Cliente registrado exitosamente. Puedes continuar con la venta.');
+        }
+
+        // Si NO viene desde ventas, redirigir al index de clientes sin guardar en sesión
         return redirect()->route('clientes.index')
             ->with('success', 'Cliente registrado exitosamente');
     }

@@ -24,23 +24,7 @@ class VentaFormManager {
             template: document.getElementById('libroTemplate'),
             descuentoGlobal: document.getElementById('descuento_global'),
             
-            // Cliente
-            clienteSearch: document.getElementById('cliente_search'),
-            clienteResults: document.getElementById('clienteResults'),
-            clienteId: document.getElementById('cliente_id'),
-            clienteSelected: document.getElementById('clienteSelected'),
-            clienteNombre: document.getElementById('clienteNombre'),
-            clienteTelefono: document.getElementById('clienteTelefono'),
-            clearCliente: document.getElementById('clearCliente'),
-            
-            // Modal Cliente
-            btnNuevoCliente: document.getElementById('btnNuevoCliente'),
-            modalNuevoCliente: document.getElementById('modalNuevoCliente'),
-            closeModal: document.getElementById('closeModal'),
-            cancelModal: document.getElementById('cancelModal'),
-            guardarCliente: document.getElementById('guardarCliente'),
-            nuevoClienteNombre: document.getElementById('nuevo_cliente_nombre'),
-            nuevoClienteTelefono: document.getElementById('nuevo_cliente_telefono'),
+
             
             // Displays
             subtotalDisplay: document.getElementById('subtotalDisplay'),
@@ -54,9 +38,9 @@ class VentaFormManager {
      */
     init() {
         this.initLibros();
-        this.initCliente();
         this.initCalculations();
         this.initValidation();
+        this.restoreFormState();
     }
 
     /**
@@ -132,122 +116,157 @@ class VentaFormManager {
     }
 
     /**
-     * GESTIÓN DE CLIENTE
+     * Guardar estado del formulario en sessionStorage
      */
-    initCliente() {
-        let searchTimeout;
+    saveFormState() {
+        const clienteIdInput = document.querySelector('input[name="cliente_id"]');
         
-        this.elements.clienteSearch.addEventListener('input', (e) => {
-            clearTimeout(searchTimeout);
-            const query = e.target.value.trim();
+        const formData = {
+            clienteId: clienteIdInput?.value || '',
+            libros: [],
+            descuentoGlobal: this.elements.descuentoGlobal.value,
+            fechaVenta: document.querySelector('input[name="fecha_venta"]')?.value,
+            tipoPago: document.querySelector('select[name="tipo_pago"]')?.value,
+            observaciones: document.querySelector('textarea[name="observaciones"]')?.value
+        };
+
+        // Guardar cada libro agregado
+        document.querySelectorAll('.libro-item').forEach((item, index) => {
+            const libroIdInput = item.querySelector('input[name*="[libro_id]"]');
+            const cantidadInput = item.querySelector('.cantidad-input');
+            const descuentoInput = item.querySelector('.descuento-input');
             
-            if (query.length < 2) {
-                this.elements.clienteResults.classList.add('hidden');
-                return;
+            if (libroIdInput && libroIdInput.value) {
+                formData.libros.push({
+                    libro_id: libroIdInput.value,
+                    libro_nombre: libroIdInput.getAttribute('data-nombre'),
+                    libro_precio: libroIdInput.getAttribute('data-precio'),
+                    libro_stock: libroIdInput.getAttribute('data-stock'),
+                    cantidad: cantidadInput.value,
+                    descuento: descuentoInput.value
+                });
             }
-            
-            searchTimeout = setTimeout(() => this.searchClientes(query), 300);
         });
 
-        this.elements.clienteResults.addEventListener('click', (e) => this.selectCliente(e));
-        this.elements.clearCliente.addEventListener('click', () => this.clearCliente());
-        this.elements.btnNuevoCliente.addEventListener('click', () => this.openModal());
-        this.elements.closeModal.addEventListener('click', () => this.closeModal());
-        this.elements.cancelModal.addEventListener('click', () => this.closeModal());
-        this.elements.guardarCliente.addEventListener('click', () => this.saveCliente());
+        sessionStorage.setItem('ventaFormState', JSON.stringify(formData));
+        sessionStorage.setItem('ventaFormReturnUrl', window.location.href);
+        console.log('Estado del formulario guardado:', formData);
+    }
+
+    /**
+     * Restaurar estado del formulario desde sessionStorage
+     */
+    restoreFormState() {
+        const savedState = sessionStorage.getItem('ventaFormState');
+        const returnUrl = sessionStorage.getItem('ventaFormReturnUrl');
         
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('#clienteSearchContainer')) {
-                this.elements.clienteResults.classList.add('hidden');
-            }
-        });
-    }
-
-    async searchClientes(query) {
-        try {
-            const response = await fetch(`/clientes/search?q=${encodeURIComponent(query)}`);
-            const data = await response.json();
-            
-            this.elements.clienteResults.innerHTML = data.length === 0
-                ? '<div class="p-3 text-gray-500 text-sm">No se encontraron clientes</div>'
-                : data.map(c => `
-                    <div class="p-3 hover:bg-gray-50 cursor-pointer cliente-item border-b last:border-b-0" 
-                         data-id="${c.id}" data-nombre="${c.nombre}" data-telefono="${c.telefono || ''}">
-                        <div class="font-semibold text-gray-800">${c.nombre}</div>
-                        <div class="text-sm text-gray-600">${c.telefono || 'Sin teléfono'}</div>
-                    </div>`).join('');
-            
-            this.elements.clienteResults.classList.remove('hidden');
-        } catch (error) {
-            console.error('Error al buscar clientes:', error);
-        }
-    }
-
-    selectCliente(e) {
-        const item = e.target.closest('.cliente-item');
-        if (!item) return;
-        
-        this.elements.clienteId.value = item.dataset.id;
-        this.elements.clienteNombre.textContent = item.dataset.nombre;
-        this.elements.clienteTelefono.textContent = item.dataset.telefono || 'Sin teléfono';
-        this.elements.clienteSelected.classList.remove('hidden');
-        this.elements.clienteSearch.value = '';
-        this.elements.clienteResults.classList.add('hidden');
-    }
-
-    clearCliente() {
-        this.elements.clienteId.value = '';
-        this.elements.clienteSelected.classList.add('hidden');
-        this.elements.clienteSearch.value = '';
-    }
-
-    openModal() {
-        this.elements.modalNuevoCliente.classList.remove('hidden');
-        this.elements.nuevoClienteNombre.focus();
-    }
-
-    closeModal() {
-        this.elements.modalNuevoCliente.classList.add('hidden');
-        this.elements.nuevoClienteNombre.value = '';
-        this.elements.nuevoClienteTelefono.value = '';
-    }
-
-    async saveCliente() {
-        const nombre = this.elements.nuevoClienteNombre.value.trim();
-        
-        if (!nombre) {
-            alert('El nombre del cliente es obligatorio');
+        // Solo restaurar si estamos en la misma URL
+        if (!savedState || window.location.href !== returnUrl) {
             return;
         }
 
         try {
-            const response = await fetch('/clientes', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                },
-                body: JSON.stringify({
-                    nombre: nombre,
-                    telefono: this.elements.nuevoClienteTelefono.value.trim() || null
-                })
-            });
+            const formData = JSON.parse(savedState);
+            console.log('Restaurando estado del formulario:', formData);
+
+            // Restaurar cliente
+            if (formData.clienteId) {
+                const clienteIdInput = document.querySelector('input[name="cliente_id"]');
+                if (clienteIdInput) {
+                    clienteIdInput.value = formData.clienteId;
+                }
+            }
+
+            // Restaurar campos generales
+            if (formData.descuentoGlobal) {
+                this.elements.descuentoGlobal.value = formData.descuentoGlobal;
+            }
             
-            const result = await response.json();
+            if (formData.fechaVenta) {
+                const fechaInput = document.querySelector('input[name="fecha_venta"]');
+                if (fechaInput) fechaInput.value = formData.fechaVenta;
+            }
             
-            if (result.success) {
-                this.elements.clienteId.value = result.cliente.id;
-                this.elements.clienteNombre.textContent = result.cliente.nombre;
-                this.elements.clienteTelefono.textContent = result.cliente.telefono || 'Sin teléfono';
-                this.elements.clienteSelected.classList.remove('hidden');
-                this.closeModal();
-                alert('Cliente creado exitosamente');
-            } else {
-                alert('Error al crear el cliente');
+            if (formData.tipoPago) {
+                const tipoPagoSelect = document.querySelector('select[name="tipo_pago"]');
+                if (tipoPagoSelect) tipoPagoSelect.value = formData.tipoPago;
+            }
+            
+            if (formData.observaciones) {
+                const observacionesTextarea = document.querySelector('textarea[name="observaciones"]');
+                if (observacionesTextarea) observacionesTextarea.value = formData.observaciones;
+            }
+
+            // Restaurar libros
+            if (formData.libros && formData.libros.length > 0) {
+                // Limpiar libros existentes
+                this.elements.librosContainer.innerHTML = '';
+                this.libroIndex = 0;
+
+                formData.libros.forEach((libro, index) => {
+                    // Agregar libro
+                    const newLibro = this.elements.template.content.cloneNode(true);
+                    const libroDiv = newLibro.querySelector('.libro-item');
+                    
+                    libroDiv.innerHTML = libroDiv.innerHTML.replace(/INDEX_PLACEHOLDER/g, index);
+                    libroDiv.dataset.index = index;
+                    libroDiv.querySelector('.libro-number').textContent = index + 1;
+                    
+                    this.elements.librosContainer.appendChild(newLibro);
+                    
+                    // Establecer valores del libro
+                    setTimeout(() => {
+                        const libroItem = document.querySelector(`.libro-item[data-index="${index}"]`);
+                        if (libroItem) {
+                            const libroIdInput = libroItem.querySelector('input[name*="[libro_id]"]');
+                            const cantidadInput = libroItem.querySelector('.cantidad-input');
+                            const descuentoInput = libroItem.querySelector('.descuento-input');
+                            const libroNombre = libroItem.querySelector('.libro-nombre');
+                            
+                            if (libroIdInput) {
+                                libroIdInput.value = libro.libro_id;
+                                libroIdInput.setAttribute('data-nombre', libro.libro_nombre);
+                                libroIdInput.setAttribute('data-precio', libro.libro_precio);
+                                libroIdInput.setAttribute('data-stock', libro.libro_stock);
+                            }
+                            
+                            if (libroNombre) {
+                                libroNombre.textContent = libro.libro_nombre;
+                                libroNombre.classList.remove('hidden');
+                            }
+                            
+                            if (cantidadInput) cantidadInput.value = libro.cantidad;
+                            if (descuentoInput) descuentoInput.value = libro.descuento;
+                            
+                            // Ocultar el buscador de libro
+                            const searchContainer = libroItem.querySelector('[id*="_container"]');
+                            if (searchContainer) {
+                                const searchInput = searchContainer.querySelector('input[type="text"]');
+                                if (searchInput) searchInput.classList.add('hidden');
+                            }
+                        }
+                    }, 100);
+                    
+                    this.libroIndex++;
+                });
+
+                setTimeout(() => {
+                    this.updateCalculations();
+                }, 200);
+            }
+
+            // Limpiar sessionStorage después de restaurar
+            sessionStorage.removeItem('ventaFormState');
+            sessionStorage.removeItem('ventaFormReturnUrl');
+
+            // Mostrar notificación
+            if (window.showNotification) {
+                window.showNotification('Formulario restaurado correctamente', 'success');
             }
         } catch (error) {
-            console.error('Error:', error);
-            alert('Error al crear el cliente');
+            console.error('Error al restaurar el estado del formulario:', error);
+            sessionStorage.removeItem('ventaFormState');
+            sessionStorage.removeItem('ventaFormReturnUrl');
         }
     }
 

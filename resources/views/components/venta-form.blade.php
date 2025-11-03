@@ -20,7 +20,12 @@
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Cliente -->
         <div class="lg:col-span-2">
-            <x-cliente-selector :venta="$venta" />
+            <x-cliente-search-dynamic 
+                name="cliente_id"
+                :selected="$venta?->cliente_id ?? null"
+                label="Cliente (Opcional)"
+                :required="false"
+            />
         </div>
 
         <!-- Fecha de Venta -->
@@ -152,7 +157,7 @@
 
             <!-- Mensaje cuando no hay libros -->
             @if(!$venta || $venta->movimientos->count() === 0)
-                <div id="emptyMessage" class="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <div id="emptyMessage" class="text-center py-12 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                     <i class="fas fa-book text-4xl mb-3"></i>
                     <p>No hay libros agregados. Haz clic en "Agregar Libro" para empezar.</p>
                 </div>
@@ -201,29 +206,13 @@
     <x-libro-item :libros="$libros" />
 </template>
 
-<!-- Modal de Cliente -->
-<x-cliente-modal />
-
 {{-- Cargar script externo --}}
 @push('scripts')
 <script>
     // Global libros data for libro search components
     window.ventaLibrosData = @json($libros);
 </script>
+<script src="{{ asset('js/cliente-search-dynamic.js') }}"></script>
 <script src="{{ asset('js/libro-search-dynamic.js') }}"></script>
 <script src="{{ asset('js/venta-form.js') }}"></script>
-@if($venta && $venta->cliente)
-<script>
-    // Mostrar cliente seleccionado al cargar
-    document.addEventListener('DOMContentLoaded', function() {
-        const clienteSelected = document.getElementById('clienteSelected');
-        const clienteNombre = document.getElementById('clienteNombre');
-        const clienteTelefono = document.getElementById('clienteTelefono');
-        
-        clienteSelected.classList.remove('hidden');
-        clienteNombre.textContent = '{{ $venta->cliente->nombre }}';
-        clienteTelefono.textContent = '{{ $venta->cliente->telefono ?? "Sin teléfono" }}';
-    });
-</script>
-@endif
 @endpush
