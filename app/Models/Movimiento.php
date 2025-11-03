@@ -9,6 +9,7 @@ class Movimiento extends Model
 {
     protected $fillable = [
         'libro_id',
+        'venta_id',
         'tipo_movimiento',
         'tipo_entrada',
         'tipo_salida',
@@ -33,6 +34,12 @@ class Movimiento extends Model
     public function libro(): BelongsTo
     {
         return $this->belongsTo(Libro::class);
+    }
+
+    // Relación con Venta
+    public function venta(): BelongsTo
+    {
+        return $this->belongsTo(Venta::class);
     }
 
     // Tipos de entrada con etiquetas

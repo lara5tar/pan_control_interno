@@ -42,6 +42,24 @@
                     Movimientos
                 </a>
                 
+                <a href="{{ route('ventas.index') }}" 
+                   class="px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150
+                          {{ request()->routeIs('ventas.*') 
+                              ? 'bg-gray-800 text-white' 
+                              : 'text-gray-700 hover:bg-gray-100' }}">
+                    <i class="fas fa-cash-register mr-2"></i>
+                    Ventas
+                </a>
+                
+                <a href="{{ route('clientes.index') }}" 
+                   class="px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150
+                          {{ request()->routeIs('clientes.*') 
+                              ? 'bg-gray-800 text-white' 
+                              : 'text-gray-700 hover:bg-gray-100' }}">
+                    <i class="fas fa-user-friends mr-2"></i>
+                    Clientes
+                </a>
+                
                 <a href="{{ route('usuarios.index') }}" 
                    class="px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150
                           {{ request()->routeIs('usuarios.*') 
@@ -144,6 +162,24 @@
                           : 'text-gray-700 hover:bg-gray-100' }}">
                 <i class="fas fa-exchange-alt w-6"></i>
                 <span class="ml-3">Movimientos</span>
+            </a>
+            
+            <a href="{{ route('ventas.index') }}" 
+               class="flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors duration-150
+                      {{ request()->routeIs('ventas.*') 
+                          ? 'bg-gray-800 text-white' 
+                          : 'text-gray-700 hover:bg-gray-100' }}">
+                <i class="fas fa-cash-register w-6"></i>
+                <span class="ml-3">Ventas</span>
+            </a>
+            
+            <a href="{{ route('clientes.index') }}" 
+               class="flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors duration-150
+                      {{ request()->routeIs('clientes.*') 
+                          ? 'bg-gray-800 text-white' 
+                          : 'text-gray-700 hover:bg-gray-100' }}">
+                <i class="fas fa-user-friends w-6"></i>
+                <span class="ml-3">Clientes</span>
             </a>
             
             <a href="{{ route('usuarios.index') }}" 

@@ -1,6 +1,6 @@
 @props(['icon', 'label', 'value', 'bgColor' => 'bg-gray-800', 'iconColor' => 'text-white', 'formatNumber' => false])
 
-<x-card>
+<div class="bg-white rounded-lg border border-gray-200 p-6">
     <div class="flex items-center">
         <div class="p-3 {{ $bgColor }} rounded-full">
             <i class="{{ $icon }} {{ $iconColor }} text-2xl"></i>
@@ -12,4 +12,4 @@
             </p>
         </div>
     </div>
-</x-card>
+</div>

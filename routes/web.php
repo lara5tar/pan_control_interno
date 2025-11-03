@@ -6,6 +6,8 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InventarioController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\MovimientoController;
+use App\Http\Controllers\VentaController;
+use App\Http\Controllers\ClienteController;
 
 // Rutas públicas de autenticación
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -41,5 +43,13 @@ Route::middleware('checkauth')->group(function () {
 
     // Rutas de movimientos
     Route::resource('movimientos', MovimientoController::class);
+    
+    // Rutas de ventas
+    Route::resource('ventas', VentaController::class);
+    Route::post('/ventas/{venta}/cancelar', [VentaController::class, 'cancelar'])->name('ventas.cancelar');
+    
+    // Rutas de clientes
+    Route::get('/clientes/search', [ClienteController::class, 'search'])->name('clientes.search');
+    Route::resource('clientes', ClienteController::class);
     
 });

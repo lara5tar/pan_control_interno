@@ -7,7 +7,7 @@
     'centered' => false
 ])
 
-<div class="space-y-6">
+<div>
     <!-- Encabezado -->
     <x-page-header 
         :title="$title"
@@ -20,11 +20,15 @@
     </x-page-header>
 
     <!-- Contenido -->
-    @if($centered)
-        <div class="max-w-3xl mx-auto space-y-6">
-            {{ $slot }}
-        </div>
-    @else
-        {{ $slot }}
-    @endif
+    <div class="mt-6">
+        @if($centered)
+            <div class="max-w-3xl mx-auto space-y-6">
+                {{ $slot }}
+            </div>
+        @else
+            <div class="space-y-6">
+                {{ $slot }}
+            </div>
+        @endif
+    </div>
 </div>

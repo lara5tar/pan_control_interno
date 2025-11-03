@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Libro;
+use App\Models\Venta;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 /**
@@ -155,5 +156,25 @@ class CodeGeneratorService
             $centerX, $nombreEscaped,
             $centerX, $codigoEscaped
         );
+    }
+
+    // ============================================
+    // SECCIÓN: CÓDIGOS DE VENTA
+    // ============================================
+    
+    /**
+     * Genera un código único para ventas (V-0001)
+     */
+    public function generateVentaCode(): string
+    {
+        $ultimaVenta = Venta::orderBy('id', 'desc')->first();
+        $nextNumber = $ultimaVenta ? ($ultimaVenta->id + 1) : 1;
+        
+        do {
+            $codigo = 'V-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+            $nextNumber++;
+        } while (Venta::where('codigo', $codigo)->exists());
+
+        return $codigo;
     }
 }

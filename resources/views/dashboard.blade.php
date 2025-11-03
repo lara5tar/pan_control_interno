@@ -37,7 +37,7 @@
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <x-card title="Acceso Rápido">
+        <x-card title="Acceso Rápido - Inventario">
             <div class="space-y-2">
                 <a href="{{ route('inventario.index') }}" class="block p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
                     <i class="fas fa-boxes text-gray-800 mr-2"></i>
@@ -46,6 +46,27 @@
                 <a href="{{ route('inventario.create') }}" class="block p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
                     <i class="fas fa-plus text-green-600 mr-2"></i>
                     Agregar Nuevo Libro
+                </a>
+            </div>
+        </x-card>
+
+        <x-card title="Acceso Rápido - Ventas y Movimientos">
+            <div class="space-y-2">
+                <a href="{{ route('ventas.index') }}" class="block p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors">
+                    <i class="fas fa-cash-register text-green-600 mr-2"></i>
+                    Ver Ventas
+                </a>
+                <a href="{{ route('ventas.create') }}" class="block p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors">
+                    <i class="fas fa-plus-circle text-green-600 mr-2"></i>
+                    Registrar Nueva Venta
+                </a>
+                <a href="{{ route('movimientos.index') }}" class="block p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+                    <i class="fas fa-exchange-alt text-blue-600 mr-2"></i>
+                    Ver Movimientos
+                </a>
+                <a href="{{ route('movimientos.create') }}" class="block p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+                    <i class="fas fa-plus text-blue-600 mr-2"></i>
+                    Registrar Nuevo Movimiento
                 </a>
             </div>
         </x-card>
