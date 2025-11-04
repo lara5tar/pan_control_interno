@@ -99,6 +99,18 @@
                     </select>
                 </div>
 
+                <!-- Filtro por A Plazos -->
+                <div class="w-full md:w-40">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-calendar-alt text-gray-400"></i> A Plazos
+                    </label>
+                    <select name="es_a_plazos" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        <option value="">Todas</option>
+                        <option value="1" {{ request('es_a_plazos') === '1' ? 'selected' : '' }}>Solo a plazos</option>
+                        <option value="0" {{ request('es_a_plazos') === '0' ? 'selected' : '' }}>Solo contado</option>
+                    </select>
+                </div>
+
                 <!-- Ordenar por -->
                 <div class="w-full md:w-40">
                     <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -120,7 +132,7 @@
                         Aplicar Filtros
                     </x-button>
 
-                    @if(request()->hasAny(['search', 'estado', 'tipo_pago', 'ordenar']))
+                    @if(request()->hasAny(['search', 'estado', 'tipo_pago', 'es_a_plazos', 'ordenar']))
                         <x-button type="button" variant="secondary" icon="fas fa-times" 
                                   onclick="window.location='{{ route('ventas.index') }}'">
                             Limpiar Filtros
@@ -176,11 +188,19 @@
                                 ${{ number_format($venta->total, 2) }}
                             </div>
                         @endif
+                        @if($venta->es_a_plazos)
+                            <div class="text-xs text-gray-500 mt-1">
+                                Pagado: ${{ number_format($venta->total_pagado, 2) }}
+                            </div>
+                            <div class="text-xs font-semibold text-orange-600">
+                                Saldo: ${{ number_format($venta->saldo_pendiente, 2) }}
+                            </div>
+                        @endif
                     </x-data-table-cell>
                     <x-data-table-cell>
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $venta->getBadgeColor() }}">
-                            <i class="{{ $venta->getIcon() }} mr-1"></i>
-                            {{ $venta->getEstadoLabel() }}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $venta->getEstadoUnificadoBadgeColor() }}">
+                            <i class="{{ $venta->getEstadoUnificadoIcon() }} mr-1"></i>
+                            {{ $venta->getEstadoUnificadoLabel() }}
                         </span>
                     </x-data-table-cell>
                     <x-data-table-cell>
@@ -198,6 +218,16 @@
                                 icon="fas fa-eye"
                                 title="Ver detalles">
                             </x-button>
+                            
+                            @if($venta->es_a_plazos && $venta->estado_pago !== 'completado')
+                                <x-button 
+                                    href="{{ route('ventas.pagos.create', $venta) }}" 
+                                    variant="info" 
+                                    size="sm"
+                                    icon="fas fa-hand-holding-usd"
+                                    title="Registrar pago">
+                                </x-button>
+                            @endif
                             
                             @if($venta->estado === 'completada')
                                 <form action="{{ route('ventas.cancelar', $venta) }}" method="POST" class="inline">

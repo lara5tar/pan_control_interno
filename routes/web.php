@@ -8,6 +8,7 @@ use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\MovimientoController;
 use App\Http\Controllers\VentaController;
 use App\Http\Controllers\ClienteController;
+use App\Http\Controllers\PagoController;
 
 // Rutas públicas de autenticación
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -51,5 +52,10 @@ Route::middleware('checkauth')->group(function () {
     // Rutas de clientes
     Route::get('/clientes/search', [ClienteController::class, 'search'])->name('clientes.search');
     Route::resource('clientes', ClienteController::class);
+    
+    // Rutas de pagos (dentro del módulo de ventas)
+    Route::get('/ventas/{venta}/pagos/crear', [PagoController::class, 'create'])->name('ventas.pagos.create');
+    Route::post('/ventas/{venta}/pagos', [PagoController::class, 'store'])->name('pagos.store');
+    Route::delete('/pagos/{pago}', [PagoController::class, 'destroy'])->name('pagos.destroy');
     
 });

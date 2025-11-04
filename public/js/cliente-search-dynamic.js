@@ -241,6 +241,11 @@ class ClienteSearchDynamic {
         
         // Dispatch change event (igual que libros)
         this.hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+        
+        // Dispatch evento personalizado para notificar que se seleccionó un cliente
+        document.dispatchEvent(new CustomEvent('clienteSeleccionado', {
+            detail: { cliente: cliente }
+        }));
     }
     
     clearSelection() {
@@ -255,6 +260,9 @@ class ClienteSearchDynamic {
         
         // Dispatch change event
         this.hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+        
+        // Dispatch evento personalizado para notificar que se removió el cliente
+        document.dispatchEvent(new CustomEvent('clienteRemovido'));
     }
     
     /**

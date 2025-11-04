@@ -40,6 +40,11 @@ class VentaController extends Controller
             $query->tipoPago($request->tipo_pago);
         }
 
+        // Filtrar por ventas a plazos
+        if ($request->filled('es_a_plazos')) {
+            $query->where('es_a_plazos', $request->es_a_plazos == '1');
+        }
+
         // Ordenar
         $ordenar = $request->get('ordenar', 'reciente');
         switch ($ordenar) {
@@ -85,6 +90,8 @@ class VentaController extends Controller
             'tipo_pago' => 'required|in:contado,credito,mixto',
             'descuento_global' => 'nullable|numeric|min:0|max:100',
             'observaciones' => 'nullable|string|max:500',
+            'es_a_plazos' => 'nullable|boolean',
+            'fecha_limite' => 'nullable|date|after:today',
             
             // Movimientos
             'libros' => 'required|array|min:1',
@@ -96,17 +103,29 @@ class VentaController extends Controller
             'tipo_pago.required' => 'Debes seleccionar el tipo de pago',
             'libros.required' => 'Debes agregar al menos un libro a la venta',
             'libros.min' => 'Debes agregar al menos un libro a la venta',
+            'fecha_limite.after' => 'La fecha límite debe ser posterior a hoy',
         ]);
 
         DB::beginTransaction();
         try {
-            // Validar stock de todos los libros primero
-            foreach ($validated['libros'] as $item) {
-                $libro = Libro::findOrFail($item['libro_id']);
-                if ($libro->stock < $item['cantidad']) {
-                    return back()->withErrors([
-                        'error' => "Stock insuficiente para '{$libro->nombre}'. Stock actual: {$libro->stock}"
-                    ])->withInput();
+            $esAPLazos = isset($validated['es_a_plazos']) && $validated['es_a_plazos'];
+            
+            // Validar que si es a plazos, debe tener cliente
+            if ($esAPLazos && empty($validated['cliente_id'])) {
+                return back()->withErrors([
+                    'error' => 'Las ventas a plazos requieren un cliente asignado'
+                ])->withInput();
+            }
+            
+            // Validar stock de todos los libros primero (solo si NO es a plazos)
+            if (!$esAPLazos) {
+                foreach ($validated['libros'] as $item) {
+                    $libro = Libro::findOrFail($item['libro_id']);
+                    if ($libro->stock < $item['cantidad']) {
+                        return back()->withErrors([
+                            'error' => "Stock insuficiente para '{$libro->nombre}'. Stock actual: {$libro->stock}"
+                        ])->withInput();
+                    }
                 }
             }
 
@@ -119,6 +138,10 @@ class VentaController extends Controller
                 'estado' => 'completada',
                 'observaciones' => $validated['observaciones'],
                 'usuario' => 'Admin', // Cambiar por auth()->user()->name
+                'es_a_plazos' => $esAPLazos,
+                'fecha_limite' => $validated['fecha_limite'] ?? null,
+                'estado_pago' => $esAPLazos ? 'pendiente' : 'completado',
+                'total_pagado' => 0,
             ]);
 
             // Crear los movimientos asociados
@@ -139,12 +162,20 @@ class VentaController extends Controller
                     'usuario' => 'Admin',
                 ]);
 
-                // Actualizar stock
-                $libro->decrement('stock', $item['cantidad']);
+                // Actualizar stock SOLO si NO es a plazos
+                if (!$esAPLazos) {
+                    $libro->decrement('stock', $item['cantidad']);
+                }
             }
 
             // Calcular y actualizar totales de la venta
             $venta->actualizarTotales();
+            
+            // Si NO es a plazos, marcar como completamente pagada
+            if (!$esAPLazos) {
+                $venta->total_pagado = $venta->total;
+                $venta->save();
+            }
 
             DB::commit();
 

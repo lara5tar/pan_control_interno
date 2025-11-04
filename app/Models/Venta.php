@@ -19,6 +19,10 @@ class Venta extends Model
         'estado',
         'observaciones',
         'usuario',
+        'es_a_plazos',
+        'total_pagado',
+        'estado_pago',
+        'fecha_limite',
     ];
 
     protected $casts = [
@@ -26,6 +30,9 @@ class Venta extends Model
         'subtotal' => 'decimal:2',
         'descuento_global' => 'decimal:2',
         'total' => 'decimal:2',
+        'es_a_plazos' => 'boolean',
+        'total_pagado' => 'decimal:2',
+        'fecha_limite' => 'date',
     ];
 
     /**
@@ -42,6 +49,14 @@ class Venta extends Model
     public function cliente()
     {
         return $this->belongsTo(Cliente::class);
+    }
+
+    /**
+     * Relación: Una venta tiene muchos pagos
+     */
+    public function pagos()
+    {
+        return $this->hasMany(Pago::class);
     }
 
     /**
@@ -164,5 +179,156 @@ class Venta extends Model
                   $q->where('nombre', 'like', "%{$search}%");
               });
         });
+    }
+
+    /**
+     * Scope para filtrar ventas a plazos
+     */
+    public function scopeVentasAPlazo($query)
+    {
+        return $query->where('es_a_plazos', true);
+    }
+
+    /**
+     * Calcular el total pagado sumando todos los pagos
+     */
+    public function calcularTotalPagado()
+    {
+        return $this->pagos()->sum('monto');
+    }
+
+    /**
+     * Actualizar el estado de pago basado en los pagos realizados
+     */
+    public function actualizarEstadoPago()
+    {
+        if (!$this->es_a_plazos) {
+            $this->estado_pago = 'completado';
+            $this->total_pagado = $this->total;
+            $this->save();
+            return;
+        }
+
+        $totalPagado = $this->calcularTotalPagado();
+        $this->total_pagado = $totalPagado;
+
+        if ($totalPagado <= 0) {
+            $this->estado_pago = 'pendiente';
+        } elseif ($totalPagado >= $this->total) {
+            $this->estado_pago = 'completado';
+        } else {
+            $this->estado_pago = 'parcial';
+        }
+
+        $this->save();
+    }
+
+    /**
+     * Obtener el saldo pendiente
+     */
+    public function getSaldoPendienteAttribute()
+    {
+        return $this->total - $this->total_pagado;
+    }
+
+    /**
+     * Obtener label del estado de pago
+     */
+    public function getEstadoPagoLabel()
+    {
+        return match($this->estado_pago) {
+            'pendiente' => 'Pendiente',
+            'parcial' => 'Pago Parcial',
+            'completado' => 'Completado',
+            default => 'Desconocido',
+        };
+    }
+
+    /**
+     * Obtener el color del badge según el estado de pago
+     */
+    public function getEstadoPagoBadgeColor()
+    {
+        return match($this->estado_pago) {
+            'completado' => 'success',
+            'parcial' => 'warning',
+            'pendiente' => 'danger',
+            default => 'secondary',
+        };
+    }
+
+    /**
+     * Obtener el estado unificado de la venta (considerando pagos y estado general)
+     */
+    public function getEstadoUnificado()
+    {
+        // Si está cancelada, siempre mostrar cancelada
+        if ($this->estado === 'cancelada') {
+            return 'cancelada';
+        }
+
+        // Si es a plazos, el estado depende del pago
+        if ($this->es_a_plazos) {
+            return match($this->estado_pago) {
+                'pendiente' => 'pendiente_pago',
+                'parcial' => 'pago_parcial',
+                'completado' => 'completada',
+                default => 'pendiente',
+            };
+        }
+
+        // Si no es a plazos, usar el estado normal
+        return $this->estado;
+    }
+
+    /**
+     * Obtener el label del estado unificado
+     */
+    public function getEstadoUnificadoLabel()
+    {
+        $estado = $this->getEstadoUnificado();
+        
+        return match($estado) {
+            'completada' => 'Completada',
+            'pendiente_pago' => 'Pendiente de Pago',
+            'pago_parcial' => 'Pago Parcial',
+            'pendiente' => 'Pendiente',
+            'cancelada' => 'Cancelada',
+            default => 'Desconocido',
+        };
+    }
+
+    /**
+     * Obtener el color del badge para el estado unificado
+     */
+    public function getEstadoUnificadoBadgeColor()
+    {
+        $estado = $this->getEstadoUnificado();
+        
+        return match($estado) {
+            'completada' => 'bg-green-100 text-green-800',
+            'pago_parcial' => 'bg-yellow-100 text-yellow-800',
+            'pendiente_pago' => 'bg-orange-100 text-orange-800',
+            'pendiente' => 'bg-blue-100 text-blue-800',
+            'cancelada' => 'bg-red-100 text-red-800',
+            default => 'bg-gray-100 text-gray-800',
+        };
+    }
+
+    /**
+     * Obtener el icono para el estado unificado
+     */
+    public function getEstadoUnificadoIcon()
+    {
+        $estado = $this->getEstadoUnificado();
+        
+        return match($estado) {
+            'completada' => 'fas fa-check-circle',
+            'pago_parcial' => 'fas fa-clock',
+            'pendiente_pago' => 'fas fa-exclamation-circle',
+            'pendiente' => 'fas fa-hourglass-half',
+            'cancelada' => 'fas fa-times-circle',
+            default => 'fas fa-question-circle',
+        };
     }
 }
