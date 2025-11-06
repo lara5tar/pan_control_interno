@@ -27,9 +27,9 @@
                                 Monto del Pago <span class="text-red-500">*</span>
                             </label>
                             <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <i class="fas fa-dollar-sign text-gray-400 text-sm"></i>
-                                </div>
+                                <span class="absolute left-3 top-2.5 text-gray-400">
+                                    <i class="fas fa-dollar-sign"></i>
+                                </span>
                                 <input 
                                     type="number" 
                                     name="monto" 
@@ -38,7 +38,7 @@
                                     min="0.01"
                                     max="{{ $venta->saldo_pendiente }}"
                                     value="{{ old('monto') }}"
-                                    class="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 @error('monto') border-red-500 @enderror"
+                                    class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 @error('monto') border-red-500 @enderror"
                                     placeholder="0.00"
                                     required
                                     autofocus>
@@ -57,15 +57,15 @@
                                 Fecha del Pago <span class="text-red-500">*</span>
                             </label>
                             <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <i class="fas fa-calendar text-gray-400 text-sm"></i>
-                                </div>
+                                <span class="absolute left-3 top-2.5 text-gray-400">
+                                    <i class="fas fa-calendar"></i>
+                                </span>
                                 <input 
                                     type="date" 
                                     name="fecha_pago" 
                                     id="fecha_pago" 
                                     value="{{ old('fecha_pago', date('Y-m-d')) }}"
-                                    class="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 @error('fecha_pago') border-red-500 @enderror"
+                                    class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 @error('fecha_pago') border-red-500 @enderror"
                                     required>
                             </div>
                             @error('fecha_pago')
@@ -81,13 +81,13 @@
                                 Tipo de Pago <span class="text-red-500">*</span>
                             </label>
                             <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <i class="fas fa-credit-card text-gray-400 text-sm"></i>
-                                </div>
+                                <span class="absolute left-3 top-2.5 text-gray-400">
+                                    <i class="fas fa-credit-card"></i>
+                                </span>
                                 <select 
                                     name="metodo_pago" 
                                     id="metodo_pago"
-                                    class="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 @error('metodo_pago') border-red-500 @enderror"
+                                    class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 @error('metodo_pago') border-red-500 @enderror"
                                     required>
                                     <option value="">Seleccionar tipo de pago</option>
                                     <option value="contado" {{ old('metodo_pago') == 'contado' ? 'selected' : '' }}>Contado</option>
@@ -105,15 +105,15 @@
                                 Número de Comprobante
                             </label>
                             <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <i class="fas fa-receipt text-gray-400 text-sm"></i>
-                                </div>
+                                <span class="absolute left-3 top-2.5 text-gray-400">
+                                    <i class="fas fa-receipt"></i>
+                                </span>
                                 <input 
                                     type="text" 
                                     name="comprobante" 
                                     id="comprobante" 
                                     value="{{ old('comprobante') }}"
-                                    class="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 @error('comprobante') border-red-500 @enderror"
+                                    class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 @error('comprobante') border-red-500 @enderror"
                                     placeholder="Opcional">
                             </div>
                             @error('comprobante')
@@ -131,7 +131,7 @@
                             name="notas" 
                             id="notas" 
                             rows="4"
-                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 @error('notas') border-red-500 @enderror"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 @error('notas') border-red-500 @enderror"
                             placeholder="Agregar notas u observaciones sobre este pago (opcional)">{{ old('notas') }}</textarea>
                         @error('notas')
                             <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
@@ -148,7 +148,7 @@
                     @endif
 
                     <!-- Botones -->
-                    <div class="flex gap-3 justify-end pt-4 border-t">
+                    <div class="flex gap-3 justify-end pt-4">
                         <x-button 
                             type="button" 
                             variant="secondary" 
@@ -220,7 +220,7 @@
                     </div>
 
                     <!-- Saldo Pendiente -->
-                    <div class="p-3 bg-orange-50 rounded-lg border-2 border-orange-300">
+                    <div class="p-3 bg-orange-50 rounded-lg border-2 border-gray-200">
                         <p class="text-xs text-gray-600 mb-1">Saldo Pendiente</p>
                         <p class="text-2xl font-bold text-orange-600">
                             ${{ number_format($venta->saldo_pendiente, 2) }}
@@ -258,24 +258,6 @@
                             </p>
                         </div>
                     @endif
-                </div>
-            </x-card>
-
-            <!-- Nota Importante -->
-            <x-card title="Información Importante" icon="fas fa-info-circle" class="mt-6">
-                <div class="space-y-3 text-sm text-gray-700">
-                    <p class="flex items-start gap-2">
-                        <i class="fas fa-check-circle text-green-500 mt-0.5"></i>
-                        <span>El pago se registrará inmediatamente</span>
-                    </p>
-                    <p class="flex items-start gap-2">
-                        <i class="fas fa-sync-alt text-blue-500 mt-0.5"></i>
-                        <span>El saldo pendiente se actualizará automáticamente</span>
-                    </p>
-                    <p class="flex items-start gap-2">
-                        <i class="fas fa-box text-orange-500 mt-0.5"></i>
-                        <span>Si el pago completa la venta, el stock se descontará automáticamente</span>
-                    </p>
                 </div>
             </x-card>
         </div>
