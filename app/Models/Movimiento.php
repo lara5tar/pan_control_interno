@@ -69,10 +69,12 @@ class Movimiento extends Model
     public function getTipoLabel(): string
     {
         if ($this->tipo_movimiento === 'entrada') {
-            return self::tiposEntrada()[$this->tipo_entrada] ?? $this->tipo_entrada;
-        } else {
-            return self::tiposSalida()[$this->tipo_salida] ?? $this->tipo_salida;
+            return self::tiposEntrada()[$this->tipo_entrada] ?? $this->tipo_entrada ?? 'Sin especificar';
+        } elseif ($this->tipo_movimiento === 'salida') {
+            return self::tiposSalida()[$this->tipo_salida] ?? $this->tipo_salida ?? 'Sin especificar';
         }
+        
+        return 'Sin especificar';
     }
 
     // Obtener color del badge según el tipo
@@ -86,7 +88,7 @@ class Movimiento extends Model
                 'donacion_recibida' => 'bg-pink-100 text-pink-800',
                 default => 'bg-gray-100 text-gray-800'
             };
-        } else {
+        } elseif ($this->tipo_movimiento === 'salida') {
             return match($this->tipo_salida) {
                 'venta' => 'bg-green-100 text-green-800',
                 'perdida' => 'bg-red-100 text-red-800',
@@ -96,6 +98,8 @@ class Movimiento extends Model
                 default => 'bg-gray-100 text-gray-800'
             };
         }
+        
+        return 'bg-gray-100 text-gray-800';
     }
 
     // Obtener icono según el tipo
@@ -109,7 +113,7 @@ class Movimiento extends Model
                 'donacion_recibida' => 'fas fa-gift',
                 default => 'fas fa-arrow-down'
             };
-        } else {
+        } elseif ($this->tipo_movimiento === 'salida') {
             return match($this->tipo_salida) {
                 'venta' => 'fas fa-cash-register',
                 'perdida' => 'fas fa-exclamation-triangle',
@@ -119,5 +123,7 @@ class Movimiento extends Model
                 default => 'fas fa-arrow-up'
             };
         }
+        
+        return 'fas fa-question-circle';
     }
 }
