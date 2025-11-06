@@ -117,6 +117,27 @@
                         </x-button>
                     @endif
                 </div>
+
+                <!-- Botones de exportación -->
+                <div class="flex gap-3">
+                    <x-button 
+                        type="button" 
+                        variant="success" 
+                        icon="fas fa-file-excel"
+                        onclick="window.location='{{ route('movimientos.export.excel', request()->query()) }}'"
+                    >
+                        Exportar Excel
+                    </x-button>
+                    
+                    <x-button 
+                        type="button" 
+                        variant="danger" 
+                        icon="fas fa-file-pdf"
+                        onclick="window.location='{{ route('movimientos.export.pdf', request()->query()) }}'"
+                    >
+                        Exportar PDF
+                    </x-button>
+                </div>
             </div>
         </form>
     </x-card>

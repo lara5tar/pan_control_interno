@@ -45,6 +45,10 @@ Route::middleware('checkauth')->group(function () {
     // Rutas de movimientos
     Route::resource('movimientos', MovimientoController::class);
     
+    // Rutas para exportar reportes de movimientos
+    Route::get('/movimientos-export/excel', [MovimientoController::class, 'exportExcel'])->name('movimientos.export.excel');
+    Route::get('/movimientos-export/pdf', [MovimientoController::class, 'exportPdf'])->name('movimientos.export.pdf');
+    
     // Rutas de ventas
     Route::resource('ventas', VentaController::class);
     Route::post('/ventas/{venta}/cancelar', [VentaController::class, 'cancelar'])->name('ventas.cancelar');
