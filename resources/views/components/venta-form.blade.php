@@ -14,9 +14,23 @@
 @php
     $oldLibros = old('libros', []);
     $libroCount = !empty($oldLibros) ? count($oldLibros) : ($venta ? $venta->movimientos->count() : 0);
+    
+    // Obtener datos del cliente cuando hay old() (después de error de validación)
+    $oldClienteId = old('cliente_id');
+    $selectedClienteId = $oldClienteId ?? $venta?->cliente_id ?? null;
+    $selectedCliente = null;
+    
+    if ($selectedClienteId) {
+        if ($venta && $venta->cliente) {
+            $selectedCliente = $venta->cliente;
+        } elseif ($oldClienteId) {
+            // Buscar el cliente en la base de datos cuando viene de old()
+            $selectedCliente = \App\Models\Cliente::find($oldClienteId);
+        }
+    }
 @endphp
 
-<form action="{{ $action }}" method="POST" id="ventaForm" data-libro-index="{{ $libroCount }}" data-cliente-selected="{{ $venta && $venta->cliente ? json_encode(['nombre' => $venta->cliente->nombre, 'telefono' => $venta->cliente->telefono]) : '' }}">
+<form action="{{ $action }}" method="POST" id="ventaForm" data-libro-index="{{ $libroCount }}" data-cliente-selected="{{ $selectedCliente ? json_encode(['nombre' => $selectedCliente->nombre, 'telefono' => $selectedCliente->telefono]) : '' }}">
     @csrf
     @if($method !== 'POST')
         @method($method)
@@ -55,7 +69,8 @@
         <div class="lg:col-span-2">
             <x-cliente-search-dynamic 
                 name="cliente_id"
-                :selected="$venta?->cliente_id ?? null"
+                :selected="$selectedClienteId"
+                :clienteData="$selectedCliente"
                 label="Cliente (Opcional)"
                 :required="false"
             />

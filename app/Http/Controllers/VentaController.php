@@ -23,33 +23,75 @@ class VentaController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Venta::with(['movimientos.libro', 'cliente']);
+        $query = Venta::with(['movimientos.libro', 'cliente', 'pagos']);
 
-        // Filtrar por búsqueda
-        if ($request->filled('search')) {
-            $query->search($request->search);
+        // ===== FILTROS PARA REPORTES =====
+
+        // Filtro por rango de fechas (MUY IMPORTANTE PARA REPORTES)
+        if ($request->filled('fecha_desde')) {
+            $query->where('fecha_venta', '>=', $request->fecha_desde);
+        }
+        if ($request->filled('fecha_hasta')) {
+            $query->where('fecha_venta', '<=', $request->fecha_hasta);
         }
 
-        // Filtrar por estado
+        // Filtro por cliente específico
+        if ($request->filled('cliente_id')) {
+            $query->where('cliente_id', $request->cliente_id);
+        }
+
+        // Filtro por estado de la venta
         if ($request->filled('estado')) {
             $query->estado($request->estado);
         }
 
-        // Filtrar por tipo de pago
+        // Filtro por tipo de pago
         if ($request->filled('tipo_pago')) {
             $query->tipoPago($request->tipo_pago);
         }
 
-        // Filtrar por ventas a plazos
+        // Filtro por estado de pago (para ventas a plazos)
+        if ($request->filled('estado_pago')) {
+            $query->estadoPago($request->estado_pago);
+        }
+
+        // Filtro por ventas a plazos
         if ($request->filled('es_a_plazos')) {
-            $query->where('es_a_plazos', $request->es_a_plazos == '1');
+            if ($request->es_a_plazos == '1') {
+                $query->ventasAPlazo();
+            } elseif ($request->es_a_plazos == '0') {
+                $query->where('es_a_plazos', false);
+            }
+        }
+
+        // Filtro por ventas vencidas (a plazos que pasaron su fecha límite sin pagar)
+        if ($request->filled('vencidas') && $request->vencidas == '1') {
+            $query->ventasVencidas();
+        }
+
+        // Filtro por rango de montos
+        if ($request->filled('monto_min')) {
+            $query->where('total', '>=', $request->monto_min);
+        }
+        if ($request->filled('monto_max')) {
+            $query->where('total', '<=', $request->monto_max);
+        }
+
+        // Filtro por libro específico vendido
+        if ($request->filled('libro_id')) {
+            $query->conLibro($request->libro_id);
+        }
+
+        // Búsqueda general (ID, cliente, observaciones)
+        if ($request->filled('search')) {
+            $query->search($request->search);
         }
 
         // Ordenar
         $ordenar = $request->get('ordenar', 'reciente');
         switch ($ordenar) {
             case 'antiguo':
-                $query->orderBy('created_at', 'asc');
+                $query->orderBy('fecha_venta', 'asc');
                 break;
             case 'monto_mayor':
                 $query->orderBy('total', 'desc');
@@ -57,14 +99,60 @@ class VentaController extends Controller
             case 'monto_menor':
                 $query->orderBy('total', 'asc');
                 break;
+            case 'cliente':
+                $query->leftJoin('clientes', 'ventas.cliente_id', '=', 'clientes.id')
+                      ->orderBy('clientes.nombre', 'asc')
+                      ->select('ventas.*');
+                break;
+            case 'saldo_mayor':
+                $query->orderByRaw('(total - total_pagado) DESC');
+                break;
             default: // reciente
-                $query->orderBy('created_at', 'desc');
+                $query->orderBy('fecha_venta', 'desc');
                 break;
         }
 
-        $ventas = $query->paginate(10)->withQueryString();
+        $ventas = $query->paginate(15)->withQueryString();
 
-        return view('ventas.index', compact('ventas'));
+        // Calcular estadísticas para la vista
+        $estadisticas = $this->calcularEstadisticas($query);
+
+        // Obtener clientes para el filtro
+        $clientes = \App\Models\Cliente::orderBy('nombre')->get();
+        
+        // Obtener libros para el filtro
+        $libros = \App\Models\Libro::orderBy('nombre')->get();
+
+        return view('ventas.index', compact('ventas', 'estadisticas', 'clientes', 'libros'));
+    }
+
+    /**
+     * Calcular estadísticas de las ventas filtradas
+     */
+    private function calcularEstadisticas($query)
+    {
+        // Clonar query para no afectar la paginación
+        $queryStats = clone $query;
+        
+        $ventas = $queryStats->get();
+        
+        return [
+            'total_ventas' => $ventas->count(),
+            'total_monto' => $ventas->sum('total'),
+            'total_pagado' => $ventas->sum('total_pagado'),
+            'total_pendiente' => $ventas->sum(function($v) { 
+                return $v->total - $v->total_pagado; 
+            }),
+            'ventas_completadas' => $ventas->where('estado', 'completada')->count(),
+            'ventas_canceladas' => $ventas->where('estado', 'cancelada')->count(),
+            'ventas_a_plazos' => $ventas->where('es_a_plazos', true)->count(),
+            'ventas_vencidas' => $ventas->filter(function($v) {
+                return $v->es_a_plazos && 
+                       $v->estado_pago !== 'completado' && 
+                       $v->fecha_limite && 
+                       $v->fecha_limite->isPast();
+            })->count(),
+        ];
     }
 
     /**

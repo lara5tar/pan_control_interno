@@ -190,6 +190,80 @@ class Venta extends Model
     }
 
     /**
+     * Scope para filtrar por estado de pago
+     */
+    public function scopeEstadoPago($query, $estadoPago)
+    {
+        return $query->where('estado_pago', $estadoPago);
+    }
+
+    /**
+     * Scope para filtrar ventas vencidas (a plazos sin pagar completamente que pasaron su fecha límite)
+     */
+    public function scopeVentasVencidas($query)
+    {
+        return $query->where('es_a_plazos', true)
+                     ->where('estado_pago', '!=', 'completado')
+                     ->whereNotNull('fecha_limite')
+                     ->whereDate('fecha_limite', '<', now());
+    }
+
+    /**
+     * Scope para filtrar ventas que contienen un libro específico
+     */
+    public function scopeConLibro($query, $libroId)
+    {
+        return $query->whereHas('movimientos', function($q) use ($libroId) {
+            $q->where('libro_id', $libroId);
+        });
+    }
+
+    /**
+     * Scope para filtrar por rango de fechas
+     */
+    public function scopeEntreFechas($query, $fechaDesde, $fechaHasta)
+    {
+        return $query->whereBetween('fecha_venta', [$fechaDesde, $fechaHasta]);
+    }
+
+    /**
+     * Scope para filtrar por mes y año
+     */
+    public function scopePorMes($query, $mes, $anio)
+    {
+        return $query->whereMonth('fecha_venta', $mes)
+                     ->whereYear('fecha_venta', $anio);
+    }
+
+    /**
+     * Scope para filtrar ventas del día actual
+     */
+    public function scopeHoy($query)
+    {
+        return $query->whereDate('fecha_venta', today());
+    }
+
+    /**
+     * Scope para filtrar ventas de la semana actual
+     */
+    public function scopeSemanaActual($query)
+    {
+        return $query->whereBetween('fecha_venta', [
+            now()->startOfWeek(),
+            now()->endOfWeek()
+        ]);
+    }
+
+    /**
+     * Scope para filtrar ventas del mes actual
+     */
+    public function scopeMesActual($query)
+    {
+        return $query->whereMonth('fecha_venta', now()->month)
+                     ->whereYear('fecha_venta', now()->year);
+    }
+
+    /**
      * Calcular el total pagado sumando todos los pagos
      */
     public function calcularTotalPagado()

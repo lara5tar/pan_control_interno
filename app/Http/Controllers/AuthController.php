@@ -32,6 +32,16 @@ class AuthController extends Controller
             'contra' => 'required|string',
         ]);
 
+        // Login de prueba temporal para testing
+        if ($request->user === 'test' && $request->contra === 'test123') {
+            Session::put('codCongregante', 'TEST_TOKEN_123');
+            Session::put('roles', [['ROL' => 'ADMIN LIBRERIA']]);
+            Session::put('username', 'Usuario de Prueba');
+            
+            return redirect()->intended(route('dashboard'))
+                ->with('success', 'Bienvenido al sistema');
+        }
+
         try {
             // Llamar a la API de login
             $response = Http::post('https://www.sistemasdevida.com/pan/rest2/index.php/app/login', [

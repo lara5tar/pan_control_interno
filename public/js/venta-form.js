@@ -40,6 +40,7 @@ class VentaFormManager {
         this.initLibros();
         this.initCalculations();
         this.initValidation();
+        this.initExistingLibros(); // Inicializar libros que ya existen en el DOM
         this.restoreFormState();
     }
 
@@ -49,6 +50,42 @@ class VentaFormManager {
     initLibros() {
         this.elements.addLibroBtn.addEventListener('click', () => this.addLibro());
         this.elements.librosContainer.addEventListener('click', (e) => this.handleLibroClick(e));
+    }
+
+    /**
+     * Inicializar componentes de búsqueda para libros que ya existen en el DOM
+     * (por ejemplo, cuando hay errores de validación y se preservan los datos con old())
+     */
+    initExistingLibros() {
+        console.log('[Venta Form] Initializing existing libro items...');
+        const existingLibroItems = document.querySelectorAll('.libro-item');
+        
+        if (existingLibroItems.length === 0) {
+            console.log('[Venta Form] No existing libro items found');
+            return;
+        }
+        
+        console.log(`[Venta Form] Found ${existingLibroItems.length} existing libro items`);
+        
+        existingLibroItems.forEach((item, index) => {
+            const searchContainer = item.querySelector('[id*="libro_search_libros_"]');
+            if (searchContainer) {
+                const containerId = searchContainer.id;
+                console.log(`[Venta Form] Initializing libro search for existing item ${index}:`, containerId);
+                
+                if (window.ventaLibrosData && typeof window.initLibroSearch === 'function') {
+                    window.libroSearchInstances[containerId] = window.initLibroSearch(
+                        containerId,
+                        window.ventaLibrosData
+                    );
+                }
+            }
+        });
+        
+        // Eliminar mensaje de vacío si hay libros
+        if (existingLibroItems.length > 0) {
+            this.removeEmptyMessage();
+        }
     }
 
     addLibro() {

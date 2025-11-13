@@ -11,12 +11,17 @@
 @props([
     'name' => 'cliente_id',
     'selected' => null,
+    'clienteData' => null,
     'label' => 'Cliente',
     'required' => false
 ])
 
 @php
     $uniqueId = 'cliente_search_' . str_replace(['[', ']'], ['_', ''], $name);
+    
+    // Obtener datos del cliente para los atributos data-*
+    $clienteNombre = $clienteData?->nombre ?? '';
+    $clienteTelefono = $clienteData?->telefono ?? '';
 @endphp
 
 <div class="cliente-search-container" id="{{ $uniqueId }}_container">
@@ -71,8 +76,8 @@
         name="{{ $name }}" 
         class="cliente-id-input"
         value="{{ old($name, $selected) }}"
-        data-nombre=""
-        data-telefono=""
+        data-nombre="{{ $clienteNombre }}"
+        data-telefono="{{ $clienteTelefono }}"
         @if($required) required @endif
     >
     
