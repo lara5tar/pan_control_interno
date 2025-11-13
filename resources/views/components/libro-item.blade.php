@@ -5,18 +5,25 @@
         - libros: Colección de libros disponibles
         - index: Índice del libro (opcional, para edición)
         - movimiento: Movimiento existente (opcional, para edición)
+        - oldData: Datos antiguos del formulario (cuando hay error de validación)
 --}}
 
 @props([
     'libros' => [],
     'index' => null,
-    'movimiento' => null
+    'movimiento' => null,
+    'oldData' => null
 ])
 
 @php
     $isTemplate = is_null($index);
     $indexValue = $isTemplate ? 'INDEX_PLACEHOLDER' : $index;
     $numeroLibro = $isTemplate ? 1 : ($index + 1);
+    
+    // Determinar qué datos usar (oldData tiene prioridad sobre movimiento)
+    $libroId = $oldData['libro_id'] ?? $movimiento?->libro_id ?? null;
+    $cantidad = $oldData['cantidad'] ?? $movimiento?->cantidad ?? 1;
+    $descuento = $oldData['descuento'] ?? $movimiento?->descuento ?? 0;
 @endphp
 
 <div class="libro-item border border-gray-200 rounded-lg p-4 bg-gray-50" data-index="{{ $indexValue }}">
@@ -37,7 +44,7 @@
                 :name="'libros[' . $indexValue . '][libro_id]'"
                 :index="$indexValue"
                 :libros="$libros"
-                :selected="$movimiento?->libro_id ?? null"
+                :selected="$libroId"
                 label="Seleccionar Libro"
                 :required="true"
             />
@@ -53,7 +60,7 @@
                 name="libros[{{ $indexValue }}][cantidad]" 
                 class="cantidad-input w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500" 
                 min="1" 
-                value="{{ $movimiento?->cantidad ?? 1 }}"
+                value="{{ $cantidad }}"
                 required>
             <p class="stock-message text-xs text-gray-500 mt-1"></p>
         </div>
@@ -70,7 +77,7 @@
                 min="0" 
                 max="100" 
                 step="0.01"
-                value="{{ $movimiento?->descuento ?? 0 }}">
+                value="{{ $descuento }}">
         </div>
     </div>
 

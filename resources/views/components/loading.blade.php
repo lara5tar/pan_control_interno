@@ -34,8 +34,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const submitButton = this.querySelector('button[type="submit"]');
             
             if (submitButton && !submitButton.disabled) {
-                // Guardar el contenido original
-                const originalContent = submitButton.innerHTML;
+                // Guardar el contenido original en el botón para restaurarlo después
+                submitButton.setAttribute('data-original-content', submitButton.innerHTML);
                 
                 // Deshabilitar el botón
                 submitButton.disabled = true;
@@ -53,6 +53,16 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+    
+    // Si hay errores de validación, restaurar los botones
+    const hasErrors = document.querySelectorAll('.text-red-600, .text-red-500, .border-red-500').length > 0;
+    if (hasErrors) {
+        document.querySelectorAll('button[type="submit"][data-original-content]').forEach(button => {
+            button.innerHTML = button.getAttribute('data-original-content');
+            button.disabled = false;
+            button.removeAttribute('data-original-content');
+        });
+    }
 });
 </script>
 

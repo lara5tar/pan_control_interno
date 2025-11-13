@@ -11,10 +11,43 @@
     'libros' => []
 ])
 
-<form action="{{ $action }}" method="POST" id="ventaForm" data-libro-index="{{ $venta ? $venta->movimientos->count() : 0 }}" data-cliente-selected="{{ $venta && $venta->cliente ? json_encode(['nombre' => $venta->cliente->nombre, 'telefono' => $venta->cliente->telefono]) : '' }}">
+@php
+    $oldLibros = old('libros', []);
+    $libroCount = !empty($oldLibros) ? count($oldLibros) : ($venta ? $venta->movimientos->count() : 0);
+@endphp
+
+<form action="{{ $action }}" method="POST" id="ventaForm" data-libro-index="{{ $libroCount }}" data-cliente-selected="{{ $venta && $venta->cliente ? json_encode(['nombre' => $venta->cliente->nombre, 'telefono' => $venta->cliente->telefono]) : '' }}">
     @csrf
     @if($method !== 'POST')
         @method($method)
+    @endif
+
+    {{-- Mensajes de error generales --}}
+    @if($errors->has('error'))
+        <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div class="flex items-start">
+                <i class="fas fa-exclamation-circle text-red-500 mt-0.5 mr-3"></i>
+                <div>
+                    <p class="text-sm font-medium text-red-800">{{ $errors->first('error') }}</p>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if($errors->any() && !$errors->has('error'))
+        <div class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div class="flex items-start">
+                <i class="fas fa-exclamation-circle text-red-500 mt-0.5 mr-3"></i>
+                <div>
+                    <p class="text-sm font-medium text-red-800 mb-2">Por favor corrige los siguientes errores:</p>
+                    <ul class="list-disc list-inside text-sm text-red-700 space-y-1">
+                        @foreach($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            </div>
+        </div>
     @endif
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -192,7 +225,22 @@
 
             <!-- Contenedor de Libros -->
             <div id="librosContainer" class="space-y-4">
-                @if($venta && $venta->movimientos->count() > 0)
+                @php
+                    $oldLibros = old('libros', []);
+                    $hasOldLibros = !empty($oldLibros);
+                    $hasVentaMovimientos = $venta && $venta->movimientos->count() > 0;
+                @endphp
+
+                @if($hasOldLibros)
+                    {{-- Renderizar libros desde old() cuando hay error de validación --}}
+                    @foreach($oldLibros as $index => $oldLibro)
+                        <x-libro-item 
+                            :libros="$libros" 
+                            :index="$index"
+                            :oldData="$oldLibro" />
+                    @endforeach
+                @elseif($hasVentaMovimientos)
+                    {{-- Renderizar libros de la venta existente --}}
                     @foreach($venta->movimientos as $index => $movimiento)
                         <x-libro-item 
                             :libros="$libros" 
@@ -203,7 +251,7 @@
             </div>
 
             <!-- Mensaje cuando no hay libros -->
-            @if(!$venta || $venta->movimientos->count() === 0)
+            @if(!$hasOldLibros && (!$venta || $venta->movimientos->count() === 0))
                 <div id="emptyMessage" class="text-center py-12 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                     <i class="fas fa-book text-4xl mb-3"></i>
                     <p>No hay libros agregados. Haz clic en "Agregar Libro" para empezar.</p>
