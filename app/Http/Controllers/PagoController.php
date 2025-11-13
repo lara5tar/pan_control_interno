@@ -21,6 +21,12 @@ class PagoController extends Controller
                 ->with('warning', 'Esta no es una venta a plazos');
         }
 
+        // Verificar que no esté cancelada
+        if ($venta->estado === 'cancelada') {
+            return redirect()->route('ventas.show', $venta)
+                ->with('error', 'No se pueden registrar pagos en una venta cancelada');
+        }
+
         // Verificar que no esté completamente pagada
         if ($venta->estado_pago === 'completado') {
             return redirect()->route('ventas.show', $venta)
@@ -100,6 +106,12 @@ class PagoController extends Controller
      */
     public function store(Request $request, Venta $venta)
     {
+        // Verificar que la venta no esté cancelada
+        if ($venta->estado === 'cancelada') {
+            return redirect()->route('ventas.show', $venta)
+                ->with('error', 'No se pueden registrar pagos en una venta cancelada');
+        }
+
         $validated = $request->validate([
             'fecha_pago' => 'required|date',
             'monto' => 'required|numeric|min:0.01',
@@ -162,6 +174,11 @@ class PagoController extends Controller
      */
     public function destroy(Pago $pago)
     {
+        // Verificar que la venta no esté cancelada
+        if ($pago->venta->estado === 'cancelada') {
+            return back()->with('error', 'No se pueden eliminar pagos de una venta cancelada');
+        }
+
         DB::beginTransaction();
         try {
             $venta = $pago->venta;

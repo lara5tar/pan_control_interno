@@ -219,7 +219,7 @@
                                 title="Ver detalles">
                             </x-button>
                             
-                            @if($venta->es_a_plazos && $venta->estado_pago !== 'completado')
+                            @if($venta->es_a_plazos && $venta->estado_pago !== 'completado' && $venta->estado !== 'cancelada')
                                 <x-button 
                                     href="{{ route('ventas.pagos.create', $venta) }}" 
                                     variant="info" 

@@ -200,7 +200,7 @@
                             <i class="fas fa-history text-gray-500 mr-2"></i>
                             Historial de Pagos ({{ $venta->pagos->count() }})
                         </h3>
-                        @if($venta->estado_pago !== 'completado')
+                        @if($venta->estado_pago !== 'completado' && $venta->estado !== 'cancelada')
                             <x-button 
                                 href="{{ route('ventas.pagos.create', $venta) }}" 
                                 variant="primary" 
@@ -220,7 +220,7 @@
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Comprobante</th>
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notas</th>
                                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Registrado</th>
-                                    @if($venta->estado_pago !== 'completado')
+                                    @if($venta->estado_pago !== 'completado' && $venta->estado !== 'cancelada')
                                         <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acción</th>
                                     @endif
                                 </tr>
@@ -264,7 +264,7 @@
                                             <i class="fas fa-clock text-gray-400 mr-1"></i>
                                             {{ $pago->created_at->format('d/m/Y H:i') }}
                                         </td>
-                                        @if($venta->estado_pago !== 'completado')
+                                        @if($venta->estado_pago !== 'completado' && $venta->estado !== 'cancelada')
                                             <td class="px-4 py-4 whitespace-nowrap text-center">
                                                 <form action="{{ route('pagos.destroy', $pago) }}" method="POST" 
                                                       onsubmit="return confirm('¿Estás seguro de eliminar este pago?')"
