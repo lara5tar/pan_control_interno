@@ -20,8 +20,8 @@
         </x-button>
     </x-slot>
 
-    <!-- Estadísticas de ventas filtradas -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+    <!-- Estadísticas de ventas -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <x-stat-card 
             icon="fas fa-shopping-cart"
             label="Total Ventas"
@@ -53,7 +53,10 @@
             bg-color="bg-orange-100"
             icon-color="text-orange-600"
         />
+    </div>
 
+    <!-- Estadísticas adicionales -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <x-stat-card 
             icon="fas fa-check-circle"
             label="Completadas"
@@ -71,87 +74,79 @@
         />
 
         @if($estadisticas['ventas_vencidas'] > 0)
-        <x-stat-card 
-            icon="fas fa-clock"
-            label="Vencidas"
-            :value="$estadisticas['ventas_vencidas']"
-            bg-color="bg-red-100"
-            icon-color="text-red-600"
-        />
+            <x-stat-card 
+                icon="fas fa-clock"
+                label="Vencidas"
+                :value="$estadisticas['ventas_vencidas']"
+                bg-color="bg-red-100"
+                icon-color="text-red-600"
+            />
         @endif
 
         @if($estadisticas['ventas_canceladas'] > 0)
-        <x-stat-card 
-            icon="fas fa-ban"
-            label="Canceladas"
-            :value="$estadisticas['ventas_canceladas']"
-            bg-color="bg-gray-100"
-            icon-color="text-gray-600"
-        />
+            <x-stat-card 
+                icon="fas fa-ban"
+                label="Canceladas"
+                :value="$estadisticas['ventas_canceladas']"
+                bg-color="bg-gray-100"
+                icon-color="text-gray-600"
+            />
         @endif
     </div>
 
-    <!-- Filtros avanzados para reportes -->
+    <!-- Filtros -->
     <x-card class="overflow-visible">
         <form method="GET" action="{{ route('ventas.index') }}" class="overflow-visible">
             
-            <!-- Título de sección -->
-            <div class="mb-4 pb-3 border-b border-gray-200">
-                <h3 class="text-lg font-semibold text-gray-800">
-                    <i class="fas fa-filter text-primary-600"></i> Filtros de Reportes
-                </h3>
-                <p class="text-sm text-gray-600 mt-1">Filtra las ventas para generar reportes personalizados</p>
-            </div>
-
             <!-- Filtros rápidos de periodo -->
-            <div class="mb-4 p-3 bg-gray-50 rounded-lg">
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                    <i class="fas fa-clock text-gray-400"></i> Periodos Rápidos
+            <div class="mb-6 p-4 bg-gradient-to-r from-primary-50 to-blue-50 rounded-lg border border-primary-100">
+                <label class="block text-sm font-semibold text-gray-800 mb-3">
+                    <i class="fas fa-clock text-primary-600"></i> Periodos Rápidos
                 </label>
                 <div class="flex flex-wrap gap-2">
-                    <button type="button" onclick="setFechaHoy()" class="px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                    <button type="button" onclick="setFechaHoy()" class="px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-primary-50 hover:border-primary-300 transition-colors">
                         <i class="fas fa-calendar-day"></i> Hoy
                     </button>
-                    <button type="button" onclick="setFechaSemana()" class="px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                    <button type="button" onclick="setFechaSemana()" class="px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-primary-50 hover:border-primary-300 transition-colors">
                         <i class="fas fa-calendar-week"></i> Esta Semana
                     </button>
-                    <button type="button" onclick="setFechaMes()" class="px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                    <button type="button" onclick="setFechaMes()" class="px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-primary-50 hover:border-primary-300 transition-colors">
                         <i class="fas fa-calendar-alt"></i> Este Mes
                     </button>
-                    <button type="button" onclick="setFechaUltimos30()" class="px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                    <button type="button" onclick="setFechaUltimos30()" class="px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-primary-50 hover:border-primary-300 transition-colors">
                         <i class="fas fa-calendar"></i> Últimos 30 días
                     </button>
-                    <button type="button" onclick="limpiarFechas()" class="px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
-                        <i class="fas fa-times"></i> Limpiar
+                    <button type="button" onclick="limpiarFechas()" class="px-4 py-2 text-sm bg-white border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors">
+                        <i class="fas fa-times"></i> Limpiar Fechas
                     </button>
                 </div>
             </div>
 
-            <!-- Rango de fechas -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <!-- Rango de fechas y montos -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 overflow-visible items-end">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
-                        <i class="fas fa-calendar-plus text-gray-400"></i> Fecha Desde
+                        <i class="fas fa-calendar-alt text-gray-400"></i> Fecha Desde
                     </label>
                     <input 
                         type="date" 
                         name="fecha_desde" 
                         id="fecha_desde"
                         value="{{ request('fecha_desde') }}"
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     >
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
-                        <i class="fas fa-calendar-minus text-gray-400"></i> Fecha Hasta
+                        <i class="fas fa-calendar-check text-gray-400"></i> Fecha Hasta
                     </label>
                     <input 
                         type="date" 
                         name="fecha_hasta" 
                         id="fecha_hasta"
                         value="{{ request('fecha_hasta') }}"
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     >
                 </div>
 
@@ -166,7 +161,7 @@
                         placeholder="0.00"
                         step="0.01"
                         min="0"
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     >
                 </div>
 
@@ -181,13 +176,13 @@
                         placeholder="9999.99"
                         step="0.01"
                         min="0"
-                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     >
                 </div>
             </div>
 
-            <!-- Filtros de clasificación -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <!-- Cliente, Libro y Búsqueda -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 overflow-visible items-end">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         <i class="fas fa-user text-gray-400"></i> Cliente
@@ -218,6 +213,22 @@
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-search text-gray-400"></i> Búsqueda General
+                    </label>
+                    <input 
+                        type="text" 
+                        name="search" 
+                        value="{{ request('search') }}"
+                        placeholder="Buscar por ID, cliente u observaciones..." 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    >
+                </div>
+            </div>
+
+            <!-- Estados y Tipos -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 overflow-visible items-end">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
                         <i class="fas fa-info-circle text-gray-400"></i> Estado Venta
                     </label>
                     <select name="estado" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
@@ -239,10 +250,7 @@
                         <option value="mixto" {{ request('tipo_pago') === 'mixto' ? 'selected' : '' }}>Mixto</option>
                     </select>
                 </div>
-            </div>
 
-            <!-- Filtros de ventas a plazos -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         <i class="fas fa-calendar-check text-gray-400"></i> Modalidad
@@ -265,7 +273,10 @@
                         <option value="completado" {{ request('estado_pago') === 'completado' ? 'selected' : '' }}>Completado</option>
                     </select>
                 </div>
+            </div>
 
+            <!-- Ventas vencidas y ordenamiento -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 overflow-visible items-end">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         <i class="fas fa-exclamation-triangle text-gray-400"></i> Ventas Vencidas
@@ -291,38 +302,40 @@
                 </div>
             </div>
 
-            <!-- Búsqueda general -->
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                    <i class="fas fa-search text-gray-400"></i> Búsqueda General
-                </label>
-                <input 
-                    type="text" 
-                    name="search" 
-                    value="{{ request('search') }}"
-                    placeholder="Buscar por ID, cliente u observaciones..." 
-                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                >
-            </div>
-
             <!-- Botones de acción -->
-            <div class="flex flex-wrap justify-between items-center gap-3 pt-4 border-t border-gray-200">
+            <div class="flex flex-wrap justify-between items-center gap-3 pt-2">
                 <div class="flex gap-3">
-                    <x-button type="submit" variant="primary" icon="fas fa-chart-bar">
-                        Generar Reporte
+                    <x-button type="submit" variant="primary" icon="fas fa-filter">
+                        Aplicar Filtros
                     </x-button>
 
                     @if(request()->hasAny(['search', 'estado', 'tipo_pago', 'es_a_plazos', 'estado_pago', 'cliente_id', 'libro_id', 'fecha_desde', 'fecha_hasta', 'monto_min', 'monto_max', 'vencidas', 'ordenar']))
                         <x-button type="button" variant="secondary" icon="fas fa-times" 
                                   onclick="window.location='{{ route('ventas.index') }}'">
-                            Limpiar Todo
+                            Limpiar Filtros
                         </x-button>
                     @endif
                 </div>
 
-                <div class="text-sm text-gray-600">
-                    <i class="fas fa-info-circle"></i> 
-                    Mostrando {{ $ventas->total() }} resultado(s)
+                <!-- Botones de exportación -->
+                <div class="flex gap-3">
+                    <x-button 
+                        type="button" 
+                        variant="success" 
+                        icon="fas fa-file-excel"
+                        onclick="alert('Exportación Excel - Próximamente')"
+                    >
+                        Exportar Excel
+                    </x-button>
+                    
+                    <x-button 
+                        type="button" 
+                        variant="danger" 
+                        icon="fas fa-file-pdf"
+                        onclick="alert('Exportación PDF - Próximamente')"
+                    >
+                        Exportar PDF
+                    </x-button>
                 </div>
             </div>
         </form>
@@ -369,15 +382,6 @@
 
     <!-- Tabla de ventas -->
     <x-card>
-        <div class="mb-4 px-6 pt-4 flex justify-between items-center">
-            <h3 class="text-lg font-semibold text-gray-800">
-                <i class="fas fa-table text-primary-600"></i> Resultados del Reporte
-            </h3>
-            <div class="text-sm text-gray-600">
-                Mostrando {{ $ventas->firstItem() ?? 0 }} - {{ $ventas->lastItem() ?? 0 }} de {{ $ventas->total() }} ventas
-            </div>
-        </div>
-
         <x-data-table 
             :headers="['ID', 'Fecha', 'Cliente', 'Libros', 'Tipo Pago', 'Subtotal', 'Descuento', 'Total', 'Pagado', 'Saldo', 'Estado', 'Acciones']"
             :rows="$ventas"
