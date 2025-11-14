@@ -37,7 +37,10 @@ class ClienteController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Cliente::withCount('ventas');
+        // Contar solo ventas no canceladas
+        $query = Cliente::withCount(['ventas' => function($query) {
+            $query->where('estado', '!=', 'cancelada');
+        }]);
 
         // Búsqueda
         if ($request->has('search') && $request->search != '') {

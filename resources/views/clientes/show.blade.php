@@ -41,21 +41,38 @@
 
                     <div>
                         <p class="text-sm text-gray-600 mb-1">Total de Ventas</p>
-                        <p class="text-lg font-semibold text-gray-800">{{ $cliente->ventas->count() }} ventas</p>
+                        <p class="text-lg font-semibold text-gray-800">
+                            {{ $cliente->ventas->where('estado', '!=', 'cancelada')->count() }} ventas
+                        </p>
+                        @if($cliente->ventas->where('estado', 'cancelada')->count() > 0)
+                            <p class="text-xs text-gray-500 mt-1">
+                                ({{ $cliente->ventas->where('estado', 'cancelada')->count() }} canceladas)
+                            </p>
+                        @endif
                     </div>
 
                     <div>
                         <p class="text-sm text-gray-600 mb-1">Monto Total Comprado</p>
                         <p class="text-lg font-semibold text-green-600">
-                            ${{ number_format($cliente->ventas->sum('total'), 2) }}
+                            ${{ number_format($cliente->ventas->where('estado', '!=', 'cancelada')->sum('total'), 2) }}
                         </p>
+                        @if($cliente->ventas->where('estado', 'cancelada')->count() > 0)
+                            <p class="text-xs text-gray-500 mt-1">
+                                (Excluye ventas canceladas)
+                            </p>
+                        @endif
                     </div>
 
                     <div>
                         <p class="text-sm text-gray-600 mb-1">Total Adeudado</p>
                         <p class="text-lg font-semibold text-red-600">
-                            ${{ number_format($cliente->ventas->where('es_a_plazos', true)->sum(function($v) { return $v->total - $v->total_pagado; }), 2) }}
+                            ${{ number_format($cliente->ventas->where('estado', '!=', 'cancelada')->where('es_a_plazos', true)->sum(function($v) { return $v->total - $v->total_pagado; }), 2) }}
                         </p>
+                        @if($cliente->ventas->where('es_a_plazos', true)->where('estado', '!=', 'cancelada')->where('estado_pago', '!=', 'completado')->count() > 0)
+                            <p class="text-xs text-orange-600 mt-1">
+                                {{ $cliente->ventas->where('es_a_plazos', true)->where('estado', '!=', 'cancelada')->where('estado_pago', '!=', 'completado')->count() }} venta(s) pendiente(s)
+                            </p>
+                        @endif
                     </div>
                 </div>
             </x-card>
@@ -134,6 +151,65 @@
         </div>
     </x-card>
 
+    <!-- Estadísticas detalladas de ventas -->
+    @if($cliente->ventas->count() > 0)
+        <x-card title="Resumen de Ventas">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <!-- Ventas Completadas -->
+                <div class="text-center p-4 bg-green-50 rounded-lg border border-green-200">
+                    <div class="text-3xl font-bold text-green-600">
+                        {{ $cliente->ventas->where('estado', 'completada')->count() }}
+                    </div>
+                    <div class="text-sm text-green-700 mt-1">Completadas</div>
+                    <div class="text-xs text-gray-600 mt-1">
+                        ${{ number_format($cliente->ventas->where('estado', 'completada')->sum('total'), 2) }}
+                    </div>
+                </div>
+
+                <!-- Ventas a Plazos Activas -->
+                @php
+                    $ventasAPlazosActivas = $cliente->ventas
+                        ->where('es_a_plazos', true)
+                        ->where('estado', '!=', 'cancelada')
+                        ->where('estado_pago', '!=', 'completado');
+                @endphp
+                <div class="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
+                    <div class="text-3xl font-bold text-orange-600">
+                        {{ $ventasAPlazosActivas->count() }}
+                    </div>
+                    <div class="text-sm text-orange-700 mt-1">A Plazos</div>
+                    <div class="text-xs text-gray-600 mt-1">
+                        Saldo: ${{ number_format($ventasAPlazosActivas->sum(function($v) { return $v->total - $v->total_pagado; }), 2) }}
+                    </div>
+                </div>
+
+                <!-- Ventas Pendientes -->
+                <div class="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                    <div class="text-3xl font-bold text-yellow-600">
+                        {{ $cliente->ventas->where('estado', 'pendiente')->count() }}
+                    </div>
+                    <div class="text-sm text-yellow-700 mt-1">Pendientes</div>
+                    <div class="text-xs text-gray-600 mt-1">
+                        ${{ number_format($cliente->ventas->where('estado', 'pendiente')->sum('total'), 2) }}
+                    </div>
+                </div>
+
+                <!-- Ventas Canceladas -->
+                @if($cliente->ventas->where('estado', 'cancelada')->count() > 0)
+                    <div class="text-center p-4 bg-red-50 rounded-lg border border-red-200">
+                        <div class="text-3xl font-bold text-red-600">
+                            {{ $cliente->ventas->where('estado', 'cancelada')->count() }}
+                        </div>
+                        <div class="text-sm text-red-700 mt-1">Canceladas</div>
+                        <div class="text-xs text-gray-600 mt-1">
+                            No cuentan en totales
+                        </div>
+                    </div>
+                @endif
+            </div>
+        </x-card>
+    @endif
+
     <!-- Historial de ventas -->
     @if($cliente->ventas->count() > 0)
         <x-card title="Historial de Ventas">
@@ -144,10 +220,26 @@
                 emptyIcon="fas fa-shopping-cart"
             >
                 @foreach($cliente->ventas as $venta)
-                    <x-data-table-row>
-                        <x-data-table-cell bold>#{{ $venta->id }}</x-data-table-cell>
+                    <x-data-table-row class="{{ $venta->estado === 'cancelada' ? 'opacity-60 bg-gray-50' : '' }}">
+                        <x-data-table-cell bold>
+                            #{{ $venta->id }}
+                            @if($venta->estado === 'cancelada')
+                                <span class="ml-2 text-xs text-red-600">
+                                    <i class="fas fa-ban"></i>
+                                </span>
+                            @endif
+                        </x-data-table-cell>
                         <x-data-table-cell>{{ $venta->fecha_venta->format('d/m/Y H:i') }}</x-data-table-cell>
-                        <x-data-table-cell>${{ number_format($venta->total, 2) }}</x-data-table-cell>
+                        <x-data-table-cell>
+                            <span class="{{ $venta->estado === 'cancelada' ? 'line-through text-gray-500' : '' }}">
+                                ${{ number_format($venta->total, 2) }}
+                            </span>
+                            @if($venta->estado === 'cancelada')
+                                <span class="block text-xs text-red-600 mt-1">
+                                    No cuenta en totales
+                                </span>
+                            @endif
+                        </x-data-table-cell>
                         <x-data-table-cell>
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $venta->getEstadoUnificadoBadgeColor() }}">
                                 <i class="{{ $venta->getEstadoUnificadoIcon() }} mr-1"></i>
