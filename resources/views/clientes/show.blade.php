@@ -54,7 +54,7 @@
                     <div>
                         <p class="text-sm text-gray-600 mb-1">Total Adeudado</p>
                         <p class="text-lg font-semibold text-red-600">
-                            ${{ number_format($cliente->ventas->where('estado', 'pendiente')->sum('total'), 2) }}
+                            ${{ number_format($cliente->ventas->where('es_a_plazos', true)->sum(function($v) { return $v->total - $v->total_pagado; }), 2) }}
                         </p>
                     </div>
                 </div>
@@ -146,12 +146,13 @@
                 @foreach($cliente->ventas as $venta)
                     <x-data-table-row>
                         <x-data-table-cell bold>#{{ $venta->id }}</x-data-table-cell>
-                        <x-data-table-cell>{{ $venta->fecha->format('d/m/Y H:i') }}</x-data-table-cell>
+                        <x-data-table-cell>{{ $venta->fecha_venta->format('d/m/Y H:i') }}</x-data-table-cell>
                         <x-data-table-cell>${{ number_format($venta->total, 2) }}</x-data-table-cell>
                         <x-data-table-cell>
-                            <x-badge :type="$venta->estado === 'pagado' ? 'success' : ($venta->estado === 'pendiente' ? 'warning' : 'danger')">
-                                {{ ucfirst($venta->estado) }}
-                            </x-badge>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $venta->getEstadoUnificadoBadgeColor() }}">
+                                <i class="{{ $venta->getEstadoUnificadoIcon() }} mr-1"></i>
+                                {{ $venta->getEstadoUnificadoLabel() }}
+                            </span>
                         </x-data-table-cell>
                         <x-data-table-cell>
                             <a href="{{ route('ventas.show', $venta->id) }}" 
