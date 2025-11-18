@@ -20,8 +20,8 @@
         </x-button>
     </x-slot>
 
-    <!-- Estadísticas de ventas -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <!-- Estadísticas de ventas filtradas -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
         <x-stat-card 
             icon="fas fa-shopping-cart"
             label="Total Ventas"
@@ -53,10 +53,7 @@
             bg-color="bg-orange-100"
             icon-color="text-orange-600"
         />
-    </div>
 
-    <!-- Estadísticas adicionales -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <x-stat-card 
             icon="fas fa-check-circle"
             label="Completadas"
@@ -74,115 +71,32 @@
         />
 
         @if($estadisticas['ventas_vencidas'] > 0)
-            <x-stat-card 
-                icon="fas fa-clock"
-                label="Vencidas"
-                :value="$estadisticas['ventas_vencidas']"
-                bg-color="bg-red-100"
-                icon-color="text-red-600"
-            />
+        <x-stat-card 
+            icon="fas fa-clock"
+            label="Vencidas"
+            :value="$estadisticas['ventas_vencidas']"
+            bg-color="bg-red-100"
+            icon-color="text-red-600"
+        />
         @endif
 
         @if($estadisticas['ventas_canceladas'] > 0)
-            <x-stat-card 
-                icon="fas fa-ban"
-                label="Canceladas"
-                :value="$estadisticas['ventas_canceladas']"
-                bg-color="bg-gray-100"
-                icon-color="text-gray-600"
-            />
+        <x-stat-card 
+            icon="fas fa-ban"
+            label="Canceladas"
+            :value="$estadisticas['ventas_canceladas']"
+            bg-color="bg-gray-100"
+            icon-color="text-gray-600"
+        />
         @endif
     </div>
 
     <!-- Filtros -->
     <x-card class="overflow-visible">
         <form method="GET" action="{{ route('ventas.index') }}" class="overflow-visible">
-            
-            <!-- Filtros rápidos de periodo -->
-            <div class="mb-6 p-4 bg-gradient-to-r from-primary-50 to-blue-50 rounded-lg border border-primary-100">
-                <label class="block text-sm font-semibold text-gray-800 mb-3">
-                    <i class="fas fa-clock text-primary-600"></i> Periodos Rápidos
-                </label>
-                <div class="flex flex-wrap gap-2">
-                    <button type="button" onclick="setFechaHoy()" class="px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-primary-50 hover:border-primary-300 transition-colors">
-                        <i class="fas fa-calendar-day"></i> Hoy
-                    </button>
-                    <button type="button" onclick="setFechaSemana()" class="px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-primary-50 hover:border-primary-300 transition-colors">
-                        <i class="fas fa-calendar-week"></i> Esta Semana
-                    </button>
-                    <button type="button" onclick="setFechaMes()" class="px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-primary-50 hover:border-primary-300 transition-colors">
-                        <i class="fas fa-calendar-alt"></i> Este Mes
-                    </button>
-                    <button type="button" onclick="setFechaUltimos30()" class="px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-primary-50 hover:border-primary-300 transition-colors">
-                        <i class="fas fa-calendar"></i> Últimos 30 días
-                    </button>
-                    <button type="button" onclick="limpiarFechas()" class="px-4 py-2 text-sm bg-white border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors">
-                        <i class="fas fa-times"></i> Limpiar Fechas
-                    </button>
-                </div>
-            </div>
-
-            <!-- Rango de fechas y montos -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 overflow-visible items-end">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        <i class="fas fa-calendar-alt text-gray-400"></i> Fecha Desde
-                    </label>
-                    <input 
-                        type="date" 
-                        name="fecha_desde" 
-                        id="fecha_desde"
-                        value="{{ request('fecha_desde') }}"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                    >
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        <i class="fas fa-calendar-check text-gray-400"></i> Fecha Hasta
-                    </label>
-                    <input 
-                        type="date" 
-                        name="fecha_hasta" 
-                        id="fecha_hasta"
-                        value="{{ request('fecha_hasta') }}"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                    >
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        <i class="fas fa-dollar-sign text-gray-400"></i> Monto Mínimo
-                    </label>
-                    <input 
-                        type="number" 
-                        name="monto_min" 
-                        value="{{ request('monto_min') }}"
-                        placeholder="0.00"
-                        step="0.01"
-                        min="0"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                    >
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        <i class="fas fa-dollar-sign text-gray-400"></i> Monto Máximo
-                    </label>
-                    <input 
-                        type="number" 
-                        name="monto_max" 
-                        value="{{ request('monto_max') }}"
-                        placeholder="9999.99"
-                        step="0.01"
-                        min="0"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                    >
-                </div>
-            </div>
-
-            <!-- Cliente, Libro y Búsqueda -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 overflow-visible items-end">
+                                    <!-- Filters Grid -->
+                        <div class="grid grid-cols-4 gap-4 mb-4 overflow-visible items-end">
+                <!-- Filtro por Cliente -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         <i class="fas fa-user text-gray-400"></i> Cliente
@@ -197,9 +111,10 @@
                     </select>
                 </div>
 
+                <!-- Filtro por Libro -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
-                        <i class="fas fa-book text-gray-400"></i> Libro Vendido
+                        <i class="fas fa-book text-gray-400"></i> Libro
                     </label>
                     <select name="libro_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
                         <option value="">Todos los libros</option>
@@ -211,25 +126,10 @@
                     </select>
                 </div>
 
+                <!-- Filtro por Estado -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
-                        <i class="fas fa-search text-gray-400"></i> Búsqueda General
-                    </label>
-                    <input 
-                        type="text" 
-                        name="search" 
-                        value="{{ request('search') }}"
-                        placeholder="Buscar por ID, cliente u observaciones..." 
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                    >
-                </div>
-            </div>
-
-            <!-- Estados y Tipos -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 overflow-visible items-end">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        <i class="fas fa-info-circle text-gray-400"></i> Estado Venta
+                        <i class="fas fa-info-circle text-gray-400"></i> Estado
                     </label>
                     <select name="estado" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
                         <option value="">Todos los estados</option>
@@ -239,6 +139,7 @@
                     </select>
                 </div>
 
+                <!-- Filtro por Tipo de Pago -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         <i class="fas fa-credit-card text-gray-400"></i> Tipo de Pago
@@ -251,17 +152,7 @@
                     </select>
                 </div>
 
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        <i class="fas fa-calendar-check text-gray-400"></i> Modalidad
-                    </label>
-                    <select name="es_a_plazos" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-                        <option value="">Todas las ventas</option>
-                        <option value="1" {{ request('es_a_plazos') === '1' ? 'selected' : '' }}>Solo a plazos</option>
-                        <option value="0" {{ request('es_a_plazos') === '0' ? 'selected' : '' }}>Solo contado</option>
-                    </select>
-                </div>
-
+                <!-- Filtro por Estado de Pago -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         <i class="fas fa-money-check-alt text-gray-400"></i> Estado de Pago
@@ -273,10 +164,8 @@
                         <option value="completado" {{ request('estado_pago') === 'completado' ? 'selected' : '' }}>Completado</option>
                     </select>
                 </div>
-            </div>
 
-            <!-- Ventas vencidas y ordenamiento -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 overflow-visible items-end">
+                <!-- Filtro Ventas Vencidas -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         <i class="fas fa-exclamation-triangle text-gray-400"></i> Ventas Vencidas
@@ -287,18 +176,26 @@
                     </select>
                 </div>
 
+                <!-- Filtro Fecha Desde -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
-                        <i class="fas fa-sort text-gray-400"></i> Ordenar por
+                        <i class="fas fa-calendar-alt text-gray-400"></i> Fecha Desde
                     </label>
-                    <select name="ordenar" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-                        <option value="reciente" {{ request('ordenar', 'reciente') == 'reciente' ? 'selected' : '' }}>Más recientes</option>
-                        <option value="antiguo" {{ request('ordenar') == 'antiguo' ? 'selected' : '' }}>Más antiguas</option>
-                        <option value="monto_mayor" {{ request('ordenar') == 'monto_mayor' ? 'selected' : '' }}>Mayor monto</option>
-                        <option value="monto_menor" {{ request('ordenar') == 'monto_menor' ? 'selected' : '' }}>Menor monto</option>
-                        <option value="cliente" {{ request('ordenar') == 'cliente' ? 'selected' : '' }}>Por cliente</option>
-                        <option value="saldo_mayor" {{ request('ordenar') == 'saldo_mayor' ? 'selected' : '' }}>Mayor saldo pendiente</option>
-                    </select>
+                    <input type="date" 
+                           name="fecha_desde" 
+                           value="{{ request('fecha_desde') }}" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                </div>
+
+                <!-- Filtro Fecha Hasta -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-calendar-check text-gray-400"></i> Fecha Hasta
+                    </label>
+                    <input type="date" 
+                           name="fecha_hasta" 
+                           value="{{ request('fecha_hasta') }}" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
                 </div>
             </div>
 
@@ -309,7 +206,7 @@
                         Aplicar Filtros
                     </x-button>
 
-                    @if(request()->hasAny(['search', 'estado', 'tipo_pago', 'es_a_plazos', 'estado_pago', 'cliente_id', 'libro_id', 'fecha_desde', 'fecha_hasta', 'monto_min', 'monto_max', 'vencidas', 'ordenar']))
+                    @if(request()->hasAny(['cliente_id', 'estado', 'tipo_pago', 'estado_pago', 'libro_id', 'fecha_desde', 'fecha_hasta', 'vencidas']))
                         <x-button type="button" variant="secondary" icon="fas fa-times" 
                                   onclick="window.location='{{ route('ventas.index') }}'">
                             Limpiar Filtros
@@ -323,7 +220,7 @@
                         type="button" 
                         variant="success" 
                         icon="fas fa-file-excel"
-                        onclick="alert('Exportación Excel - Próximamente')"
+                        onclick="window.location='{{ route('ventas.export.excel', request()->query()) }}'"
                     >
                         Exportar Excel
                     </x-button>
@@ -332,7 +229,7 @@
                         type="button" 
                         variant="danger" 
                         icon="fas fa-file-pdf"
-                        onclick="alert('Exportación PDF - Próximamente')"
+                        onclick="window.location='{{ route('ventas.export.pdf', request()->query()) }}'"
                     >
                         Exportar PDF
                     </x-button>
@@ -341,52 +238,14 @@
         </form>
     </x-card>
 
-    <script>
-        function setFechaHoy() {
-            const hoy = new Date().toISOString().split('T')[0];
-            document.getElementById('fecha_desde').value = hoy;
-            document.getElementById('fecha_hasta').value = hoy;
-        }
-
-        function setFechaSemana() {
-            const hoy = new Date();
-            const primerDia = new Date(hoy.setDate(hoy.getDate() - hoy.getDay() + 1));
-            const ultimoDia = new Date(hoy.setDate(hoy.getDate() - hoy.getDay() + 7));
-            
-            document.getElementById('fecha_desde').value = primerDia.toISOString().split('T')[0];
-            document.getElementById('fecha_hasta').value = ultimoDia.toISOString().split('T')[0];
-        }
-
-        function setFechaMes() {
-            const hoy = new Date();
-            const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-            const ultimoDia = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
-            
-            document.getElementById('fecha_desde').value = primerDia.toISOString().split('T')[0];
-            document.getElementById('fecha_hasta').value = ultimoDia.toISOString().split('T')[0];
-        }
-
-        function setFechaUltimos30() {
-            const hoy = new Date();
-            const hace30 = new Date(hoy.setDate(hoy.getDate() - 30));
-            
-            document.getElementById('fecha_desde').value = hace30.toISOString().split('T')[0];
-            document.getElementById('fecha_hasta').value = new Date().toISOString().split('T')[0];
-        }
-
-        function limpiarFechas() {
-            document.getElementById('fecha_desde').value = '';
-            document.getElementById('fecha_hasta').value = '';
-        }
-    </script>
-
     <!-- Tabla de ventas -->
     <x-card>
         <x-data-table 
-            :headers="['ID', 'Fecha', 'Cliente', 'Libros', 'Tipo Pago', 'Subtotal', 'Descuento', 'Total', 'Pagado', 'Saldo', 'Estado', 'Acciones']"
+            :headers="['ID', 'Fecha', 'Cliente', 'Total', 'Pagos / Saldo', 'Estado', 'Acciones']"
             :rows="$ventas"
-            emptyMessage="No se encontraron ventas con los filtros aplicados"
-            emptyIcon="fas fa-search"
+            emptyMessage="No se encontraron ventas"
+            emptyIcon="fas fa-shopping-cart"
+            :showActions="false"
         >
             @foreach($ventas as $venta)
                 <x-data-table-row class="{{ $venta->es_a_plazos && $venta->estado_pago !== 'completado' && $venta->fecha_limite && $venta->fecha_limite->isPast() ? 'bg-red-50' : '' }}">
@@ -435,85 +294,57 @@
                                     <i class="fas fa-phone mr-1"></i>{{ $venta->cliente->telefono }}
                                 </div>
                             @endif
-                        </div>
-                    </x-data-table-cell>
-
-                    <!-- Libros -->
-                    <x-data-table-cell>
-                        <div class="text-sm">
-                            <span class="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded-md font-medium">
-                                <i class="fas fa-book mr-1"></i>
-                                {{ $venta->movimientos->count() }}
-                            </span>
-                            <div class="text-xs text-gray-500 mt-1">
-                                {{ $venta->movimientos->sum('cantidad') }} unidades
+                            <div class="text-xs text-gray-500 mt-0.5">
+                                <i class="fas fa-book mr-1"></i>{{ $venta->movimientos->count() }} libro(s) | 
+                                <span class="inline-flex items-center text-xs
+                                    {{ $venta->tipo_pago === 'contado' ? 'text-green-600' : '' }}
+                                    {{ $venta->tipo_pago === 'credito' ? 'text-orange-600' : '' }}
+                                    {{ $venta->tipo_pago === 'mixto' ? 'text-blue-600' : '' }}">
+                                    <i class="fas fa-credit-card mr-1"></i>{{ $venta->getTipoPagoLabel() }}
+                                </span>
                             </div>
                         </div>
-                    </x-data-table-cell>
-
-                    <!-- Tipo Pago -->
-                    <x-data-table-cell>
-                        <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium
-                            {{ $venta->tipo_pago === 'contado' ? 'bg-green-100 text-green-700' : '' }}
-                            {{ $venta->tipo_pago === 'credito' ? 'bg-orange-100 text-orange-700' : '' }}
-                            {{ $venta->tipo_pago === 'mixto' ? 'bg-blue-100 text-blue-700' : '' }}">
-                            <i class="fas fa-credit-card mr-1"></i>
-                            {{ $venta->getTipoPagoLabel() }}
-                        </span>
-                    </x-data-table-cell>
-
-                    <!-- Subtotal -->
-                    <x-data-table-cell>
-                        <div class="text-sm font-medium text-gray-700">
-                            ${{ number_format($venta->subtotal, 2) }}
-                        </div>
-                    </x-data-table-cell>
-
-                    <!-- Descuento -->
-                    <x-data-table-cell>
-                        @if($venta->descuento_global > 0)
-                            <span class="inline-flex items-center px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
-                                <i class="fas fa-percent mr-1"></i>
-                                {{ $venta->descuento_global }}%
-                            </span>
-                            <div class="text-xs text-gray-500 mt-1">
-                                -${{ number_format($venta->subtotal - $venta->total, 2) }}
-                            </div>
-                        @else
-                            <span class="text-sm text-gray-400">-</span>
-                        @endif
                     </x-data-table-cell>
 
                     <!-- Total -->
                     <x-data-table-cell>
-                        <div class="font-bold text-gray-900 text-base">
-                            ${{ number_format($venta->total, 2) }}
-                        </div>
-                    </x-data-table-cell>
-
-                    <!-- Pagado -->
-                    <x-data-table-cell>
                         <div class="text-sm">
-                            <div class="font-medium {{ $venta->total_pagado > 0 ? 'text-green-600' : 'text-gray-400' }}">
-                                ${{ number_format($venta->total_pagado, 2) }}
+                            <div class="font-bold text-gray-900 text-base">
+                                ${{ number_format($venta->total, 2) }}
                             </div>
-                            @if($venta->es_a_plazos && $venta->total_pagado > 0 && $venta->total_pagado < $venta->total)
-                                <div class="text-xs text-gray-500">
-                                    {{ number_format(($venta->total_pagado / $venta->total) * 100, 1) }}%
+                            @if($venta->descuento_global > 0)
+                                <div class="text-xs text-yellow-600">
+                                    <i class="fas fa-tag mr-1"></i>{{ $venta->descuento_global }}% desc.
                                 </div>
                             @endif
                         </div>
                     </x-data-table-cell>
 
-                    <!-- Saldo -->
+                    <!-- Pagos / Saldo -->
                     <x-data-table-cell>
-                        @if($venta->saldo_pendiente > 0)
-                            <div class="font-semibold text-orange-600">
-                                ${{ number_format($venta->saldo_pendiente, 2) }}
-                            </div>
-                        @else
-                            <span class="text-sm text-gray-400">-</span>
-                        @endif
+                        <div class="text-sm">
+                            @if($venta->total_pagado > 0)
+                                <div class="font-medium text-green-600">
+                                    <i class="fas fa-check-circle mr-1"></i>${{ number_format($venta->total_pagado, 2) }}
+                                </div>
+                            @endif
+                            @if($venta->saldo_pendiente > 0)
+                                <div class="font-semibold text-orange-600">
+                                    <i class="fas fa-exclamation-circle mr-1"></i>${{ number_format($venta->saldo_pendiente, 2) }}
+                                </div>
+                                @if($venta->es_a_plazos && $venta->total_pagado > 0)
+                                    <div class="text-xs text-gray-500">
+                                        {{ number_format(($venta->total_pagado / $venta->total) * 100, 1) }}% pagado
+                                    </div>
+                                @endif
+                            @elseif($venta->total_pagado === 0)
+                                <span class="text-sm text-gray-400">Sin pagos</span>
+                            @else
+                                <span class="text-sm text-green-500">
+                                    <i class="fas fa-check-double mr-1"></i>Pagado
+                                </span>
+                            @endif
+                        </div>
                     </x-data-table-cell>
 
                     <!-- Estado -->
@@ -538,10 +369,10 @@
                             @if($venta->es_a_plazos && $venta->estado_pago !== 'completado' && $venta->estado !== 'cancelada')
                                 <x-button 
                                     href="{{ route('ventas.pagos.create', $venta) }}" 
-                                    variant="info" 
+                                    variant="success" 
                                     size="sm"
-                                    icon="fas fa-hand-holding-usd"
-                                    title="Registrar pago">
+                                    icon="fas fa-dollar-sign"
+                                    title="Registrar abono o pago">
                                 </x-button>
                             @endif
                             

@@ -6,16 +6,25 @@ use App\Models\Venta;
 use App\Models\Libro;
 use App\Models\Movimiento;
 use App\Services\CodeGeneratorService;
+use App\Services\ExcelReportService;
+use App\Services\PdfReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class VentaController extends Controller
 {
     protected $codeGenerator;
+    protected $excelReportService;
+    protected $pdfReportService;
 
-    public function __construct(CodeGeneratorService $codeGenerator)
-    {
+    public function __construct(
+        CodeGeneratorService $codeGenerator,
+        ExcelReportService $excelReportService,
+        PdfReportService $pdfReportService
+    ) {
         $this->codeGenerator = $codeGenerator;
+        $this->excelReportService = $excelReportService;
+        $this->pdfReportService = $pdfReportService;
     }
 
     /**
@@ -386,5 +395,217 @@ class VentaController extends Controller
             DB::rollBack();
             return back()->with('error', 'Error al cancelar la venta: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Exportar ventas filtradas a Excel
+     */
+    public function exportExcel(Request $request)
+    {
+        // Construir query con filtros
+        $query = $this->buildFilteredQuery($request);
+        $ventas = $query->get();
+        
+        // Crear spreadsheet
+        $spreadsheet = $this->excelReportService->createSpreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        // Título
+        $row = $this->excelReportService->setTitle($sheet, 'REPORTE DE VENTAS', 'H', 1);
+        $row++; // Espacio
+        
+        // Filtros aplicados
+        $filtros = $this->buildFiltersList($request);
+        $row = $this->excelReportService->setFilters($sheet, $filtros, $row);
+        
+        // Estadísticas
+        if ($ventas->count() > 0) {
+            $totalMonto = $ventas->sum('total');
+            $totalPagado = $ventas->sum('total_pagado');
+            $totalPendiente = $totalMonto - $totalPagado;
+            
+            $sheet->setCellValue('A' . $row, 'RESUMEN:');
+            $sheet->getStyle('A' . $row)->getFont()->setBold(true);
+            $row++;
+            
+            $sheet->setCellValue('A' . $row, 'Total de ventas: ' . $ventas->count());
+            $row++;
+            $sheet->setCellValue('A' . $row, 'Monto total: $' . number_format($totalMonto, 2));
+            $row++;
+            $sheet->setCellValue('A' . $row, 'Total pagado: $' . number_format($totalPagado, 2));
+            $row++;
+            $sheet->setCellValue('A' . $row, 'Saldo pendiente: $' . number_format($totalPendiente, 2));
+            $row += 2; // Espacio
+        }
+        
+        // Encabezados de tabla
+        $headers = ['ID', 'Fecha', 'Cliente', 'Libros', 'Tipo Pago', 'Subtotal', 'Desc.', 'Total', 'Pagado', 'Saldo', 'Estado'];
+        $row = $this->excelReportService->setTableHeaders($sheet, $headers, $row);
+        
+        // Datos
+        $data = [];
+        foreach ($ventas as $venta) {
+            $data[] = [
+                $venta->id,
+                $venta->fecha_venta->format('d/m/Y H:i'),
+                $venta->cliente?->nombre ?: 'Sin cliente',
+                $venta->movimientos->count() . ' libros (' . $venta->movimientos->sum('cantidad') . ' unidades)',
+                $venta->getTipoPagoLabel(),
+                '$' . number_format($venta->subtotal, 2),
+                $venta->descuento_global ? $venta->descuento_global . '%' : '0%',
+                '$' . number_format($venta->total, 2),
+                '$' . number_format($venta->total_pagado, 2),
+                '$' . number_format($venta->saldo_pendiente, 2),
+                $venta->getEstadoUnificadoLabel(),
+            ];
+        }
+        
+        $lastRow = $this->excelReportService->fillData($sheet, $data, $row);
+        
+        // Auto ajustar columnas
+        $this->excelReportService->autoSizeColumns($sheet, ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']);
+        
+        // Descargar
+        $filename = $this->excelReportService->generateFilename('reporte_ventas');
+        $this->excelReportService->download($spreadsheet, $filename);
+    }
+
+    /**
+     * Exportar ventas filtradas a PDF
+     */
+    public function exportPdf(Request $request)
+    {
+        // Construir query con filtros
+        $query = $this->buildFilteredQuery($request);
+        $ventas = $query->get();
+        
+        // Preparar filtros
+        $filtros = $this->buildFiltersList($request);
+        
+        // Calcular estadísticas
+        $estadisticas = [
+            'total' => $ventas->count(),
+            'monto_total' => $ventas->sum('total'),
+            'total_pagado' => $ventas->sum('total_pagado'),
+            'saldo_pendiente' => $ventas->sum('total') - $ventas->sum('total_pagado'),
+            'completadas' => $ventas->where('estado', 'completada')->count(),
+            'canceladas' => $ventas->where('estado', 'cancelada')->count(),
+        ];
+        
+        // Obtener estilos base
+        $styles = $this->pdfReportService->getBaseStyles();
+        
+        // Generar PDF
+        $filename = $this->pdfReportService->generateFilename('reporte_ventas');
+        
+        return $this->pdfReportService->generate(
+            'ventas.pdf-report',
+            compact('ventas', 'filtros', 'estadisticas', 'styles'),
+            $filename,
+            ['orientation' => 'landscape'] // Landscape para más columnas
+        );
+    }
+
+    /**
+     * Construir query con filtros (helper privado)
+     */
+    private function buildFilteredQuery(Request $request)
+    {
+        $query = Venta::with(['movimientos.libro', 'cliente', 'pagos']);
+
+        // Filtro por rango de fechas
+        if ($request->filled('fecha_desde')) {
+            $query->where('fecha_venta', '>=', $request->fecha_desde);
+        }
+        if ($request->filled('fecha_hasta')) {
+            $query->where('fecha_venta', '<=', $request->fecha_hasta);
+        }
+
+        // Filtro por cliente
+        if ($request->filled('cliente_id')) {
+            $query->where('cliente_id', $request->cliente_id);
+        }
+
+        // Filtro por estado
+        if ($request->filled('estado')) {
+            $query->estado($request->estado);
+        }
+
+        // Filtro por tipo de pago
+        if ($request->filled('tipo_pago')) {
+            $query->tipoPago($request->tipo_pago);
+        }
+
+        // Filtro por estado de pago
+        if ($request->filled('estado_pago')) {
+            $query->estadoPago($request->estado_pago);
+        }
+
+        // Filtro por ventas vencidas
+        if ($request->filled('vencidas') && $request->vencidas == '1') {
+            $query->ventasVencidas();
+        }
+
+        // Filtro por libro
+        if ($request->filled('libro_id')) {
+            $query->conLibro($request->libro_id);
+        }
+
+        // Ordenar por fecha más reciente
+        $query->orderBy('fecha_venta', 'desc');
+
+        return $query;
+    }
+
+    /**
+     * Construir lista de filtros aplicados (helper privado)
+     */
+    private function buildFiltersList(Request $request): array
+    {
+        $filtros = [];
+        
+        if ($request->filled('cliente_id')) {
+            $cliente = \App\Models\Cliente::find($request->cliente_id);
+            if ($cliente) {
+                $filtros[] = 'Cliente: ' . $cliente->nombre;
+            }
+        }
+
+        if ($request->filled('libro_id')) {
+            $libro = \App\Models\Libro::find($request->libro_id);
+            if ($libro) {
+                $filtros[] = 'Libro: ' . $libro->nombre;
+            }
+        }
+
+        if ($request->filled('estado')) {
+            $filtros[] = 'Estado: ' . ucfirst($request->estado);
+        }
+
+        if ($request->filled('tipo_pago')) {
+            $filtros[] = 'Tipo de pago: ' . ucfirst($request->tipo_pago);
+        }
+
+        if ($request->filled('estado_pago')) {
+            $filtros[] = 'Estado de pago: ' . ucfirst($request->estado_pago);
+        }
+
+        if ($request->filled('vencidas') && $request->vencidas == '1') {
+            $filtros[] = 'Ventas: Solo vencidas';
+        }
+
+        if ($request->filled('fecha_desde') && $request->filled('fecha_hasta')) {
+            $filtros[] = 'Período: ' . $request->fecha_desde . ' al ' . $request->fecha_hasta;
+        } elseif ($request->filled('fecha_desde')) {
+            $filtros[] = 'Desde: ' . $request->fecha_desde;
+        } elseif ($request->filled('fecha_hasta')) {
+            $filtros[] = 'Hasta: ' . $request->fecha_hasta;
+        }
+
+        if (empty($filtros)) {
+            $filtros[] = 'Sin filtros aplicados - Mostrando todas las ventas';
+        }
+
+        return $filtros;
     }
 }

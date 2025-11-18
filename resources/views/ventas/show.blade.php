@@ -194,8 +194,8 @@
 
             <!-- Historial de Pagos -->
             @if($venta->pagos->count() > 0)
-                <div class="mt-6">
-                    <div class="flex items-center justify-between mb-4">
+                <div class="mt-4">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 gap-3">
                         <h3 class="text-lg font-semibold text-gray-800 flex items-center">
                             <i class="fas fa-history text-gray-500 mr-2"></i>
                             Historial de Pagos ({{ $venta->pagos->count() }})
@@ -287,11 +287,22 @@
                 </div>
             @else
                 <!-- Sin pagos aún -->
-                <div class="text-center py-8 border-t border-gray-200">
+                <div class="flex flex-col items-center justify-center py-6">
                     <i class="fas fa-receipt text-gray-300 text-5xl mb-3"></i>
-                    <p class="text-gray-500 text-sm">
+                    <p class="text-gray-500 text-base font-medium mb-1">
                         Aún no se han registrado pagos para esta venta
                     </p>
+                    <p class="text-gray-400 text-sm mb-5">
+                        Registra el primer abono o pago para comenzar
+                    </p>
+                    @if($venta->estado_pago !== 'completado' && $venta->estado !== 'cancelada')
+                        <x-button 
+                            href="{{ route('ventas.pagos.create', $venta) }}" 
+                            variant="primary" 
+                            icon="fas fa-plus-circle">
+                            Registrar Primer Pago
+                        </x-button>
+                    @endif
                 </div>
             @endif
         </x-card>

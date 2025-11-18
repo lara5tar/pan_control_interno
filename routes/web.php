@@ -53,6 +53,10 @@ Route::middleware('checkauth')->group(function () {
     Route::resource('ventas', VentaController::class);
     Route::post('/ventas/{venta}/cancelar', [VentaController::class, 'cancelar'])->name('ventas.cancelar');
     
+    // Rutas para exportar reportes de ventas
+    Route::get('/ventas-export/excel', [VentaController::class, 'exportExcel'])->name('ventas.export.excel');
+    Route::get('/ventas-export/pdf', [VentaController::class, 'exportPdf'])->name('ventas.export.pdf');
+    
     // Rutas de clientes
     Route::get('/clientes/search', [ClienteController::class, 'search'])->name('clientes.search');
     Route::resource('clientes', ClienteController::class);
