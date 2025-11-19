@@ -308,7 +308,7 @@
         </x-card>
     @else
         <!-- Venta al contado -->
-        <x-card title="Información de Pago" class="border-l-4 border-green-500">
+        <x-card title="Información de Pago">
             <div class="p-4 bg-green-50 border border-green-200 rounded-lg text-center">
                 <i class="fas fa-check-circle text-green-600 text-3xl mb-2"></i>
                 <p class="text-sm text-green-800">

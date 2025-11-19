@@ -197,12 +197,13 @@
                         </div>
                     </x-table-cell>
                     <x-table-cell align="center">
-                        <a href="{{ route('movimientos.show', $movimiento) }}" 
-                           class="text-gray-800 hover:text-gray-900 transition-colors inline-flex items-center"
-                           title="Ver detalles">
-                            <i class="fas fa-eye mr-1"></i>
-                            <span class="text-xs">Ver</span>
-                        </a>
+                        <x-button 
+                            href="{{ route('movimientos.show', $movimiento) }}" 
+                            variant="primary" 
+                            size="sm"
+                            icon="fas fa-eye"
+                            title="Ver detalles">
+                        </x-button>
                     </x-table-cell>
                 </x-table-row>
             @endforeach

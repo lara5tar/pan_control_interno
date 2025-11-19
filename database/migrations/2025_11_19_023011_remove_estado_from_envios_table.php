@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('ventas', function (Blueprint $table) {
-            $table->dropColumn('codigo');
+        Schema::table('envios', function (Blueprint $table) {
+            $table->dropColumn('estado');
         });
     }
 
@@ -21,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('ventas', function (Blueprint $table) {
-            $table->string('codigo')->nullable()->after('id');
+        Schema::table('envios', function (Blueprint $table) {
+            $table->enum('estado', ['pendiente', 'en_transito', 'entregado', 'cancelado'])->default('pendiente');
         });
     }
 };

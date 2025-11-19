@@ -21,6 +21,12 @@
 
 @php
     $uniqueId = 'libro_search_' . str_replace(['[', ']'], ['_', ''], $name);
+    
+    // Obtener datos del libro para los atributos data-*
+    $selectedLibro = null;
+    if ($selected && isset($libros)) {
+        $selectedLibro = collect($libros)->firstWhere('id', $selected);
+    }
 @endphp
 
 <div class="libro-search-container" id="{{ $uniqueId }}_container">
@@ -34,19 +40,19 @@
     <!-- Input de búsqueda visible -->
     <div class="relative">
         <div class="relative">
-            <span class="absolute left-3 top-3 text-gray-400">
+            <span class="absolute left-3 top-2.5 text-gray-400">
                 <i class="fas fa-search"></i>
             </span>
             <input 
                 type="text" 
                 id="{{ $uniqueId }}_search"
                 class="libro-search-input w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                placeholder="Buscar libro..."
+                placeholder="Buscar libro o dejar vacío..."
                 autocomplete="off"
             >
             <button 
                 type="button"
-                class="libro-clear-btn absolute right-3 top-3 text-gray-400 hover:text-gray-600 hidden"
+                class="libro-clear-btn absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 hidden"
             >
                 <i class="fas fa-times"></i>
             </button>
@@ -75,33 +81,73 @@
         name="{{ $name }}" 
         class="libro-id-input"
         value="{{ old($name, $selected) }}"
-        data-precio=""
-        data-stock=""
+        data-nombre="{{ $selectedLibro->nombre ?? '' }}"
+        data-codigo="{{ $selectedLibro->codigo_barras ?? '' }}"
+        data-precio="{{ $selectedLibro->precio_venta ?? '' }}"
+        data-stock="{{ $selectedLibro->stock ?? '' }}"
         @if($required) required @endif
     >
     
-    <!-- Libro seleccionado -->
-    <div class="libro-selected mt-2 hidden">
-        <div class="p-2 bg-primary-50 border border-primary-200 rounded-lg flex items-center justify-between text-sm">
-            <div class="flex-1">
-                <p class="font-medium text-gray-900 libro-selected-nombre"></p>
-                <p class="text-xs text-gray-600">
-                    <span class="libro-selected-codigo"></span>
-                    <span class="mx-2">•</span>
-                    Precio: <span class="libro-selected-precio font-semibold"></span>
-                    <span class="mx-2">•</span>
-                    Stock: <span class="libro-selected-stock font-semibold"></span>
-                </p>
+    <!-- Libro seleccionado - Ocupa espacio normal en el flujo del documento -->
+    <div class="libro-selected mt-3 hidden">
+        <div class="p-3 bg-primary-50 border border-primary-200 rounded-lg shadow-sm">
+            <div class="flex items-start justify-between">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1">
+                        <i class="fas fa-book text-primary-600"></i>
+                        <p class="font-semibold text-gray-900 libro-selected-nombre"></p>
+                    </div>
+                    <div class="text-sm text-gray-600 space-y-1">
+                        <p>
+                            <i class="fas fa-barcode text-gray-400 w-4"></i>
+                            <span class="libro-selected-codigo"></span>
+                        </p>
+                        <p>
+                            <i class="fas fa-dollar-sign text-gray-400 w-4"></i>
+                            Precio: <span class="libro-selected-precio font-medium"></span>
+                            <span class="mx-2">•</span>
+                            <i class="fas fa-boxes text-gray-400"></i>
+                            Stock: <span class="libro-selected-stock font-medium"></span>
+                        </p>
+                    </div>
+                </div>
+                <button 
+                    type="button" 
+                    class="libro-remove-btn ml-3 text-red-600 hover:text-red-800 transition-colors p-1"
+                    title="Quitar libro"
+                >
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
-            <button 
-                type="button" 
-                class="libro-remove-btn ml-2 text-red-600 hover:text-red-800 transition-colors"
-                title="Quitar libro"
-            >
-                <i class="fas fa-times"></i>
-            </button>
         </div>
     </div>
 </div>
+
+<script>
+(function() {
+    const containerId = '{{ $uniqueId }}_container';
+    const librosData = @json($libros ?? []);
+    
+    // Esperar a que el script libro-search-dynamic.js esté cargado
+    function initLibroSearchWhenReady() {
+        if (typeof window.initLibroSearch === 'function') {
+            console.log('[Libro Search Init] Initializing:', containerId);
+            if (!window.libroSearchInstances[containerId]) {
+                window.libroSearchInstances[containerId] = window.initLibroSearch(containerId, librosData);
+            }
+        } else {
+            console.log('[Libro Search Init] Waiting for libro-search-dynamic.js...');
+            setTimeout(initLibroSearchWhenReady, 100);
+        }
+    }
+    
+    // Inicializar cuando el DOM esté listo
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initLibroSearchWhenReady);
+    } else {
+        initLibroSearchWhenReady();
+    }
+})();
+</script>
 
 

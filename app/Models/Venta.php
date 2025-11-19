@@ -17,6 +17,7 @@ class Venta extends Model
         'descuento_global',
         'total',
         'estado',
+        'tiene_envio',
         'observaciones',
         'usuario',
         'es_a_plazos',
@@ -31,6 +32,7 @@ class Venta extends Model
         'descuento_global' => 'decimal:2',
         'total' => 'decimal:2',
         'es_a_plazos' => 'boolean',
+        'tiene_envio' => 'boolean',
         'total_pagado' => 'decimal:2',
         'fecha_limite' => 'date',
     ];
@@ -57,6 +59,15 @@ class Venta extends Model
     public function pagos()
     {
         return $this->hasMany(Pago::class);
+    }
+
+    /**
+     * Relación: Una venta puede estar en muchos envíos (muchos a muchos)
+     */
+    public function envios()
+    {
+        return $this->belongsToMany(Envio::class, 'envio_venta')
+                    ->withTimestamps();
     }
 
     /**

@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('ventas', function (Blueprint $table) {
-            $table->dropColumn('codigo');
+            $table->boolean('tiene_envio')->default(false)->after('estado');
         });
     }
 
@@ -22,7 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('ventas', function (Blueprint $table) {
-            $table->string('codigo')->nullable()->after('id');
+            $table->dropColumn('tiene_envio');
         });
     }
 };

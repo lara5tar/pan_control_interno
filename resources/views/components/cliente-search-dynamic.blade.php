@@ -35,19 +35,19 @@
     <!-- Input de búsqueda visible -->
     <div class="relative">
         <div class="relative">
-            <span class="absolute left-3 top-3 text-gray-400">
+            <span class="absolute left-3 top-2.5 text-gray-400">
                 <i class="fas fa-search"></i>
             </span>
             <input 
                 type="text" 
                 id="{{ $uniqueId }}_search"
                 class="cliente-search-input w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                placeholder="Buscar cliente..."
+                placeholder="Buscar cliente o dejar vacío..."
                 autocomplete="off"
             >
             <button 
                 type="button"
-                class="cliente-clear-btn absolute right-3 top-3 text-gray-400 hover:text-gray-600 hidden"
+                class="cliente-clear-btn absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 hidden"
             >
                 <i class="fas fa-times"></i>
             </button>
@@ -81,27 +81,38 @@
         @if($required) required @endif
     >
     
-    <!-- Cliente seleccionado -->
-    <div class="cliente-selected mt-2 hidden">
-        <div class="p-2 bg-primary-50 border border-primary-200 rounded-lg flex items-center justify-between text-sm">
-            <div class="flex-1">
-                <p class="font-medium text-gray-900 cliente-selected-nombre"></p>
-                <p class="text-xs text-gray-600">
-                    <span class="cliente-selected-codigo"></span>
-                    <span class="mx-2">•</span>
-                    Teléfono: <span class="cliente-selected-telefono font-semibold"></span>
-                </p>
+    <!-- Cliente seleccionado - Ocupa espacio normal en el flujo del documento -->
+    <div class="cliente-selected mt-3 hidden">
+        <div class="p-3 bg-primary-50 border border-primary-200 rounded-lg shadow-sm">
+            <div class="flex items-start justify-between">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1">
+                        <i class="fas fa-user text-primary-600"></i>
+                        <p class="font-semibold text-gray-900 cliente-selected-nombre"></p>
+                    </div>
+                    <div class="text-sm text-gray-600 space-y-1">
+                        <p>
+                            <i class="fas fa-id-badge text-gray-400 w-4"></i>
+                            <span class="cliente-selected-codigo"></span>
+                        </p>
+                        <p>
+                            <i class="fas fa-phone text-gray-400 w-4"></i>
+                            Teléfono: <span class="cliente-selected-telefono font-medium"></span>
+                        </p>
+                    </div>
+                </div>
+                <button 
+                    type="button" 
+                    class="cliente-remove-btn ml-3 text-red-600 hover:text-red-800 transition-colors p-1"
+                    title="Quitar cliente"
+                >
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
-            <button 
-                type="button" 
-                class="cliente-remove-btn ml-2 text-red-600 hover:text-red-800 transition-colors"
-                title="Quitar cliente"
-            >
-                <i class="fas fa-times"></i>
-            </button>
         </div>
     </div>
 </div>
+
 
 
 

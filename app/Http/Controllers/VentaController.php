@@ -188,6 +188,7 @@ class VentaController extends Controller
             'descuento_global' => 'nullable|numeric|min:0|max:100',
             'observaciones' => 'nullable|string|max:500',
             'es_a_plazos' => 'nullable|boolean',
+            'tiene_envio' => 'nullable|boolean',
             'fecha_limite' => 'nullable|date|after:today',
             
             // Movimientos
@@ -236,6 +237,7 @@ class VentaController extends Controller
                 'observaciones' => $validated['observaciones'],
                 'usuario' => 'Admin', // Cambiar por auth()->user()->name
                 'es_a_plazos' => $esAPLazos,
+                'tiene_envio' => isset($validated['tiene_envio']) && $validated['tiene_envio'],
                 'fecha_limite' => $validated['fecha_limite'] ?? null,
                 'estado_pago' => $esAPLazos ? 'pendiente' : 'completado',
                 'total_pagado' => 0,

@@ -94,36 +94,36 @@
     <!-- Filtros -->
     <x-card class="overflow-visible">
         <form method="GET" action="{{ route('ventas.index') }}" class="overflow-visible">
-                                    <!-- Filters Grid -->
-                        <div class="grid grid-cols-4 gap-4 mb-4 overflow-visible items-end">
-                <!-- Filtro por Cliente -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        <i class="fas fa-user text-gray-400"></i> Cliente
-                    </label>
-                    <select name="cliente_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-                        <option value="">Todos los clientes</option>
-                        @foreach($clientes as $cliente)
-                            <option value="{{ $cliente->id }}" {{ request('cliente_id') == $cliente->id ? 'selected' : '' }}>
-                                {{ $cliente->nombre }}
-                            </option>
-                        @endforeach
-                    </select>
+            <!-- Filters Grid -->
+            <div class="grid grid-cols-4 gap-4 mb-4 overflow-visible">
+                <!-- Filtro por Cliente - Ocupa toda la primera fila -->
+                <div class="col-span-4">
+                    @php
+                        $selectedClienteId = request('cliente_id');
+                        $selectedCliente = $selectedClienteId ? \App\Models\Cliente::find($selectedClienteId) : null;
+                    @endphp
+                    <x-cliente-search-dynamic 
+                        name="cliente_id"
+                        :selected="$selectedClienteId"
+                        :clienteData="$selectedCliente"
+                        label="Cliente"
+                        :required="false"
+                        placeholder="Buscar o seleccionar cliente..."
+                    />
                 </div>
 
-                <!-- Filtro por Libro -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        <i class="fas fa-book text-gray-400"></i> Libro
-                    </label>
-                    <select name="libro_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-                        <option value="">Todos los libros</option>
-                        @foreach($libros as $libro)
-                            <option value="{{ $libro->id }}" {{ request('libro_id') == $libro->id ? 'selected' : '' }}>
-                                {{ $libro->nombre }}
-                            </option>
-                        @endforeach
-                    </select>
+                <!-- Filtro por Libro - Ocupa toda la segunda fila -->
+                <div class="col-span-4">
+                    @php
+                        $selectedLibroId = request('libro_id');
+                    @endphp
+                    <x-libro-search-dynamic 
+                        name="libro_id"
+                        :selected="$selectedLibroId"
+                        :libros="$libros"
+                        label="Libro"
+                        :required="false"
+                    />
                 </div>
 
                 <!-- Filtro por Estado -->
@@ -253,6 +253,11 @@
                     <x-data-table-cell bold>
                         <div class="flex items-center gap-1">
                             #{{ $venta->id }}
+                            @if($venta->tiene_envio)
+                                <span class="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded" title="Tiene envío asignado">
+                                    <i class="fas fa-shipping-fast"></i>
+                                </span>
+                            @endif
                             @if($venta->es_a_plazos)
                                 <span class="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded" title="Venta a plazos">
                                     <i class="fas fa-calendar-alt"></i>
@@ -404,3 +409,8 @@
     </x-card>
 </x-page-layout>
 @endsection
+
+@push('scripts')
+<script src="{{ asset('js/cliente-search-dynamic.js') }}"></script>
+<script src="{{ asset('js/libro-search-dynamic.js') }}"></script>
+@endpush

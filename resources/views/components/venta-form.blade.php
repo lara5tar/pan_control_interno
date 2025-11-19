@@ -177,6 +177,28 @@
             </div>
         </div>
 
+        <!-- Tiene Envío -->
+        <div class="lg:col-span-2">
+            <div class="flex items-start space-x-3 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                <input 
+                    type="checkbox" 
+                    name="tiene_envio" 
+                    id="tiene_envio" 
+                    value="1"
+                    {{ old('tiene_envio', $venta?->tiene_envio) ? 'checked' : '' }}
+                    class="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded">
+                <div class="flex-1">
+                    <label for="tiene_envio" class="block text-sm font-medium text-gray-900 cursor-pointer">
+                        <i class="fas fa-shipping-fast text-gray-600"></i> Requiere Envío
+                    </label>
+                    <p class="text-sm text-gray-600 mt-1">
+                        <i class="fas fa-info-circle"></i> 
+                        Esta venta será incluida en un envío a FedEx. Podrás asignarla posteriormente en el módulo de Envíos.
+                    </p>
+                </div>
+            </div>
+        </div>
+
         <!-- Fecha Límite (solo visible si es a plazos) -->
         <div id="fechaLimiteContainer" class="lg:col-span-2 hidden">
             <label for="fecha_limite" class="block text-sm font-medium text-gray-700 mb-2">

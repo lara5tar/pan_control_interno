@@ -9,6 +9,7 @@ use App\Http\Controllers\MovimientoController;
 use App\Http\Controllers\VentaController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\PagoController;
+use App\Http\Controllers\EnvioController;
 
 // Rutas públicas de autenticación
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -65,5 +66,17 @@ Route::middleware('checkauth')->group(function () {
     Route::get('/ventas/{venta}/pagos/crear', [PagoController::class, 'create'])->name('ventas.pagos.create');
     Route::post('/ventas/{venta}/pagos', [PagoController::class, 'store'])->name('pagos.store');
     Route::delete('/pagos/{pago}', [PagoController::class, 'destroy'])->name('pagos.destroy');
+    
+    // Rutas de envíos
+    Route::resource('envios', EnvioController::class);
+    
+    // Rutas para marcar estado de pago en envíos
+    Route::get('/envios/{envio}/marcar-pago', [EnvioController::class, 'mostrarFormularioPago'])->name('envios.mostrar-pago');
+    Route::post('/envios/{envio}/marcar-pagado', [EnvioController::class, 'marcarPagado'])->name('envios.marcar-pagado');
+    Route::post('/envios/{envio}/marcar-pendiente', [EnvioController::class, 'marcarPendiente'])->name('envios.marcar-pendiente');
+    
+    // Rutas para exportar reportes de envíos
+    Route::get('/envios-export/excel', [EnvioController::class, 'exportExcel'])->name('envios.export.excel');
+    Route::get('/envios-export/pdf', [EnvioController::class, 'exportPdf'])->name('envios.export.pdf');
     
 });

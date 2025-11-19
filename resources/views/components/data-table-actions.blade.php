@@ -6,33 +6,39 @@
 ])
 
 <td class="px-6 py-4 whitespace-nowrap text-sm">
-    <div class="flex items-center space-x-3">
+    <div class="flex justify-end gap-1">
         @if($viewRoute)
-            <a href="{{ $viewRoute }}" 
-               class="text-gray-800 hover:text-gray-900 transition-colors"
-               title="Ver detalles">
-                <i class="fas fa-eye"></i>
-            </a>
+            <x-button 
+                href="{{ $viewRoute }}" 
+                variant="primary" 
+                size="sm"
+                icon="fas fa-eye"
+                title="Ver detalles">
+            </x-button>
         @endif
         
         @if($editRoute)
-            <a href="{{ $editRoute }}" 
-               class="text-gray-800 hover:text-gray-900 transition-colors"
-               title="Editar">
-                <i class="fas fa-edit"></i>
-            </a>
+            <x-button 
+                href="{{ $editRoute }}" 
+                variant="warning" 
+                size="sm"
+                icon="fas fa-edit"
+                title="Editar">
+            </x-button>
         @endif
         
         @if($deleteRoute)
             <form action="{{ $deleteRoute }}" method="POST" class="inline">
                 @csrf
                 @method('DELETE')
-                <button type="submit" 
-                        class="text-red-600 hover:text-red-900 transition-colors p-1" 
-                        onclick="return confirm('{{ $deleteMessage }}')"
-                        title="Eliminar">
-                    <i class="fas fa-trash"></i>
-                </button>
+                <x-button 
+                    type="submit" 
+                    variant="danger" 
+                    size="sm"
+                    icon="fas fa-trash"
+                    title="Eliminar"
+                    onclick="return confirm('{{ $deleteMessage }}')">
+                </x-button>
             </form>
         @endif
 

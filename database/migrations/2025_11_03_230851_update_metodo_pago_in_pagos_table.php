@@ -27,8 +27,14 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('pagos', function (Blueprint $table) {
-            $table->enum('metodo_pago', ['efectivo', 'transferencia', 'tarjeta', 'deposito'])->change();
-        });
+        // Primero cambiamos la columna a VARCHAR temporal
+        DB::statement('ALTER TABLE pagos MODIFY COLUMN metodo_pago VARCHAR(50)');
+        
+        // Actualizamos los valores de vuelta
+        DB::table('pagos')->where('metodo_pago', 'contado')->update(['metodo_pago' => 'efectivo']);
+        DB::table('pagos')->where('metodo_pago', 'credito')->update(['metodo_pago' => 'efectivo']);
+        
+        // Finalmente cambiamos a ENUM con los valores originales
+        DB::statement("ALTER TABLE pagos MODIFY COLUMN metodo_pago ENUM('efectivo', 'transferencia', 'tarjeta') NOT NULL DEFAULT 'efectivo'");
     }
 };
