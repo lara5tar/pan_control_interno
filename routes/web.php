@@ -10,6 +10,7 @@ use App\Http\Controllers\VentaController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\PagoController;
 use App\Http\Controllers\EnvioController;
+use App\Http\Controllers\ApartadoController;
 
 // Rutas públicas de autenticación
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -78,5 +79,11 @@ Route::middleware('checkauth')->group(function () {
     // Rutas para exportar reportes de envíos
     Route::get('/envios-export/excel', [EnvioController::class, 'exportExcel'])->name('envios.export.excel');
     Route::get('/envios-export/pdf', [EnvioController::class, 'exportPdf'])->name('envios.export.pdf');
+    
+    // Rutas de apartados de inventario
+    Route::resource('apartados', ApartadoController::class);
+    Route::post('/apartados/{apartado}/completar', [ApartadoController::class, 'completar'])->name('apartados.completar');
+    Route::post('/apartados/{apartado}/cancelar', [ApartadoController::class, 'cancelar'])->name('apartados.cancelar');
+    Route::post('/apartados/{apartado}/devolver-parcial', [ApartadoController::class, 'devolverParcial'])->name('apartados.devolver-parcial');
     
 });

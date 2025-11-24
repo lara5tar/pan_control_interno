@@ -15,6 +15,14 @@
 >
     <x-slot name="header">
         <x-button 
+            variant="success" 
+            icon="fas fa-box-open"
+            onclick="window.location='{{ route('apartados.index') }}'"
+            class="mr-2"
+        >
+            Apartados
+        </x-button>
+        <x-button 
             variant="primary" 
             icon="fas fa-plus"
             onclick="window.location='{{ route('inventario.create') }}'"
