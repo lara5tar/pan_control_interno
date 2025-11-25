@@ -17,10 +17,10 @@
         <x-button 
             variant="success" 
             icon="fas fa-box-open"
-            onclick="window.location='{{ route('apartados.index') }}'"
+            onclick="window.location='{{ route('subinventarios.index') }}'"
             class="mr-2"
         >
-            Apartados
+            Sub-Inventarios
         </x-button>
         <x-button 
             variant="primary" 

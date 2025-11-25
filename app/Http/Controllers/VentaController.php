@@ -169,8 +169,8 @@ class VentaController extends Controller
      */
     public function create()
     {
-        // Mostrar solo libros con stock disponible (restando lo apartado)
-        $libros = Libro::whereRaw('stock - stock_apartado > 0')
+        // Mostrar solo libros con stock disponible (restando lo que está en sub-inventarios)
+        $libros = Libro::whereRaw('stock - stock_subinventario > 0')
             ->orderBy('nombre')
             ->get();
 
@@ -220,7 +220,7 @@ class VentaController extends Controller
             if (!$esAPLazos) {
                 foreach ($validated['libros'] as $item) {
                     $libro = Libro::findOrFail($item['libro_id']);
-                    $stockDisponible = $libro->stock - $libro->stock_apartado;
+                    $stockDisponible = $libro->stock - $libro->stock_subinventario;
                     
                     if ($stockDisponible < $item['cantidad']) {
                         return back()->withErrors([
@@ -312,8 +312,8 @@ class VentaController extends Controller
                 ->with('warning', 'Solo se pueden editar ventas pendientes');
         }
 
-        // Mostrar solo libros con stock disponible (restando lo apartado)
-        $libros = Libro::whereRaw('stock - stock_apartado > 0')
+        // Mostrar solo libros con stock disponible (restando lo que está en sub-inventarios)
+        $libros = Libro::whereRaw('stock - stock_subinventario > 0')
             ->orderBy('nombre')
             ->get();
 

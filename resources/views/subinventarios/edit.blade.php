@@ -1,31 +1,32 @@
 @extends('layouts.app')
 
-@section('title', 'Nuevo Apartado')
+@section('title', 'Editar Sub-Inventario')
 
 @section('content')
 <x-page-layout 
-    title="Crear Nuevo Apartado"
-    description="Selecciona los libros que apartarás para vender en un día específico"
-    button-text="Volver a Apartados"
+    title="Editar Sub-Inventario #{{ $subinventario->id }}"
+    description="Modifica los libros y cantidades del sub-inventario"
+    button-text="Volver a Sub-Inventarios"
     button-icon="fas fa-arrow-left"
-    :button-route="route('apartados.index')"
+    :button-route="route('subinventarios.show', $subinventario)"
 >
     <x-card>
-        <form action="{{ route('apartados.store') }}" method="POST" id="apartadoForm">
+        <form action="{{ route('subinventarios.update', $subinventario) }}" method="POST" id="subinventarioForm">
             @csrf
+            @method('PUT')
 
-            <!-- Información del apartado -->
+            <!-- Información del sub-inventario -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Fecha de Apartado <span class="text-red-500">*</span>
+                        Fecha de Sub-Inventario <span class="text-red-500">*</span>
                     </label>
                     <input type="date" 
-                           name="fecha_apartado" 
-                           value="{{ old('fecha_apartado', date('Y-m-d')) }}"
+                           name="fecha_subinventario" 
+                           value="{{ old('fecha_subinventario', $subinventario->fecha_subinventario->format('Y-m-d')) }}"
                            required
-                           class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 @error('fecha_apartado') border-red-500 @enderror">
-                    @error('fecha_apartado')
+                           class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 @error('fecha_subinventario') border-red-500 @enderror">
+                    @error('fecha_subinventario')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                 </div>
@@ -36,7 +37,7 @@
                     </label>
                     <input type="text" 
                            name="descripcion" 
-                           value="{{ old('descripcion') }}"
+                           value="{{ old('descripcion', $subinventario->descripcion) }}"
                            placeholder="Ej: Venta en feria del libro"
                            class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 @error('descripcion') border-red-500 @enderror">
                     @error('descripcion')
@@ -52,7 +53,7 @@
                 <textarea name="observaciones" 
                           rows="3"
                           placeholder="Notas adicionales..."
-                          class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 @error('observaciones') border-red-500 @enderror">{{ old('observaciones') }}</textarea>
+                          class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 @error('observaciones') border-red-500 @enderror">{{ old('observaciones', $subinventario->observaciones) }}</textarea>
                 @error('observaciones')
                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                 @enderror
@@ -64,7 +65,7 @@
             <div>
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-lg font-semibold text-gray-900">
-                        <i class="fas fa-book mr-2 text-blue-600"></i>Libros a Apartar
+                        <i class="fas fa-book mr-2 text-blue-600"></i>Libros a Sub-Inventario
                     </h3>
                     <button type="button" 
                             onclick="agregarLibro()" 
@@ -83,7 +84,7 @@
                     <!-- Los libros se agregarán aquí dinámicamente -->
                 </div>
 
-                <div id="emptyMessage" class="text-center py-8 bg-gray-50 rounded-lg">
+                <div id="emptyMessage" class="text-center py-8 bg-gray-50 rounded-lg" style="display: none;">
                     <i class="fas fa-info-circle text-gray-400 text-3xl mb-2"></i>
                     <p class="text-gray-500">No hay libros agregados. Haz clic en "Agregar Libro" para comenzar.</p>
                 </div>
@@ -93,13 +94,13 @@
 
             <!-- Botones de acción -->
             <div class="flex justify-end gap-3">
-                <a href="{{ route('apartados.index') }}" 
+                <a href="{{ route('subinventarios.show', $subinventario) }}" 
                    class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600">
                     <i class="fas fa-times mr-2"></i>Cancelar
                 </a>
                 <button type="submit" 
                         class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
-                    <i class="fas fa-save mr-2"></i>Guardar Apartado
+                    <i class="fas fa-save mr-2"></i>Actualizar Sub-Inventario
                 </button>
             </div>
         </form>
@@ -110,8 +111,9 @@
 <script>
     let libroIndex = 0;
     const libros = @json($libros);
+    const subinventarioLibros = @json($subinventario->libros);
 
-    function agregarLibro() {
+    function agregarLibro(libroId = '', cantidad = 1) {
         const container = document.getElementById('librosContainer');
         const emptyMessage = document.getElementById('emptyMessage');
         
@@ -131,8 +133,9 @@
                         ${libros.map(libro => `
                             <option value="${libro.id}" 
                                     data-stock="${libro.stock}" 
-                                    data-apartado="${libro.stock_apartado || 0}">
-                                ${libro.nombre} - Stock: ${libro.stock - (libro.stock_apartado || 0)} disponibles (${libro.stock} total)
+                                    data-subinventario="${libro.stock_subinventario || 0}"
+                                    ${libroId == libro.id ? 'selected' : ''}>
+                                ${libro.nombre} - Stock: ${libro.stock - (libro.stock_subinventario || 0)} disponibles (${libro.stock} total)
                             </option>
                         `).join('')}
                     </select>
@@ -143,7 +146,7 @@
                     <input type="number" 
                            name="libros[${libroIndex}][cantidad]" 
                            min="1" 
-                           value="1"
+                           value="${cantidad}"
                            required
                            class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                     <p id="stock-info-${libroIndex}" class="mt-1 text-xs text-gray-500"></p>
@@ -159,6 +162,12 @@
         
         container.appendChild(div);
         emptyMessage.style.display = 'none';
+        
+        // Actualizar stock disponible si se seleccionó un libro
+        if (libroId) {
+            actualizarStockDisponible(libroIndex);
+        }
+        
         libroIndex++;
     }
 
@@ -169,8 +178,8 @@
         if (select.value) {
             const option = select.options[select.selectedIndex];
             const stock = parseInt(option.dataset.stock);
-            const apartado = parseInt(option.dataset.apartado);
-            const disponible = stock - apartado;
+            const subinventario = parseInt(option.dataset.subinventario);
+            const disponible = stock - subinventario;
             
             stockInfo.textContent = `Stock disponible: ${disponible}`;
             
@@ -194,9 +203,11 @@
         }
     }
 
-    // Agregar un libro por defecto al cargar
+    // Cargar los libros existentes al iniciar
     document.addEventListener('DOMContentLoaded', function() {
-        agregarLibro();
+        subinventarioLibros.forEach(libro => {
+            agregarLibro(libro.id, libro.pivot.cantidad);
+        });
     });
 </script>
 @endpush

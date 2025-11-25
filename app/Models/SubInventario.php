@@ -5,10 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-class Apartado extends Model
+class SubInventario extends Model
 {
+    protected $table = 'subinventarios';
+    
     protected $fillable = [
-        'fecha_apartado',
+        'fecha_subinventario',
         'descripcion',
         'estado',
         'usuario',
@@ -16,7 +18,7 @@ class Apartado extends Model
     ];
 
     protected $casts = [
-        'fecha_apartado' => 'date',
+        'fecha_subinventario' => 'date',
     ];
 
     /**
@@ -24,13 +26,13 @@ class Apartado extends Model
      */
     public function libros(): BelongsToMany
     {
-        return $this->belongsToMany(Libro::class, 'apartado_libro')
+        return $this->belongsToMany(Libro::class, 'subinventario_libro', 'subinventario_id', 'libro_id')
                     ->withPivot('cantidad')
                     ->withTimestamps();
     }
 
     /**
-     * Scope para filtrar apartados activos
+     * Scope para filtrar sub-inventarios activos
      */
     public function scopeActivos($query)
     {
@@ -38,7 +40,7 @@ class Apartado extends Model
     }
 
     /**
-     * Scope para filtrar apartados completados
+     * Scope para filtrar sub-inventarios completados
      */
     public function scopeCompletados($query)
     {
@@ -46,7 +48,7 @@ class Apartado extends Model
     }
 
     /**
-     * Scope para filtrar apartados cancelados
+     * Scope para filtrar sub-inventarios cancelados
      */
     public function scopeCancelados($query)
     {
@@ -58,7 +60,7 @@ class Apartado extends Model
      */
     public function scopePorFecha($query, $fecha)
     {
-        return $query->whereDate('fecha_apartado', $fecha);
+        return $query->whereDate('fecha_subinventario', $fecha);
     }
 
     /**
@@ -101,7 +103,7 @@ class Apartado extends Model
     }
 
     /**
-     * Calcular el total de libros apartados
+     * Calcular el total de libros en sub-inventario
      */
     public function getTotalLibros()
     {
@@ -109,7 +111,7 @@ class Apartado extends Model
     }
 
     /**
-     * Calcular el total de unidades apartadas
+     * Calcular el total de unidades en sub-inventario
      */
     public function getTotalUnidades()
     {
@@ -117,7 +119,7 @@ class Apartado extends Model
     }
 
     /**
-     * Activar el apartado (apartar el inventario)
+     * Activar el sub-inventario (reservar el inventario)
      */
     public function activar()
     {
@@ -133,16 +135,16 @@ class Apartado extends Model
                 return false;
             }
 
-            // Reducir stock disponible y aumentar stock apartado
+            // Reducir stock disponible y aumentar stock en sub-inventario
             $libro->decrement('stock', $cantidad);
-            $libro->increment('stock_apartado', $cantidad);
+            $libro->increment('stock_subinventario', $cantidad); // Cambiaremos este nombre después con migración
         }
 
         return true;
     }
 
     /**
-     * Completar el apartado (se vendió todo)
+     * Completar el sub-inventario (se vendió todo)
      */
     public function completar()
     {
@@ -150,10 +152,10 @@ class Apartado extends Model
             return false;
         }
 
-        // Reducir el stock apartado de cada libro
+        // Reducir el stock en sub-inventario de cada libro
         foreach ($this->libros as $libro) {
             $cantidad = $libro->pivot->cantidad;
-            $libro->decrement('stock_apartado', $cantidad);
+            $libro->decrement('stock_subinventario', $cantidad); // Cambiaremos este nombre después con migración
         }
 
         $this->estado = 'completado';
@@ -163,7 +165,7 @@ class Apartado extends Model
     }
 
     /**
-     * Cancelar el apartado (devolver inventario)
+     * Cancelar el sub-inventario (devolver inventario)
      */
     public function cancelar()
     {
@@ -176,9 +178,9 @@ class Apartado extends Model
             foreach ($this->libros as $libro) {
                 $cantidad = $libro->pivot->cantidad;
                 
-                // Aumentar stock disponible y reducir stock apartado
+                // Aumentar stock disponible y reducir stock en sub-inventario
                 $libro->increment('stock', $cantidad);
-                $libro->decrement('stock_apartado', $cantidad);
+                $libro->decrement('stock_subinventario', $cantidad); // Cambiaremos este nombre después con migración
             }
         }
 
@@ -189,7 +191,7 @@ class Apartado extends Model
     }
 
     /**
-     * Devolver parcialmente el apartado (si no se vendió todo)
+     * Devolver parcialmente el sub-inventario (si no se vendió todo)
      */
     public function devolverParcial($libroId, $cantidadDevolver)
     {
@@ -203,9 +205,9 @@ class Apartado extends Model
             return false;
         }
 
-        // Devolver al stock y reducir el apartado
+        // Devolver al stock y reducir el sub-inventario
         $libro->increment('stock', $cantidadDevolver);
-        $libro->decrement('stock_apartado', $cantidadDevolver);
+        $libro->decrement('stock_subinventario', $cantidadDevolver); // Cambiaremos este nombre después con migración
 
         // Actualizar la cantidad en la tabla pivote
         $this->libros()->updateExistingPivot($libroId, [

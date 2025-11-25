@@ -1,18 +1,18 @@
 @extends('layouts.app')
 
-@section('title', 'Apartados de Inventario')
+@section('title', 'Sub-Inventarios')
 
 @section('content')
 <x-page-layout 
-    title="Apartados de Inventario"
-    description="Gestiona los apartados de inventario para días de venta"
-    button-text="Nuevo Apartado"
+    title="Sub-Inventarios"
+    description="Gestiona los sub-inventarios para días de venta"
+    button-text="Nuevo Sub-Inventario"
     button-icon="fas fa-plus"
-    :button-route="route('apartados.create')"
+    :button-route="route('subinventarios.create')"
 >
     <!-- Filtros -->
     <x-card class="mb-6">
-        <form method="GET" action="{{ route('apartados.index') }}" class="space-y-4">
+        <form method="GET" action="{{ route('subinventarios.index') }}" class="space-y-4">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <!-- Buscar por descripción -->
                 <div>
@@ -52,8 +52,8 @@
                             class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                         <option value="reciente" {{ request('ordenar') == 'reciente' ? 'selected' : '' }}>Más reciente</option>
                         <option value="antiguo" {{ request('ordenar') == 'antiguo' ? 'selected' : '' }}>Más antiguo</option>
-                        <option value="fecha_asc" {{ request('ordenar') == 'fecha_asc' ? 'selected' : '' }}>Fecha apartado (asc)</option>
-                        <option value="fecha_desc" {{ request('ordenar') == 'fecha_desc' ? 'selected' : '' }}>Fecha apartado (desc)</option>
+                        <option value="fecha_asc" {{ request('ordenar') == 'fecha_asc' ? 'selected' : '' }}>Fecha sub-inventario (asc)</option>
+                        <option value="fecha_desc" {{ request('ordenar') == 'fecha_desc' ? 'selected' : '' }}>Fecha sub-inventario (desc)</option>
                     </select>
                 </div>
             </div>
@@ -62,22 +62,22 @@
                 <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
                     <i class="fas fa-search mr-2"></i>Filtrar
                 </button>
-                <a href="{{ route('apartados.index') }}" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
+                <a href="{{ route('subinventarios.index') }}" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
                     <i class="fas fa-times mr-2"></i>Limpiar
                 </a>
             </div>
         </form>
     </x-card>
 
-    <!-- Lista de apartados -->
+    <!-- Lista de sub-inventarios -->
     <x-card>
-        @if($apartados->count() > 0)
+        @if($subinventarios->count() > 0)
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha Apartado</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha Sub-Inventario</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descripción</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Libros</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unidades</th>
@@ -86,47 +86,47 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                        @foreach($apartados as $apartado)
+                        @foreach($subinventarios as $subinventario)
                             <tr class="hover:bg-gray-50">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    #{{ $apartado->id }}
+                                    #{{ $subinventario->id }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ $apartado->fecha_apartado->format('d/m/Y') }}
+                                    {{ $subinventario->fecha_subinventario->format('d/m/Y') }}
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-900">
-                                    {{ $apartado->descripcion ?: 'Sin descripción' }}
+                                    {{ $subinventario->descripcion ?: 'Sin descripción' }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ $apartado->getTotalLibros() }} libros
+                                    {{ $subinventario->getTotalLibros() }} libros
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ $apartado->getTotalUnidades() }} unidades
+                                    {{ $subinventario->getTotalUnidades() }} unidades
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $apartado->getBadgeColor() }}">
-                                        <i class="{{ $apartado->getIcon() }} mr-1"></i>
-                                        {{ $apartado->getEstadoLabel() }}
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $subinventario->getBadgeColor() }}">
+                                        <i class="{{ $subinventario->getIcon() }} mr-1"></i>
+                                        {{ $subinventario->getEstadoLabel() }}
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                                    <a href="{{ route('apartados.show', $apartado) }}" 
+                                    <a href="{{ route('subinventarios.show', $subinventario) }}" 
                                        class="text-blue-600 hover:text-blue-900"
                                        title="Ver detalles">
                                         <i class="fas fa-eye"></i>
                                     </a>
                                     
-                                    @if($apartado->estado === 'activo')
-                                        <a href="{{ route('apartados.edit', $apartado) }}" 
+                                    @if($subinventario->estado === 'activo')
+                                        <a href="{{ route('subinventarios.edit', $subinventario) }}" 
                                            class="text-yellow-600 hover:text-yellow-900"
                                            title="Editar">
                                             <i class="fas fa-edit"></i>
                                         </a>
 
-                                        <form action="{{ route('apartados.completar', $apartado) }}" 
+                                        <form action="{{ route('subinventarios.completar', $subinventario) }}" 
                                               method="POST" 
                                               class="inline"
-                                              onsubmit="return confirm('¿Completar este apartado? Esto indica que se vendió todo el inventario apartado.')">
+                                              onsubmit="return confirm('¿Completar este sub-inventario? Esto indica que se vendió todo el inventario del sub-inventario.');">
                                             @csrf
                                             <button type="submit" 
                                                     class="text-green-600 hover:text-green-900"
@@ -135,10 +135,10 @@
                                             </button>
                                         </form>
 
-                                        <form action="{{ route('apartados.cancelar', $apartado) }}" 
+                                        <form action="{{ route('subinventarios.cancelar', $subinventario) }}" 
                                               method="POST" 
                                               class="inline"
-                                              onsubmit="return confirm('¿Cancelar este apartado? El inventario se devolverá.')">
+                                              onsubmit="return confirm('¿Cancelar este sub-inventario? El inventario se devolverá.');">
                                             @csrf
                                             <button type="submit" 
                                                     class="text-red-600 hover:text-red-900"
@@ -148,11 +148,11 @@
                                         </form>
                                     @endif
 
-                                    @if($apartado->estado !== 'completado')
-                                        <form action="{{ route('apartados.destroy', $apartado) }}" 
+                                    @if($subinventario->estado !== 'completado')
+                                        <form action="{{ route('subinventarios.destroy', $subinventario) }}" 
                                               method="POST" 
                                               class="inline"
-                                              onsubmit="return confirm('¿Eliminar este apartado?')">
+                                              onsubmit="return confirm('¿Eliminar este sub-inventario?');">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" 
@@ -171,15 +171,15 @@
 
             <!-- Paginación -->
             <div class="mt-4">
-                {{ $apartados->links() }}
+                {{ $subinventarios->links() }}
             </div>
         @else
             <div class="text-center py-8">
                 <i class="fas fa-box-open text-gray-400 text-5xl mb-4"></i>
-                <p class="text-gray-500 text-lg">No hay apartados registrados</p>
-                <a href="{{ route('apartados.create') }}" 
+                <p class="text-gray-500 text-lg">No hay sub-inventarios registrados</p>
+                <a href="{{ route('subinventarios.create') }}" 
                    class="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                    <i class="fas fa-plus mr-2"></i>Crear primer apartado
+                    <i class="fas fa-plus mr-2"></i>Crear primer sub-inventario
                 </a>
             </div>
         @endif

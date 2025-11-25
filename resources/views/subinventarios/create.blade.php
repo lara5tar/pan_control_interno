@@ -1,32 +1,31 @@
 @extends('layouts.app')
 
-@section('title', 'Editar Apartado')
+@section('title', 'Nuevo Sub-Inventario')
 
 @section('content')
 <x-page-layout 
-    title="Editar Apartado #{{ $apartado->id }}"
-    description="Modifica los libros y cantidades del apartado"
-    button-text="Volver a Apartados"
+    title="Crear Nuevo Sub-Inventario"
+    description="Selecciona los libros que reservarás para vender en un día específico"
+    button-text="Volver a Sub-Inventarios"
     button-icon="fas fa-arrow-left"
-    :button-route="route('apartados.show', $apartado)"
+    :button-route="route('subinventarios.index')"
 >
     <x-card>
-        <form action="{{ route('apartados.update', $apartado) }}" method="POST" id="apartadoForm">
+        <form action="{{ route('subinventarios.store') }}" method="POST" id="subinventarioForm">
             @csrf
-            @method('PUT')
 
-            <!-- Información del apartado -->
+            <!-- Información del sub-inventario -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Fecha de Apartado <span class="text-red-500">*</span>
+                        Fecha de Sub-Inventario <span class="text-red-500">*</span>
                     </label>
                     <input type="date" 
-                           name="fecha_apartado" 
-                           value="{{ old('fecha_apartado', $apartado->fecha_apartado->format('Y-m-d')) }}"
+                           name="fecha_subinventario" 
+                           value="{{ old('fecha_subinventario', date('Y-m-d')) }}"
                            required
-                           class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 @error('fecha_apartado') border-red-500 @enderror">
-                    @error('fecha_apartado')
+                           class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 @error('fecha_subinventario') border-red-500 @enderror">
+                    @error('fecha_subinventario')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                 </div>
@@ -37,7 +36,7 @@
                     </label>
                     <input type="text" 
                            name="descripcion" 
-                           value="{{ old('descripcion', $apartado->descripcion) }}"
+                           value="{{ old('descripcion') }}"
                            placeholder="Ej: Venta en feria del libro"
                            class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 @error('descripcion') border-red-500 @enderror">
                     @error('descripcion')
@@ -53,7 +52,7 @@
                 <textarea name="observaciones" 
                           rows="3"
                           placeholder="Notas adicionales..."
-                          class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 @error('observaciones') border-red-500 @enderror">{{ old('observaciones', $apartado->observaciones) }}</textarea>
+                          class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 @error('observaciones') border-red-500 @enderror">{{ old('observaciones') }}</textarea>
                 @error('observaciones')
                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                 @enderror
@@ -84,7 +83,7 @@
                     <!-- Los libros se agregarán aquí dinámicamente -->
                 </div>
 
-                <div id="emptyMessage" class="text-center py-8 bg-gray-50 rounded-lg" style="display: none;">
+                <div id="emptyMessage" class="text-center py-8 bg-gray-50 rounded-lg">
                     <i class="fas fa-info-circle text-gray-400 text-3xl mb-2"></i>
                     <p class="text-gray-500">No hay libros agregados. Haz clic en "Agregar Libro" para comenzar.</p>
                 </div>
@@ -94,13 +93,13 @@
 
             <!-- Botones de acción -->
             <div class="flex justify-end gap-3">
-                <a href="{{ route('apartados.show', $apartado) }}" 
+                <a href="{{ route('subinventarios.index') }}" 
                    class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600">
                     <i class="fas fa-times mr-2"></i>Cancelar
                 </a>
                 <button type="submit" 
                         class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
-                    <i class="fas fa-save mr-2"></i>Actualizar Apartado
+                    <i class="fas fa-save mr-2"></i>Guardar Sub-Inventario
                 </button>
             </div>
         </form>
@@ -111,9 +110,8 @@
 <script>
     let libroIndex = 0;
     const libros = @json($libros);
-    const apartadoLibros = @json($apartado->libros);
 
-    function agregarLibro(libroId = '', cantidad = 1) {
+    function agregarLibro() {
         const container = document.getElementById('librosContainer');
         const emptyMessage = document.getElementById('emptyMessage');
         
@@ -133,9 +131,8 @@
                         ${libros.map(libro => `
                             <option value="${libro.id}" 
                                     data-stock="${libro.stock}" 
-                                    data-apartado="${libro.stock_apartado || 0}"
-                                    ${libroId == libro.id ? 'selected' : ''}>
-                                ${libro.nombre} - Stock: ${libro.stock - (libro.stock_apartado || 0)} disponibles (${libro.stock} total)
+                                    data-subinventario="${libro.stock_subinventario || 0}">
+                                ${libro.nombre} - Stock: ${libro.stock - (libro.stock_subinventario || 0)} disponibles (${libro.stock} total)
                             </option>
                         `).join('')}
                     </select>
@@ -146,7 +143,7 @@
                     <input type="number" 
                            name="libros[${libroIndex}][cantidad]" 
                            min="1" 
-                           value="${cantidad}"
+                           value="1"
                            required
                            class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                     <p id="stock-info-${libroIndex}" class="mt-1 text-xs text-gray-500"></p>
@@ -162,12 +159,6 @@
         
         container.appendChild(div);
         emptyMessage.style.display = 'none';
-        
-        // Actualizar stock disponible si se seleccionó un libro
-        if (libroId) {
-            actualizarStockDisponible(libroIndex);
-        }
-        
         libroIndex++;
     }
 
@@ -178,8 +169,8 @@
         if (select.value) {
             const option = select.options[select.selectedIndex];
             const stock = parseInt(option.dataset.stock);
-            const apartado = parseInt(option.dataset.apartado);
-            const disponible = stock - apartado;
+            const subinventario = parseInt(option.dataset.subinventario);
+            const disponible = stock - subinventario;
             
             stockInfo.textContent = `Stock disponible: ${disponible}`;
             
@@ -203,11 +194,9 @@
         }
     }
 
-    // Cargar los libros existentes al iniciar
+    // Agregar un libro por defecto al cargar
     document.addEventListener('DOMContentLoaded', function() {
-        apartadoLibros.forEach(libro => {
-            agregarLibro(libro.id, libro.pivot.cantidad);
-        });
+        agregarLibro();
     });
 </script>
 @endpush

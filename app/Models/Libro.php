@@ -14,13 +14,13 @@ class Libro extends Model
         'codigo_barras',
         'precio',
         'stock',
-        'stock_apartado',
+        'stock_subinventario',
     ];
 
     protected $casts = [
         'precio' => 'double',
         'stock' => 'integer',
-        'stock_apartado' => 'integer',
+        'stock_subinventario' => 'integer',
     ];
 
     // Relación con movimientos
@@ -30,20 +30,20 @@ class Libro extends Model
     }
 
     /**
-     * Relación con apartados
+     * Relación con sub-inventarios
      */
-    public function apartados()
+    public function subinventarios()
     {
-        return $this->belongsToMany(Apartado::class, 'apartado_libro')
+        return $this->belongsToMany(SubInventario::class, 'subinventario_libro')
                     ->withPivot('cantidad')
                     ->withTimestamps();
     }
 
     /**
-     * Obtener el stock disponible (stock - stock_apartado)
+     * Obtener el stock disponible (stock - stock_subinventario)
      */
     public function getStockDisponibleAttribute()
     {
-        return $this->stock - ($this->stock_apartado ?? 0);
+        return $this->stock - ($this->stock_subinventario ?? 0);
     }
 }
