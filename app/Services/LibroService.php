@@ -86,7 +86,9 @@ class LibroService
         return [
             'totalLibros' => (clone $query)->count(),
             'stockTotal' => (clone $query)->sum('stock'),
-            'valorTotal' => (clone $query)->selectRaw('SUM(stock * precio) as valor')->value('valor') ?? 0,
+            'valorTotal' => (clone $query)->get()->sum(function($libro) {
+                return $libro->stock * $libro->precio;
+            }),
         ];
     }
 
