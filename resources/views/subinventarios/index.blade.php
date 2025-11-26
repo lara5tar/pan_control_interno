@@ -10,26 +10,31 @@
     button-icon="fas fa-plus"
     :button-route="route('subinventarios.create')"
 >
-    <!-- Filtros -->
-    <x-card class="mb-6">
-        <form method="GET" action="{{ route('subinventarios.index') }}" class="space-y-4">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <!-- Buscar por descripción -->
+    <!-- Filtros y búsqueda -->
+    <x-card class="overflow-visible">
+        <form method="GET" action="{{ route('subinventarios.index') }}" class="overflow-visible">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[1fr_auto_auto_auto] gap-4 mb-4 overflow-visible items-end">
+                <!-- Búsqueda por descripción -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
-                    <input type="text" 
-                           name="search" 
-                           value="{{ request('search') }}"
-                           placeholder="Descripción..."
-                           class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-search text-gray-400"></i> Búsqueda
+                    </label>
+                    <input 
+                        type="text" 
+                        name="search" 
+                        value="{{ request('search') }}"
+                        placeholder="Buscar por descripción..." 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    >
                 </div>
 
                 <!-- Filtro por estado -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-                    <select name="estado" 
-                            class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <option value="">Todos los estados</option>
+                <div class="w-full md:w-40">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-list-ul text-gray-400"></i> Estado
+                    </label>
+                    <select name="estado" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        <option value="">Todos</option>
                         <option value="activo" {{ request('estado') == 'activo' ? 'selected' : '' }}>Activo</option>
                         <option value="completado" {{ request('estado') == 'completado' ? 'selected' : '' }}>Completado</option>
                         <option value="cancelado" {{ request('estado') == 'cancelado' ? 'selected' : '' }}>Cancelado</option>
@@ -37,20 +42,25 @@
                 </div>
 
                 <!-- Filtro por fecha -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
-                    <input type="date" 
-                           name="fecha" 
-                           value="{{ request('fecha') }}"
-                           class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                <div class="w-full md:w-48">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-calendar text-gray-400"></i> Fecha
+                    </label>
+                    <input 
+                        type="date" 
+                        name="fecha" 
+                        value="{{ request('fecha') }}"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    >
                 </div>
 
-                <!-- Ordenar -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Ordenar por</label>
-                    <select name="ordenar" 
-                            class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <option value="reciente" {{ request('ordenar') == 'reciente' ? 'selected' : '' }}>Más reciente</option>
+                <!-- Ordenar por -->
+                <div class="w-full md:w-48">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-sort text-gray-400"></i> Ordenar
+                    </label>
+                    <select name="ordenar" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        <option value="reciente" {{ request('ordenar', 'reciente') == 'reciente' ? 'selected' : '' }}>Más reciente</option>
                         <option value="antiguo" {{ request('ordenar') == 'antiguo' ? 'selected' : '' }}>Más antiguo</option>
                         <option value="fecha_asc" {{ request('ordenar') == 'fecha_asc' ? 'selected' : '' }}>Fecha sub-inventario (asc)</option>
                         <option value="fecha_desc" {{ request('ordenar') == 'fecha_desc' ? 'selected' : '' }}>Fecha sub-inventario (desc)</option>
@@ -58,13 +68,18 @@
                 </div>
             </div>
 
-            <div class="flex gap-2">
-                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-                    <i class="fas fa-search mr-2"></i>Filtrar
-                </button>
-                <a href="{{ route('subinventarios.index') }}" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
-                    <i class="fas fa-times mr-2"></i>Limpiar
-                </a>
+            <!-- Botones de acción -->
+            <div class="flex flex-wrap gap-3 pt-2">
+                <x-button type="submit" variant="primary" icon="fas fa-filter">
+                    Aplicar Filtros
+                </x-button>
+
+                @if(request()->hasAny(['search', 'estado', 'fecha', 'ordenar']))
+                    <x-button type="button" variant="secondary" icon="fas fa-times" 
+                              onclick="window.location='{{ route('subinventarios.index') }}'">
+                        Limpiar Filtros
+                    </x-button>
+                @endif
             </div>
         </form>
     </x-card>
@@ -104,7 +119,7 @@
                                     {{ $subinventario->getTotalUnidades() }} unidades
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $subinventario->getBadgeColor() }}">
+                                    <span class="px-3 py-1 inline-flex items-center text-xs leading-5 font-semibold rounded-full {{ $subinventario->getBadgeColor() }}">
                                         <i class="{{ $subinventario->getIcon() }} mr-1"></i>
                                         {{ $subinventario->getEstadoLabel() }}
                                     </span>
