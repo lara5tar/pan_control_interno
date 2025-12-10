@@ -130,7 +130,7 @@ class MovimientoController extends Controller
                 'descuento' => $request->descuento,
                 'fecha' => $request->fecha ?? now()->toDateString(),
                 'observaciones' => $request->observaciones,
-                'usuario' => 'Admin' // Aquí puedes usar auth()->user()->name cuando tengas autenticación
+                'usuario' => session('username')
             ]);
 
             // Actualizar el stock del libro

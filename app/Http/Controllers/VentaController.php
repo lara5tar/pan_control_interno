@@ -238,7 +238,7 @@ class VentaController extends Controller
                 'descuento_global' => $validated['descuento_global'] ?? 0,
                 'estado' => 'completada',
                 'observaciones' => $validated['observaciones'],
-                'usuario' => 'Admin', // Cambiar por auth()->user()->name
+                'usuario' => session('username'),
                 'es_a_plazos' => $esAPLazos,
                 'tiene_envio' => isset($validated['tiene_envio']) && $validated['tiene_envio'],
                 'fecha_limite' => $validated['fecha_limite'] ?? null,
@@ -261,7 +261,7 @@ class VentaController extends Controller
                     'descuento' => $item['descuento'] ?? 0,
                     'fecha' => $validated['fecha_venta'],
                     'observaciones' => "Venta #{$venta->id}",
-                    'usuario' => 'Admin',
+                    'usuario' => session('username'),
                 ]);
 
                 // Actualizar stock SOLO si NO es a plazos
