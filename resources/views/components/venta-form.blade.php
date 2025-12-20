@@ -8,7 +8,8 @@
     'action',
     'method' => 'POST',
     'submitText' => 'Guardar',
-    'libros' => []
+    'libros' => [],
+    'subinventarios' => []
 ])
 
 @php
@@ -65,6 +66,150 @@
     @endif
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Tipo de Inventario -->
+        <div class="lg:col-span-2">
+            <label for="tipo_inventario" class="block text-sm font-medium text-gray-700 mb-2">
+                Tipo de Inventario <span class="text-red-500">*</span>
+            </label>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Inventario General -->
+                <label class="relative block cursor-pointer">
+                    <input 
+                        type="radio" 
+                        name="tipo_inventario" 
+                        value="general" 
+                        id="tipo_inventario_general"
+                        {{ old('tipo_inventario', 'general') == 'general' ? 'checked' : '' }}
+                        class="radio-inventario sr-only"
+                        onchange="toggleInventarioTipo()"
+                    >
+                    <div class="inventario-box p-4 bg-white border-2 border-gray-200 rounded-lg transition-all hover:border-blue-300 hover:shadow-md">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="inventario-icon flex-shrink-0 w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center transition-colors">
+                                    <i class="fas fa-warehouse text-xl text-blue-600"></i>
+                                </div>
+                                <div>
+                                    <p class="font-semibold text-gray-900">Inventario General</p>
+                                    <p class="text-sm text-gray-500">Stock disponible en bodega</p>
+                                </div>
+                            </div>
+                            <div class="flex-shrink-0">
+                                <div class="inventario-check w-6 h-6 border-2 border-gray-300 rounded-full flex items-center justify-center transition-all">
+                                    <i class="fas fa-check text-xs text-white opacity-0"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </label>
+
+                <!-- Subinventario -->
+                <label class="relative block cursor-pointer">
+                    <input 
+                        type="radio" 
+                        name="tipo_inventario" 
+                        value="subinventario"
+                        id="tipo_inventario_subinventario" 
+                        {{ old('tipo_inventario') == 'subinventario' ? 'checked' : '' }}
+                        class="radio-inventario sr-only"
+                        onchange="toggleInventarioTipo()"
+                    >
+                    <div class="inventario-box p-4 bg-white border-2 border-gray-200 rounded-lg transition-all hover:border-green-300 hover:shadow-md">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="inventario-icon flex-shrink-0 w-12 h-12 bg-green-100 rounded-full flex items-center justify-center transition-colors">
+                                    <i class="fas fa-box-open text-xl text-green-600"></i>
+                                </div>
+                                <div>
+                                    <p class="font-semibold text-gray-900">Subinventario</p>
+                                    <p class="text-sm text-gray-500">Stock asignado a punto de venta</p>
+                                </div>
+                            </div>
+                            <div class="flex-shrink-0">
+                                <div class="inventario-check w-6 h-6 border-2 border-gray-300 rounded-full flex items-center justify-center transition-all">
+                                    <i class="fas fa-check text-xs text-white opacity-0"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </label>
+            </div>
+            
+            <style>
+                /* Inventario General - Azul */
+                input[type="radio"][value="general"]:checked ~ .inventario-box {
+                    border-color: #3B82F6 !important;
+                    background-color: #EFF6FF !important;
+                }
+                input[type="radio"][value="general"]:checked ~ .inventario-box .inventario-icon {
+                    background-color: #3B82F6 !important;
+                }
+                input[type="radio"][value="general"]:checked ~ .inventario-box .inventario-icon i {
+                    color: white !important;
+                }
+                input[type="radio"][value="general"]:checked ~ .inventario-box .inventario-check {
+                    background-color: #3B82F6 !important;
+                    border-color: #3B82F6 !important;
+                }
+                input[type="radio"][value="general"]:checked ~ .inventario-box .inventario-check i {
+                    opacity: 1 !important;
+                }
+                
+                /* Subinventario - Verde */
+                input[type="radio"][value="subinventario"]:checked ~ .inventario-box {
+                    border-color: #10B981 !important;
+                    background-color: #ECFDF5 !important;
+                }
+                input[type="radio"][value="subinventario"]:checked ~ .inventario-box .inventario-icon {
+                    background-color: #10B981 !important;
+                }
+                input[type="radio"][value="subinventario"]:checked ~ .inventario-box .inventario-icon i {
+                    color: white !important;
+                }
+                input[type="radio"][value="subinventario"]:checked ~ .inventario-box .inventario-check {
+                    background-color: #10B981 !important;
+                    border-color: #10B981 !important;
+                }
+                input[type="radio"][value="subinventario"]:checked ~ .inventario-box .inventario-check i {
+                    opacity: 1 !important;
+                }
+            </style>
+            @error('tipo_inventario')
+                <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
+            @enderror
+        </div>
+
+        <!-- Selección de Subinventario (solo visible cuando se selecciona subinventario) -->
+        <div id="subinventarioSelector" class="lg:col-span-2" style="display: none;">
+            <label for="subinventario_id" class="block text-sm font-medium text-gray-700 mb-2">
+                Seleccionar Subinventario <span class="text-red-500">*</span>
+            </label>
+            <div class="relative">
+                <span class="absolute left-3 top-2.5 text-gray-400">
+                    <i class="fas fa-box-open"></i>
+                </span>
+                <select 
+                    name="subinventario_id" 
+                    id="subinventario_id" 
+                    class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 @error('subinventario_id') border-red-500 @enderror"
+                    onchange="cargarLibrosSubinventario()"
+                >
+                    <option value="">Selecciona un subinventario</option>
+                    @foreach($subinventarios as $sub)
+                        <option value="{{ $sub->id }}" 
+                            {{ old('subinventario_id') == $sub->id ? 'selected' : '' }}
+                            data-libros="{{ json_encode($sub->libros_data) }}">
+                            SubInventario #{{ $sub->id }} - {{ $sub->descripcion ?? 'Sin descripción' }} 
+                            ({{ $sub->fecha_subinventario->format('d/m/Y') }}) - {{ $sub->libros->count() }} libros
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            @error('subinventario_id')
+                <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
+            @enderror
+        </div>
+
         <!-- Cliente -->
         <div class="lg:col-span-2">
             <x-cliente-search-dynamic 
@@ -343,9 +488,88 @@
 <script>
     // Global libros data for libro search components
     window.ventaLibrosData = @json($libros);
+    window.subinventariosData = @json($subinventarios);
+    
+    // Toggle entre inventario general y subinventario
+    function toggleInventarioTipo() {
+        const tipoInventario = document.querySelector('input[name="tipo_inventario"]:checked').value;
+        const subinventarioSelector = document.getElementById('subinventarioSelector');
+        const subinventarioSelect = document.getElementById('subinventario_id');
+        
+        if (tipoInventario === 'subinventario') {
+            subinventarioSelector.style.display = 'block';
+            subinventarioSelect.required = true;
+            // Limpiar libros al cambiar a subinventario
+            limpiarLibrosFormulario();
+        } else {
+            subinventarioSelector.style.display = 'none';
+            subinventarioSelect.required = false;
+            subinventarioSelect.value = '';
+            // Restaurar libros del inventario general
+            window.ventaLibrosData = @json($libros);
+            // Limpiar libros al cambiar a inventario general
+            limpiarLibrosFormulario();
+        }
+    }
+    
+    // Función para limpiar libros del formulario
+    function limpiarLibrosFormulario() {
+        const librosContainer = document.getElementById('librosContainer');
+        let emptyMessage = document.getElementById('emptyMessage');
+        
+        // Limpiar solo los items de libros (elementos con clase libro-item)
+        const libroItems = librosContainer.querySelectorAll('.libro-item');
+        libroItems.forEach(item => item.remove());
+        
+        // Crear mensaje vacío si no existe
+        if (!emptyMessage) {
+            emptyMessage = document.createElement('div');
+            emptyMessage.id = 'emptyMessage';
+            emptyMessage.className = 'text-center py-12 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300';
+            emptyMessage.innerHTML = '<i class="fas fa-book text-4xl mb-3"></i><p>No hay libros agregados. Haz clic en "Agregar Libro" para empezar.</p>';
+            librosContainer.parentElement.insertBefore(emptyMessage, librosContainer.nextSibling);
+        }
+        
+        // Mostrar mensaje vacío
+        emptyMessage.style.display = 'block';
+        
+        // Actualizar displays de totales a cero
+        document.getElementById('subtotalDisplay').textContent = '$0.00';
+        document.getElementById('descuentoDisplay').textContent = '-$0.00';
+        document.getElementById('totalDisplay').textContent = '$0.00';
+    }
+    
+    // Cargar libros del subinventario seleccionado
+    function cargarLibrosSubinventario() {
+        const subinventarioSelect = document.getElementById('subinventario_id');
+        const selectedOption = subinventarioSelect.options[subinventarioSelect.selectedIndex];
+        
+        if (selectedOption.value) {
+            const librosData = JSON.parse(selectedOption.getAttribute('data-libros'));
+            window.ventaLibrosData = librosData;
+            
+            // Limpiar los libros actuales en el formulario
+            limpiarLibrosFormulario();
+            
+            // Mostrar notificación
+            console.log('Libros cargados del subinventario:', librosData.length);
+        } else {
+            window.ventaLibrosData = @json($libros);
+            limpiarLibrosFormulario();
+        }
+    }
     
     // Gestión de Venta a Plazos con validación de cliente
     document.addEventListener('DOMContentLoaded', function() {
+        // Inicializar el toggle de inventario
+        toggleInventarioTipo();
+        
+        // Si hay old data de subinventario, cargar los libros
+        const oldSubinventario = '{{ old("subinventario_id") }}';
+        if (oldSubinventario) {
+            cargarLibrosSubinventario();
+        }
+        
         const checkboxPlazos = document.getElementById('es_a_plazos');
         const fechaLimiteContainer = document.getElementById('fechaLimiteContainer');
         const clienteIdInput = document.querySelector('input[name="cliente_id"]');

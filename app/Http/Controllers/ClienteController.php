@@ -189,4 +189,29 @@ class ClienteController extends Controller
         return redirect()->route('clientes.index')
             ->with('success', 'Cliente eliminado exitosamente');
     }
+
+    /**
+     * API - Obtener lista de clientes
+     */
+    public function apiIndex(Request $request)
+    {
+        $query = Cliente::query();
+
+        // Búsqueda por nombre o teléfono
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('nombre', 'like', "%{$search}%")
+                  ->orWhere('telefono', 'like', "%{$search}%");
+            });
+        }
+
+        // Ordenar por nombre
+        $query->orderBy('nombre', 'asc');
+
+        $clientes = $query->paginate($request->get('per_page', 50));
+
+        return response()->json($clientes);
+    }
 }
+

@@ -79,8 +79,8 @@ class PagoController extends Controller
         }
 
         $ventas = $query->paginate(15);
-        $totalVentas = Venta::ventasAPlazo()->count();
-        $totalPendiente = Venta::ventasAPlazo()->sum(DB::raw('total - total_pagado'));
+        $totalVentas = Venta::ventasAPlazo()->where('estado', '!=', 'cancelada')->count();
+        $totalPendiente = Venta::ventasAPlazo()->where('estado', '!=', 'cancelada')->sum(DB::raw('total - total_pagado'));
 
         return view('pagos.index', compact('ventas', 'totalVentas', 'totalPendiente'));
     }
@@ -193,7 +193,51 @@ class PagoController extends Controller
             // Si antes estaba completado y ahora no, restaurar el stock
             if ($estadoAnterior === 'completado' && $venta->estado_pago !== 'completado') {
                 foreach ($venta->movimientos as $movimiento) {
-                    $movimiento->libro->increment('stock', $movimiento->cantidad);
+                    $libro = $movimiento->libro;
+                    $libro->increment('stock', $movimiento->cantidad);
+                    
+                    // Verificar si la venta era de un subinventario
+                    $esDeSubinventario = false;
+                    $subinventarioId = null;
+                    if (preg_match('/SubInv #(\d+)/', $movimiento->observaciones, $matches)) {
+                        $esDeSubinventario = true;
+                        $subinventarioId = $matches[1];
+                        
+                        // Restaurar el stock en el subinventario
+                        $subinventario = \App\Models\SubInventario::find($subinventarioId);
+                        if ($subinventario) {
+                            $libroEnSub = $subinventario->libros()->where('libro_id', $libro->id)->first();
+                            if ($libroEnSub) {
+                                $subinventario->libros()->updateExistingPivot($libro->id, [
+                                    'cantidad' => $libroEnSub->pivot->cantidad + $movimiento->cantidad
+                                ]);
+                            } else {
+                                $subinventario->libros()->attach($libro->id, [
+                                    'cantidad' => $movimiento->cantidad
+                                ]);
+                            }
+                            
+                            $libro->increment('stock_subinventario', $movimiento->cantidad);
+                        }
+                    }
+                    
+                    // Registrar movimiento de entrada por eliminación de pago
+                    $observaciones = 'Eliminación de pago en venta #' . $venta->id . ' (devuelto a pendiente)';
+                    if ($esDeSubinventario) {
+                        $observaciones .= ' - Devuelto a SubInv #' . $subinventarioId;
+                    }
+                    
+                    \App\Models\Movimiento::create([
+                        'libro_id' => $libro->id,
+                        'tipo_movimiento' => 'entrada',
+                        'tipo_entrada' => 'devolucion',
+                        'cantidad' => $movimiento->cantidad,
+                        'precio_unitario' => $movimiento->precio_unitario,
+                        'observaciones' => $observaciones,
+                        'fecha' => now(),
+                        'venta_id' => $venta->id,
+                        'usuario' => session('username', 'Sistema'),
+                    ]);
                 }
             }
 

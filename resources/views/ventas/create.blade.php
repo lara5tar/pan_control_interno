@@ -18,6 +18,7 @@
             :action="route('ventas.store')"
             method="POST"
             :libros="$libros"
+            :subinventarios="$subinventarios"
             submitText="Guardar Venta"
         />
     </x-card>

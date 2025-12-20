@@ -153,7 +153,22 @@ class SubInventarioController extends Controller
                 ->with('warning', 'Solo se pueden editar sub-inventarios activos');
         }
 
-        $libros = Libro::orderBy('nombre')->get();
+        // Cargar la relación de libros si no está cargada
+        $subinventario->load('libros');
+
+        // Obtener todos los libros y calcular stock disponible para este subinventario
+        $libros = Libro::orderBy('nombre')->get()->map(function($libro) use ($subinventario) {
+            // Buscar si este libro ya está en este subinventario
+            $cantidadEnEsteSubinv = $subinventario->libros->where('id', $libro->id)->first()?->pivot->cantidad ?? 0;
+            
+            // Stock disponible = stock general disponible + lo que ya tiene este subinventario
+            // Esto permite que al editar puedas aumentar/reducir la cantidad sin perder acceso al libro
+            // Usamos stock_disponible_edicion para evitar conflicto con el accessor
+            $stockGeneral = $libro->stock - $libro->stock_subinventario;
+            $libro->stock_disponible_edicion = $stockGeneral + $cantidadEnEsteSubinv;
+            
+            return $libro;
+        });
 
         return view('subinventarios.edit', compact('subinventario', 'libros'));
     }
@@ -169,6 +184,9 @@ class SubInventarioController extends Controller
                 ->with('warning', 'Solo se pueden editar sub-inventarios activos');
         }
 
+        // Cargar la relación de libros para las validaciones
+        $subinventario->load('libros');
+
         $validated = $request->validate([
             'fecha_subinventario' => 'required|date',
             'descripcion' => 'nullable|string|max:255',
@@ -180,17 +198,25 @@ class SubInventarioController extends Controller
             'libros.*.cantidad' => 'required|integer|min:1',
         ]);
 
+        // Validar que no haya libros duplicados
+        $libroIds = collect($validated['libros'])->pluck('libro_id');
+        if ($libroIds->count() !== $libroIds->unique()->count()) {
+            return back()->withErrors([
+                'error' => 'No puedes agregar el mismo libro más de una vez. Por favor, verifica la lista.'
+            ])->withInput();
+        }
+
         DB::beginTransaction();
         try {
-            // Primero devolver el stock en sub-inventario de los libros actuales
-            foreach ($subinventario->libros as $libro) {
-                $libro->decrement('stock_subinventario', $libro->pivot->cantidad); // Cambiaremos este nombre después
-            }
-
-            // Validar stock de todos los nuevos libros
+            // Validar stock ANTES de hacer cambios, considerando lo que ya tiene este subinventario
             foreach ($validated['libros'] as $item) {
                 $libro = Libro::findOrFail($item['libro_id']);
-                $stockDisponible = $libro->stock - $libro->stock_subinventario; // Cambiaremos este nombre después
+                
+                // Cantidad actual de este libro en este subinventario
+                $cantidadActualEnSub = $subinventario->libros->where('id', $item['libro_id'])->first()?->pivot->cantidad ?? 0;
+                
+                // Stock disponible = stock general disponible + lo que ya tiene este subinventario de este libro
+                $stockDisponible = ($libro->stock - $libro->stock_subinventario) + $cantidadActualEnSub;
                 
                 if ($stockDisponible < $item['cantidad']) {
                     DB::rollBack();
@@ -198,6 +224,11 @@ class SubInventarioController extends Controller
                         'error' => "Stock disponible insuficiente para '{$libro->nombre}'. Stock disponible: {$stockDisponible}"
                     ])->withInput();
                 }
+            }
+            
+            // Primero devolver el stock en sub-inventario de los libros actuales
+            foreach ($subinventario->libros as $libro) {
+                $libro->decrement('stock_subinventario', $libro->pivot->cantidad);
             }
 
             // Actualizar el sub-inventario
@@ -218,7 +249,7 @@ class SubInventarioController extends Controller
 
                 // Incrementar el stock en sub-inventario
                 $libro = Libro::findOrFail($item['libro_id']);
-                $libro->increment('stock_subinventario', $item['cantidad']); // Cambiaremos este nombre después
+                $libro->increment('stock_subinventario', $item['cantidad']);
             }
 
             DB::commit();
@@ -373,5 +404,49 @@ class SubInventarioController extends Controller
             DB::rollBack();
             return back()->with('error', 'Error al devolver el stock: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * API - Obtener lista de subinventarios
+     */
+    public function apiIndex(Request $request)
+    {
+        $query = SubInventario::with('libros:id,nombre,codigo_barras');
+
+        // Filtro por estado
+        if ($request->filled('estado')) {
+            $query->where('estado', $request->estado);
+        }
+
+        // Filtro por fecha
+        if ($request->filled('fecha')) {
+            $query->whereDate('fecha_subinventario', $request->fecha);
+        }
+
+        // Búsqueda por descripción
+        if ($request->filled('search')) {
+            $query->where('descripcion', 'like', '%' . $request->search . '%');
+        }
+
+        // Ordenar
+        $ordenar = $request->get('ordenar', 'reciente');
+        switch ($ordenar) {
+            case 'antiguo':
+                $query->orderBy('fecha_subinventario', 'asc');
+                break;
+            case 'fecha_asc':
+                $query->orderBy('fecha_subinventario', 'asc');
+                break;
+            case 'fecha_desc':
+                $query->orderBy('fecha_subinventario', 'desc');
+                break;
+            default: // reciente
+                $query->orderBy('created_at', 'desc');
+                break;
+        }
+
+        $subinventarios = $query->paginate($request->get('per_page', 15));
+
+        return response()->json($subinventarios);
     }
 }

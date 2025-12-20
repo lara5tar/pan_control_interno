@@ -105,7 +105,7 @@ class InventarioController extends Controller
 
         $libro->update($validated);
 
-        return redirect()->route('inventario.index')
+        return redirect()->route('inventario.show', $libro->id)
             ->with('success', 'Libro actualizado exitosamente');
     }
 
@@ -303,4 +303,36 @@ class InventarioController extends Controller
         
         return $filtros;
     }
+
+    /**
+     * API - Buscar libro por código de barras o QR
+     */
+    public function apiBuscarPorCodigo($codigo)
+    {
+        $libro = Libro::where('codigo_barras', $codigo)->first();
+
+        if (!$libro) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Libro no encontrado'
+            ], 404);
+        }
+
+        // Calcular stock disponible (descontando lo que está en subinventarios)
+        $stockDisponible = $libro->stock - $libro->stock_subinventario;
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $libro->id,
+                'nombre' => $libro->nombre,
+                'codigo_barras' => $libro->codigo_barras,
+                'precio' => $libro->precio,
+                'stock' => $libro->stock,
+                'stock_subinventario' => $libro->stock_subinventario,
+                'stock_disponible' => $stockDisponible,
+            ]
+        ]);
+    }
 }
+

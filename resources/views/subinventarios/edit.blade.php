@@ -132,10 +132,10 @@
                         <option value="">Selecciona un libro</option>
                         ${libros.map(libro => `
                             <option value="${libro.id}" 
-                                    data-stock="${libro.stock}" 
+                                    data-stock="${libro.stock_disponible_edicion || libro.stock_disponible || libro.stock}" 
                                     data-subinventario="${libro.stock_subinventario || 0}"
                                     ${libroId == libro.id ? 'selected' : ''}>
-                                ${libro.nombre} - Stock: ${libro.stock - (libro.stock_subinventario || 0)} disponibles (${libro.stock} total)
+                                ${libro.nombre} - Stock: ${libro.stock_disponible_edicion || libro.stock_disponible || (libro.stock - (libro.stock_subinventario || 0))} disponibles
                             </option>
                         `).join('')}
                     </select>
@@ -169,6 +169,9 @@
         }
         
         libroIndex++;
+        
+        // Actualizar libros disponibles
+        actualizarLibrosDisponibles();
     }
 
     function actualizarStockDisponible(index) {
@@ -177,18 +180,47 @@
         
         if (select.value) {
             const option = select.options[select.selectedIndex];
-            const stock = parseInt(option.dataset.stock);
-            const subinventario = parseInt(option.dataset.subinventario);
-            const disponible = stock - subinventario;
+            const stockDisponible = parseInt(option.dataset.stock);
             
-            stockInfo.textContent = `Stock disponible: ${disponible}`;
+            stockInfo.textContent = `Stock disponible: ${stockDisponible}`;
             
             // Actualizar el max del input de cantidad
             const cantidadInput = document.querySelector(`input[name="libros[${index}][cantidad]"]`);
-            cantidadInput.max = disponible;
+            cantidadInput.max = stockDisponible;
         } else {
             stockInfo.textContent = '';
         }
+        
+        // Actualizar libros disponibles en todos los selects
+        actualizarLibrosDisponibles();
+    }
+
+    function actualizarLibrosDisponibles() {
+        // Obtener todos los libros seleccionados
+        const selects = document.querySelectorAll('[name^="libros["][name$="][libro_id]"]');
+        const librosSeleccionados = Array.from(selects)
+            .map(select => select.value)
+            .filter(value => value !== '');
+        
+        // Actualizar cada select
+        selects.forEach(select => {
+            const valorActual = select.value;
+            Array.from(select.options).forEach(option => {
+                if (option.value && option.value !== valorActual) {
+                    // Deshabilitar si ya está seleccionado en otro select
+                    option.disabled = librosSeleccionados.includes(option.value);
+                    
+                    // Agregar indicador visual
+                    if (option.disabled) {
+                        if (!option.text.includes('(Ya agregado)')) {
+                            option.text = option.text + ' (Ya agregado)';
+                        }
+                    } else {
+                        option.text = option.text.replace(' (Ya agregado)', '');
+                    }
+                }
+            });
+        });
     }
 
     function eliminarLibro(index) {
@@ -201,6 +233,9 @@
         if (container.children.length === 0) {
             emptyMessage.style.display = 'block';
         }
+        
+        // Actualizar libros disponibles
+        actualizarLibrosDisponibles();
     }
 
     // Cargar los libros existentes al iniciar

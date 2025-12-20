@@ -12,6 +12,25 @@
     @endif
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Mensajes de error generales -->
+        @if($errors->any())
+            <div class="lg:col-span-2">
+                <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                    <div class="flex items-start">
+                        <i class="fas fa-exclamation-circle mt-0.5 mr-2"></i>
+                        <div>
+                            <p class="font-medium">Error al actualizar el libro:</p>
+                            <ul class="mt-1 list-disc list-inside text-sm">
+                                @foreach($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+
         <!-- Nombre del Libro -->
         <div class="lg:col-span-2">
             <x-form-input
@@ -96,6 +115,8 @@
                         readonly
                         class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
                     >
+                    <!-- Campo hidden para enviar el stock en el formulario -->
+                    <input type="hidden" name="stock" value="{{ $libro->stock }}">
                 </div>
                 <p class="mt-1 text-sm text-amber-600">
                     <i class="fas fa-info-circle"></i> El stock no se puede editar directamente. Usa las funciones de entrada/salida de inventario.
@@ -168,6 +189,3 @@
     });
 </script>
 @endpush
-
-    </div>
-</form>

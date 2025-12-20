@@ -144,18 +144,19 @@ class VentaController extends Controller
         $queryStats = clone $query;
         
         $ventas = $queryStats->get();
+        $ventasActivas = $ventas->where('estado', '!=', 'cancelada');
         
         return [
-            'total_ventas' => $ventas->count(),
-            'total_monto' => $ventas->sum('total'),
-            'total_pagado' => $ventas->sum('total_pagado'),
-            'total_pendiente' => $ventas->sum(function($v) { 
+            'total_ventas' => $ventasActivas->count(),
+            'total_monto' => $ventasActivas->sum('total'),
+            'total_pagado' => $ventasActivas->sum('total_pagado'),
+            'total_pendiente' => $ventasActivas->sum(function($v) { 
                 return $v->total - $v->total_pagado; 
             }),
             'ventas_completadas' => $ventas->where('estado', 'completada')->count(),
             'ventas_canceladas' => $ventas->where('estado', 'cancelada')->count(),
-            'ventas_a_plazos' => $ventas->where('es_a_plazos', true)->count(),
-            'ventas_vencidas' => $ventas->filter(function($v) {
+            'ventas_a_plazos' => $ventasActivas->where('es_a_plazos', true)->count(),
+            'ventas_vencidas' => $ventasActivas->filter(function($v) {
                 return $v->es_a_plazos && 
                        $v->estado_pago !== 'completado' && 
                        $v->fecha_limite && 
@@ -169,12 +170,35 @@ class VentaController extends Controller
      */
     public function create()
     {
-        // Mostrar solo libros con stock disponible (restando lo que está en sub-inventarios)
+        // Obtener libros con stock disponible (inventario general)
         $libros = Libro::whereRaw('stock - stock_subinventario > 0')
             ->orderBy('nombre')
-            ->get();
+            ->get()
+            ->map(function($libro) {
+                // Calcular stock disponible en inventario general
+                $libro->stock_disponible = $libro->stock - $libro->stock_subinventario;
+                return $libro;
+            });
 
-        return view('ventas.create', compact('libros'));
+        // Obtener subinventarios activos con sus libros
+        $subinventarios = \App\Models\SubInventario::where('estado', 'activo')
+            ->with('libros')
+            ->orderBy('fecha_subinventario', 'desc')
+            ->get()
+            ->map(function($sub) {
+                $sub->libros_data = $sub->libros->map(function($l) {
+                    return [
+                        'id' => $l->id,
+                        'nombre' => $l->nombre,
+                        'codigo_barras' => $l->codigo_barras,
+                        'precio' => $l->precio,
+                        'stock' => $l->pivot->cantidad  // Usar 'stock' para que sea consistente con el componente
+                    ];
+                });
+                return $sub;
+            });
+
+        return view('ventas.create', compact('libros', 'subinventarios'));
     }
 
     /**
@@ -183,6 +207,8 @@ class VentaController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
+            'tipo_inventario' => 'required|in:general,subinventario',
+            'subinventario_id' => 'nullable|required_if:tipo_inventario,subinventario|exists:subinventarios,id',
             'cliente_id' => 'nullable|exists:clientes,id',
             'fecha_venta' => 'required|date',
             'tipo_pago' => 'required|in:contado,credito,mixto',
@@ -198,6 +224,8 @@ class VentaController extends Controller
             'libros.*.cantidad' => 'required|integer|min:1',
             'libros.*.descuento' => 'nullable|numeric|min:0|max:100',
         ], [
+            'tipo_inventario.required' => 'Debes seleccionar el tipo de inventario',
+            'subinventario_id.required_if' => 'Debes seleccionar un subinventario',
             'fecha_venta.required' => 'La fecha de venta es obligatoria',
             'tipo_pago.required' => 'Debes seleccionar el tipo de pago',
             'libros.required' => 'Debes agregar al menos un libro a la venta',
@@ -208,6 +236,8 @@ class VentaController extends Controller
         DB::beginTransaction();
         try {
             $esAPLazos = isset($validated['es_a_plazos']) && $validated['es_a_plazos'];
+            $tipoInventario = $validated['tipo_inventario'];
+            $subinventarioId = $validated['subinventario_id'] ?? null;
             
             // Validar que si es a plazos, debe tener cliente
             if ($esAPLazos && empty($validated['cliente_id'])) {
@@ -216,28 +246,56 @@ class VentaController extends Controller
                 ])->withInput();
             }
             
-            // Validar stock de todos los libros primero (solo si NO es a plazos)
-            if (!$esAPLazos) {
+            // Validar stock según el tipo de inventario
+            if ($tipoInventario === 'general') {
+                // Validación para inventario general
+                if (!$esAPLazos) {
+                    foreach ($validated['libros'] as $item) {
+                        $libro = Libro::findOrFail($item['libro_id']);
+                        $stockDisponible = $libro->stock - $libro->stock_subinventario;
+                        
+                        if ($stockDisponible < $item['cantidad']) {
+                            return back()->withErrors([
+                                'error' => "Stock disponible insuficiente para '{$libro->nombre}'. Stock disponible: {$stockDisponible}"
+                            ])->withInput();
+                        }
+                    }
+                }
+            } else {
+                // Validación para subinventario
+                $subinventario = \App\Models\SubInventario::with('libros')->findOrFail($subinventarioId);
+                
                 foreach ($validated['libros'] as $item) {
-                    $libro = Libro::findOrFail($item['libro_id']);
-                    $stockDisponible = $libro->stock - $libro->stock_subinventario;
+                    $libroEnSub = $subinventario->libros->firstWhere('id', $item['libro_id']);
                     
-                    if ($stockDisponible < $item['cantidad']) {
+                    if (!$libroEnSub) {
+                        $libro = Libro::find($item['libro_id']);
                         return back()->withErrors([
-                            'error' => "Stock disponible insuficiente para '{$libro->nombre}'. Stock disponible: {$stockDisponible}"
+                            'error' => "El libro '{$libro->nombre}' no está en este subinventario"
+                        ])->withInput();
+                    }
+                    
+                    if ($libroEnSub->pivot->cantidad < $item['cantidad']) {
+                        return back()->withErrors([
+                            'error' => "Cantidad insuficiente en subinventario para '{$libroEnSub->nombre}'. Disponible: {$libroEnSub->pivot->cantidad}"
                         ])->withInput();
                     }
                 }
             }
 
             // Crear la venta
+            $observaciones = $validated['observaciones'] ?? '';
+            if ($tipoInventario === 'subinventario') {
+                $observaciones .= ($observaciones ? ' | ' : '') . "SubInv #{$subinventarioId}";
+            }
+            
             $venta = Venta::create([
                 'cliente_id' => $validated['cliente_id'],
                 'fecha_venta' => $validated['fecha_venta'],
                 'tipo_pago' => $validated['tipo_pago'],
                 'descuento_global' => $validated['descuento_global'] ?? 0,
                 'estado' => 'completada',
-                'observaciones' => $validated['observaciones'],
+                'observaciones' => $observaciones,
                 'usuario' => session('username'),
                 'es_a_plazos' => $esAPLazos,
                 'tiene_envio' => isset($validated['tiene_envio']) && $validated['tiene_envio'],
@@ -260,13 +318,31 @@ class VentaController extends Controller
                     'precio_unitario' => $libro->precio,
                     'descuento' => $item['descuento'] ?? 0,
                     'fecha' => $validated['fecha_venta'],
-                    'observaciones' => "Venta #{$venta->id}",
+                    'observaciones' => "Venta #{$venta->id}" . ($tipoInventario === 'subinventario' ? " - SubInv #{$subinventarioId}" : ''),
                     'usuario' => session('username'),
                 ]);
 
-                // Actualizar stock SOLO si NO es a plazos
+                // Actualizar stock según el tipo de inventario
                 if (!$esAPLazos) {
                     $libro->decrement('stock', $item['cantidad']);
+                    
+                    if ($tipoInventario === 'subinventario') {
+                        // Actualizar subinventario
+                        $subinventario = \App\Models\SubInventario::findOrFail($subinventarioId);
+                        $cantidadActual = $subinventario->libros()->where('libro_id', $item['libro_id'])->first()->pivot->cantidad;
+                        $nuevaCantidad = $cantidadActual - $item['cantidad'];
+                        
+                        if ($nuevaCantidad > 0) {
+                            $subinventario->libros()->updateExistingPivot($item['libro_id'], [
+                                'cantidad' => $nuevaCantidad
+                            ]);
+                        } else {
+                            $subinventario->libros()->detach($item['libro_id']);
+                        }
+                        
+                        // Actualizar stock_subinventario del libro
+                        $libro->decrement('stock_subinventario', $item['cantidad']);
+                    }
                 }
             }
 
@@ -386,16 +462,63 @@ class VentaController extends Controller
 
         DB::beginTransaction();
         try {
-            // Restaurar el stock
+            // Restaurar el stock y registrar movimientos de entrada
             foreach ($venta->movimientos as $movimiento) {
-                $movimiento->libro->increment('stock', $movimiento->cantidad);
+                $libro = $movimiento->libro;
+                $libro->increment('stock', $movimiento->cantidad);
+                
+                // Verificar si la venta era de un subinventario
+                $esDeSubinventario = false;
+                $subinventarioId = null;
+                if (preg_match('/SubInv #(\d+)/', $movimiento->observaciones, $matches)) {
+                    $esDeSubinventario = true;
+                    $subinventarioId = $matches[1];
+                    
+                    // Restaurar el stock en el subinventario
+                    $subinventario = \App\Models\SubInventario::find($subinventarioId);
+                    if ($subinventario) {
+                        $libroEnSub = $subinventario->libros()->where('libro_id', $libro->id)->first();
+                        if ($libroEnSub) {
+                            // Ya existe en el subinventario, incrementar cantidad
+                            $subinventario->libros()->updateExistingPivot($libro->id, [
+                                'cantidad' => $libroEnSub->pivot->cantidad + $movimiento->cantidad
+                            ]);
+                        } else {
+                            // No existe, agregarlo
+                            $subinventario->libros()->attach($libro->id, [
+                                'cantidad' => $movimiento->cantidad
+                            ]);
+                        }
+                        
+                        // Incrementar stock_subinventario del libro
+                        $libro->increment('stock_subinventario', $movimiento->cantidad);
+                    }
+                }
+                
+                // Registrar movimiento de entrada por cancelación de venta
+                $observaciones = 'Cancelación de venta #' . $venta->id;
+                if ($esDeSubinventario) {
+                    $observaciones .= ' - Devuelto a SubInv #' . $subinventarioId;
+                }
+                
+                \App\Models\Movimiento::create([
+                    'libro_id' => $libro->id,
+                    'tipo_movimiento' => 'entrada',
+                    'tipo_entrada' => 'devolucion',
+                    'cantidad' => $movimiento->cantidad,
+                    'precio_unitario' => $movimiento->precio_unitario,
+                    'observaciones' => $observaciones,
+                    'fecha' => now(),
+                    'venta_id' => $venta->id,
+                    'usuario' => session('username', 'Sistema'),
+                ]);
             }
 
             $venta->update(['estado' => 'cancelada']);
 
             DB::commit();
 
-            return back()->with('success', 'Venta cancelada exitosamente. Stock restaurado.');
+            return back()->with('success', 'Venta cancelada exitosamente. Stock restaurado y movimientos registrados.');
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -488,12 +611,14 @@ class VentaController extends Controller
         // Preparar filtros
         $filtros = $this->buildFiltersList($request);
         
-        // Calcular estadísticas
+        // Calcular estadísticas (excluyendo canceladas)
+        $ventasActivas = $ventas->where('estado', '!=', 'cancelada');
+        
         $estadisticas = [
-            'total' => $ventas->count(),
-            'monto_total' => $ventas->sum('total'),
-            'total_pagado' => $ventas->sum('total_pagado'),
-            'saldo_pendiente' => $ventas->sum('total') - $ventas->sum('total_pagado'),
+            'total' => $ventasActivas->count(),
+            'monto_total' => $ventasActivas->sum('total'),
+            'total_pagado' => $ventasActivas->sum('total_pagado'),
+            'saldo_pendiente' => $ventasActivas->sum('total') - $ventasActivas->sum('total_pagado'),
             'completadas' => $ventas->where('estado', 'completada')->count(),
             'canceladas' => $ventas->where('estado', 'cancelada')->count(),
         ];
@@ -614,4 +739,125 @@ class VentaController extends Controller
 
         return $filtros;
     }
+
+    /**
+     * API - Crear una nueva venta desde la app móvil
+     */
+    public function apiStore(Request $request)
+    {
+        $validated = $request->validate([
+            'subinventario_id' => 'required|exists:subinventarios,id',
+            'cliente_id' => 'nullable|exists:clientes,id',
+            'fecha_venta' => 'required|date',
+            'tipo_pago' => 'required|in:contado,credito,mixto',
+            'descuento_global' => 'nullable|numeric|min:0|max:100',
+            'observaciones' => 'nullable|string|max:500',
+            'usuario' => 'required|string',
+            
+            // Movimientos
+            'libros' => 'required|array|min:1',
+            'libros.*.libro_id' => 'required|exists:libros,id',
+            'libros.*.cantidad' => 'required|integer|min:1',
+            'libros.*.descuento' => 'nullable|numeric|min:0|max:100',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // Validar que los libros estén en el subinventario
+            $subinventario = \App\Models\SubInventario::with('libros')->findOrFail($validated['subinventario_id']);
+            
+            foreach ($validated['libros'] as $item) {
+                $libroEnSub = $subinventario->libros->firstWhere('id', $item['libro_id']);
+                
+                if (!$libroEnSub) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "El libro ID {$item['libro_id']} no está en este subinventario"
+                    ], 422);
+                }
+                
+                if ($libroEnSub->pivot->cantidad < $item['cantidad']) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Cantidad insuficiente en subinventario para el libro ID {$item['libro_id']}"
+                    ], 422);
+                }
+            }
+
+            // Crear la venta
+            $venta = Venta::create([
+                'cliente_id' => $validated['cliente_id'],
+                'fecha_venta' => $validated['fecha_venta'],
+                'tipo_pago' => $validated['tipo_pago'],
+                'descuento_global' => $validated['descuento_global'] ?? 0,
+                'estado' => 'completada',
+                'observaciones' => $validated['observaciones'],
+                'usuario' => $validated['usuario'],
+                'es_a_plazos' => false,
+                'tiene_envio' => false,
+                'estado_pago' => 'completado',
+                'total_pagado' => 0,
+            ]);
+
+            // Crear los movimientos y actualizar stock
+            foreach ($validated['libros'] as $item) {
+                $libro = Libro::findOrFail($item['libro_id']);
+
+                // Crear movimiento
+                Movimiento::create([
+                    'venta_id' => $venta->id,
+                    'libro_id' => $libro->id,
+                    'tipo_movimiento' => 'salida',
+                    'tipo_salida' => 'venta',
+                    'cantidad' => $item['cantidad'],
+                    'precio_unitario' => $libro->precio,
+                    'descuento' => $item['descuento'] ?? 0,
+                    'fecha' => $validated['fecha_venta'],
+                    'observaciones' => "Venta #{$venta->id} - SubInv #{$validated['subinventario_id']}",
+                    'usuario' => $validated['usuario'],
+                ]);
+
+                // Reducir cantidad en subinventario
+                $cantidadActual = $subinventario->libros()->where('libro_id', $item['libro_id'])->first()->pivot->cantidad;
+                $nuevaCantidad = $cantidadActual - $item['cantidad'];
+                
+                if ($nuevaCantidad > 0) {
+                    $subinventario->libros()->updateExistingPivot($item['libro_id'], [
+                        'cantidad' => $nuevaCantidad
+                    ]);
+                } else {
+                    // Si se vendió todo, eliminar del subinventario
+                    $subinventario->libros()->detach($item['libro_id']);
+                }
+
+                // Actualizar stock del libro
+                $libro->decrement('stock', $item['cantidad']);
+                $libro->decrement('stock_subinventario', $item['cantidad']);
+            }
+
+            // Calcular totales de la venta
+            $venta->actualizarTotales();
+            $venta->total_pagado = $venta->total;
+            $venta->save();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Venta creada exitosamente',
+                'data' => [
+                    'venta_id' => $venta->id,
+                    'total' => $venta->total,
+                ]
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear la venta: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
+

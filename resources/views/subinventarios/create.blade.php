@@ -160,6 +160,9 @@
         container.appendChild(div);
         emptyMessage.style.display = 'none';
         libroIndex++;
+        
+        // Actualizar libros disponibles
+        actualizarLibrosDisponibles();
     }
 
     function actualizarStockDisponible(index) {
@@ -180,6 +183,37 @@
         } else {
             stockInfo.textContent = '';
         }
+        
+        // Actualizar libros disponibles en todos los selects
+        actualizarLibrosDisponibles();
+    }
+
+    function actualizarLibrosDisponibles() {
+        // Obtener todos los libros seleccionados
+        const selects = document.querySelectorAll('[name^="libros["][name$="][libro_id]"]');
+        const librosSeleccionados = Array.from(selects)
+            .map(select => select.value)
+            .filter(value => value !== '');
+        
+        // Actualizar cada select
+        selects.forEach(select => {
+            const valorActual = select.value;
+            Array.from(select.options).forEach(option => {
+                if (option.value && option.value !== valorActual) {
+                    // Deshabilitar si ya está seleccionado en otro select
+                    option.disabled = librosSeleccionados.includes(option.value);
+                    
+                    // Agregar indicador visual
+                    if (option.disabled) {
+                        if (!option.text.includes('(Ya agregado)')) {
+                            option.text = option.text + ' (Ya agregado)';
+                        }
+                    } else {
+                        option.text = option.text.replace(' (Ya agregado)', '');
+                    }
+                }
+            });
+        });
     }
 
     function eliminarLibro(index) {
@@ -192,6 +226,9 @@
         if (container.children.length === 0) {
             emptyMessage.style.display = 'block';
         }
+        
+        // Actualizar libros disponibles
+        actualizarLibrosDisponibles();
     }
 
     // Agregar un libro por defecto al cargar
