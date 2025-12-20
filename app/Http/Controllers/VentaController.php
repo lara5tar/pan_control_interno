@@ -170,15 +170,10 @@ class VentaController extends Controller
      */
     public function create()
     {
-        // Obtener libros con stock disponible (inventario general)
-        $libros = Libro::whereRaw('stock - stock_subinventario > 0')
+        // Obtener libros con stock disponible en inventario general
+        $libros = Libro::where('stock', '>', 0)
             ->orderBy('nombre')
-            ->get()
-            ->map(function($libro) {
-                // Calcular stock disponible en inventario general
-                $libro->stock_disponible = $libro->stock - $libro->stock_subinventario;
-                return $libro;
-            });
+            ->get();
 
         // Obtener subinventarios activos con sus libros
         $subinventarios = \App\Models\SubInventario::where('estado', 'activo')
@@ -252,11 +247,10 @@ class VentaController extends Controller
                 if (!$esAPLazos) {
                     foreach ($validated['libros'] as $item) {
                         $libro = Libro::findOrFail($item['libro_id']);
-                        $stockDisponible = $libro->stock - $libro->stock_subinventario;
                         
-                        if ($stockDisponible < $item['cantidad']) {
+                        if ($libro->stock < $item['cantidad']) {
                             return back()->withErrors([
-                                'error' => "Stock disponible insuficiente para '{$libro->nombre}'. Stock disponible: {$stockDisponible}"
+                                'error' => "Stock en inventario general insuficiente para '{$libro->nombre}'. Stock disponible: {$libro->stock}"
                             ])->withInput();
                         }
                     }
@@ -324,6 +318,7 @@ class VentaController extends Controller
 
                 // Actualizar stock según el tipo de inventario
                 if (!$esAPLazos) {
+                    // Solo restar del inventario general
                     $libro->decrement('stock', $item['cantidad']);
                     
                     if ($tipoInventario === 'subinventario') {
@@ -340,7 +335,7 @@ class VentaController extends Controller
                             $subinventario->libros()->detach($item['libro_id']);
                         }
                         
-                        // Actualizar stock_subinventario del libro
+                        // Actualizar contador de stock_subinventario del libro
                         $libro->decrement('stock_subinventario', $item['cantidad']);
                     }
                 }
@@ -388,8 +383,8 @@ class VentaController extends Controller
                 ->with('warning', 'Solo se pueden editar ventas pendientes');
         }
 
-        // Mostrar solo libros con stock disponible (restando lo que está en sub-inventarios)
-        $libros = Libro::whereRaw('stock - stock_subinventario > 0')
+        // Mostrar solo libros con stock disponible en inventario general
+        $libros = Libro::where('stock', '>', 0)
             ->orderBy('nombre')
             ->get();
 

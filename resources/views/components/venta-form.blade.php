@@ -489,87 +489,11 @@
     // Global libros data for libro search components
     window.ventaLibrosData = @json($libros);
     window.subinventariosData = @json($subinventarios);
-    
-    // Toggle entre inventario general y subinventario
-    function toggleInventarioTipo() {
-        const tipoInventario = document.querySelector('input[name="tipo_inventario"]:checked').value;
-        const subinventarioSelector = document.getElementById('subinventarioSelector');
-        const subinventarioSelect = document.getElementById('subinventario_id');
-        
-        if (tipoInventario === 'subinventario') {
-            subinventarioSelector.style.display = 'block';
-            subinventarioSelect.required = true;
-            // Limpiar libros al cambiar a subinventario
-            limpiarLibrosFormulario();
-        } else {
-            subinventarioSelector.style.display = 'none';
-            subinventarioSelect.required = false;
-            subinventarioSelect.value = '';
-            // Restaurar libros del inventario general
-            window.ventaLibrosData = @json($libros);
-            // Limpiar libros al cambiar a inventario general
-            limpiarLibrosFormulario();
-        }
-    }
-    
-    // Función para limpiar libros del formulario
-    function limpiarLibrosFormulario() {
-        const librosContainer = document.getElementById('librosContainer');
-        let emptyMessage = document.getElementById('emptyMessage');
-        
-        // Limpiar solo los items de libros (elementos con clase libro-item)
-        const libroItems = librosContainer.querySelectorAll('.libro-item');
-        libroItems.forEach(item => item.remove());
-        
-        // Crear mensaje vacío si no existe
-        if (!emptyMessage) {
-            emptyMessage = document.createElement('div');
-            emptyMessage.id = 'emptyMessage';
-            emptyMessage.className = 'text-center py-12 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300';
-            emptyMessage.innerHTML = '<i class="fas fa-book text-4xl mb-3"></i><p>No hay libros agregados. Haz clic en "Agregar Libro" para empezar.</p>';
-            librosContainer.parentElement.insertBefore(emptyMessage, librosContainer.nextSibling);
-        }
-        
-        // Mostrar mensaje vacío
-        emptyMessage.style.display = 'block';
-        
-        // Actualizar displays de totales a cero
-        document.getElementById('subtotalDisplay').textContent = '$0.00';
-        document.getElementById('descuentoDisplay').textContent = '-$0.00';
-        document.getElementById('totalDisplay').textContent = '$0.00';
-    }
-    
-    // Cargar libros del subinventario seleccionado
-    function cargarLibrosSubinventario() {
-        const subinventarioSelect = document.getElementById('subinventario_id');
-        const selectedOption = subinventarioSelect.options[subinventarioSelect.selectedIndex];
-        
-        if (selectedOption.value) {
-            const librosData = JSON.parse(selectedOption.getAttribute('data-libros'));
-            window.ventaLibrosData = librosData;
-            
-            // Limpiar los libros actuales en el formulario
-            limpiarLibrosFormulario();
-            
-            // Mostrar notificación
-            console.log('Libros cargados del subinventario:', librosData.length);
-        } else {
-            window.ventaLibrosData = @json($libros);
-            limpiarLibrosFormulario();
-        }
-    }
-    
+</script>
+<script src="{{ asset('js/venta-inventario-toggle.js') }}"></script>
+<script>
     // Gestión de Venta a Plazos con validación de cliente
     document.addEventListener('DOMContentLoaded', function() {
-        // Inicializar el toggle de inventario
-        toggleInventarioTipo();
-        
-        // Si hay old data de subinventario, cargar los libros
-        const oldSubinventario = '{{ old("subinventario_id") }}';
-        if (oldSubinventario) {
-            cargarLibrosSubinventario();
-        }
-        
         const checkboxPlazos = document.getElementById('es_a_plazos');
         const fechaLimiteContainer = document.getElementById('fechaLimiteContainer');
         const clienteIdInput = document.querySelector('input[name="cliente_id"]');

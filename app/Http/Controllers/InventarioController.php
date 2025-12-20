@@ -318,9 +318,6 @@ class InventarioController extends Controller
             ], 404);
         }
 
-        // Calcular stock disponible (descontando lo que está en subinventarios)
-        $stockDisponible = $libro->stock - $libro->stock_subinventario;
-
         return response()->json([
             'success' => true,
             'data' => [
@@ -328,9 +325,9 @@ class InventarioController extends Controller
                 'nombre' => $libro->nombre,
                 'codigo_barras' => $libro->codigo_barras,
                 'precio' => $libro->precio,
-                'stock' => $libro->stock,
+                'stock' => $libro->stock,  // Stock en inventario general
                 'stock_subinventario' => $libro->stock_subinventario,
-                'stock_disponible' => $stockDisponible,
+                'stock_total' => $libro->stock_total,  // Stock total (general + subinventarios)
             ]
         ]);
     }

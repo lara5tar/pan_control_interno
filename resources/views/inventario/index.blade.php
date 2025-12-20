@@ -173,9 +173,14 @@
                     <x-data-table-cell>{{ $libro->codigo_barras }}</x-data-table-cell>
                     <x-data-table-cell>${{ number_format($libro->precio, 2) }}</x-data-table-cell>
                     <x-data-table-cell>
-                        <x-badge :type="$libro->stock > 10 ? 'success' : ($libro->stock > 0 ? 'warning' : 'danger')">
-                            {{ $libro->stock }}
-                        </x-badge>
+                        <div class="flex flex-col gap-1">
+                            <x-badge :type="$libro->stock_total > 10 ? 'success' : ($libro->stock_total > 0 ? 'warning' : 'danger')">
+                                Total: {{ $libro->stock_total }}
+                            </x-badge>
+                            <span class="text-xs text-gray-500">
+                                General: {{ $libro->stock }} | Sub: {{ $libro->stock_subinventario }}
+                            </span>
+                        </div>
                     </x-data-table-cell>
                     <x-data-table-actions
                         :viewRoute="route('inventario.show', $libro->id)"

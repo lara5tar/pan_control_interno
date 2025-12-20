@@ -147,7 +147,8 @@ class LibroSearchDynamic {
         results.forEach(libro => {
             const item = document.createElement('div');
             item.className = 'p-3 hover:bg-gray-50 cursor-pointer transition-colors';
-            const stockDisplay = libro.stock_disponible !== undefined ? libro.stock_disponible : libro.stock;
+            // En nueva lógica: stock = inventario general disponible
+            const stockDisplay = libro.stock;
             item.innerHTML = `
                 <div>
                     <p class="font-medium text-gray-900 text-sm">${libro.nombre}</p>
@@ -175,7 +176,8 @@ class LibroSearchDynamic {
         this.selectedLibro = libro;
         this.hiddenInput.value = libro.id;
         this.hiddenInput.setAttribute('data-precio', libro.precio);
-        const stockDisponible = libro.stock_disponible !== undefined ? libro.stock_disponible : libro.stock;
+        // En nueva lógica: stock = inventario general disponible
+        const stockDisponible = libro.stock;
         this.hiddenInput.setAttribute('data-stock', stockDisponible);
         
         this.selectedNombre.textContent = libro.nombre;

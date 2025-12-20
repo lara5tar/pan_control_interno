@@ -130,9 +130,8 @@
                         <option value="">Selecciona un libro</option>
                         ${libros.map(libro => `
                             <option value="${libro.id}" 
-                                    data-stock="${libro.stock}" 
-                                    data-subinventario="${libro.stock_subinventario || 0}">
-                                ${libro.nombre} - Stock: ${libro.stock - (libro.stock_subinventario || 0)} disponibles (${libro.stock} total)
+                                    data-stock="${libro.stock}">
+                                ${libro.nombre} - Stock: ${libro.stock} disponibles
                             </option>
                         `).join('')}
                     </select>
@@ -172,10 +171,8 @@
         if (select.value) {
             const option = select.options[select.selectedIndex];
             const stock = parseInt(option.dataset.stock);
-            const subinventario = parseInt(option.dataset.subinventario);
-            const disponible = stock - subinventario;
             
-            stockInfo.textContent = `Stock disponible: ${disponible}`;
+            stockInfo.textContent = `Stock disponible: ${stock}`;
             
             // Actualizar el max del input de cantidad
             const cantidadInput = document.querySelector(`input[name="libros[${index}][cantidad]"]`);

@@ -41,17 +41,23 @@
                     </div>
 
                     <div>
-                        <p class="text-sm text-gray-600 mb-1">Stock Disponible</p>
-                        <p class="text-lg font-semibold">
-                            <span class="px-3 py-1 rounded-full text-sm {{ $libro->stock > 10 ? 'bg-green-100 text-green-800' : ($libro->stock > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800') }}">
-                                {{ $libro->stock }} unidades
-                            </span>
-                        </p>
+                        <p class="text-sm text-gray-600 mb-1">Inventario</p>
+                        <div class="space-y-2">
+                            <p class="text-lg font-semibold">
+                                <span class="px-3 py-1 rounded-full text-sm {{ $libro->stock_total > 10 ? 'bg-green-100 text-green-800' : ($libro->stock_total > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800') }}">
+                                    Total: {{ $libro->stock_total }} unidades
+                                </span>
+                            </p>
+                            <p class="text-sm text-gray-600">
+                                <span class="font-medium">General:</span> {{ $libro->stock }} | 
+                                <span class="font-medium">Subinventarios:</span> {{ $libro->stock_subinventario }}
+                            </p>
+                        </div>
                     </div>
 
                     <div>
                         <p class="text-sm text-gray-600 mb-1">Valor Total en Stock</p>
-                        <p class="text-lg font-semibold text-gray-800">${{ number_format($libro->precio * $libro->stock, 2) }}</p>
+                        <p class="text-lg font-semibold text-gray-800">${{ number_format($libro->precio * $libro->stock_total, 2) }}</p>
                     </div>
                 </div>
             </x-card>

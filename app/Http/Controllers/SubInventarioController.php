@@ -88,14 +88,13 @@ class SubInventarioController extends Controller
 
         DB::beginTransaction();
         try {
-            // Validar stock de todos los libros primero
+            // Validar stock de todos los libros primero (ahora stock representa el inventario general directamente)
             foreach ($validated['libros'] as $item) {
                 $libro = Libro::findOrFail($item['libro_id']);
-                $stockDisponible = $libro->stock - $libro->stock_subinventario; // Cambiaremos este nombre después
                 
-                if ($stockDisponible < $item['cantidad']) {
+                if ($libro->stock < $item['cantidad']) {
                     return back()->withErrors([
-                        'error' => "Stock disponible insuficiente para '{$libro->nombre}'. Stock disponible: {$stockDisponible}"
+                        'error' => "Stock en inventario general insuficiente para '{$libro->nombre}'. Stock disponible: {$libro->stock}"
                     ])->withInput();
                 }
             }
@@ -115,9 +114,10 @@ class SubInventarioController extends Controller
                     'cantidad' => $item['cantidad']
                 ]);
 
-                // Incrementar el stock en sub-inventario
+                // Restar del inventario general e incrementar contador de subinventarios
                 $libro = Libro::findOrFail($item['libro_id']);
-                $libro->increment('stock_subinventario', $item['cantidad']); // Cambiaremos este nombre después
+                $libro->decrement('stock', $item['cantidad']);
+                $libro->increment('stock_subinventario', $item['cantidad']);
             }
 
             DB::commit();
@@ -161,11 +161,9 @@ class SubInventarioController extends Controller
             // Buscar si este libro ya está en este subinventario
             $cantidadEnEsteSubinv = $subinventario->libros->where('id', $libro->id)->first()?->pivot->cantidad ?? 0;
             
-            // Stock disponible = stock general disponible + lo que ya tiene este subinventario
-            // Esto permite que al editar puedas aumentar/reducir la cantidad sin perder acceso al libro
-            // Usamos stock_disponible_edicion para evitar conflicto con el accessor
-            $stockGeneral = $libro->stock - $libro->stock_subinventario;
-            $libro->stock_disponible_edicion = $stockGeneral + $cantidadEnEsteSubinv;
+            // Stock disponible para asignar = stock en inventario general + lo que ya tiene este subinventario
+            // Esto permite que al editar puedas aumentar/reducir la cantidad
+            $libro->stock_disponible_edicion = $libro->stock + $cantidadEnEsteSubinv;
             
             return $libro;
         });
@@ -215,8 +213,8 @@ class SubInventarioController extends Controller
                 // Cantidad actual de este libro en este subinventario
                 $cantidadActualEnSub = $subinventario->libros->where('id', $item['libro_id'])->first()?->pivot->cantidad ?? 0;
                 
-                // Stock disponible = stock general disponible + lo que ya tiene este subinventario de este libro
-                $stockDisponible = ($libro->stock - $libro->stock_subinventario) + $cantidadActualEnSub;
+                // Stock disponible = stock en inventario general + lo que ya tiene este subinventario
+                $stockDisponible = $libro->stock + $cantidadActualEnSub;
                 
                 if ($stockDisponible < $item['cantidad']) {
                     DB::rollBack();
@@ -226,8 +224,9 @@ class SubInventarioController extends Controller
                 }
             }
             
-            // Primero devolver el stock en sub-inventario de los libros actuales
+            // Primero devolver el stock de los libros actuales al inventario general
             foreach ($subinventario->libros as $libro) {
+                $libro->increment('stock', $libro->pivot->cantidad);
                 $libro->decrement('stock_subinventario', $libro->pivot->cantidad);
             }
 
@@ -247,8 +246,9 @@ class SubInventarioController extends Controller
                     'cantidad' => $item['cantidad']
                 ]);
 
-                // Incrementar el stock en sub-inventario
+                // Restar del inventario general e incrementar contador de subinventarios
                 $libro = Libro::findOrFail($item['libro_id']);
+                $libro->decrement('stock', $item['cantidad']);
                 $libro->increment('stock_subinventario', $item['cantidad']);
             }
 
@@ -276,10 +276,11 @@ class SubInventarioController extends Controller
 
         DB::beginTransaction();
         try {
-            // Si está activo, devolver el stock en sub-inventario
+            // Si está activo, devolver el stock al inventario general
             if ($subinventario->estado === 'activo') {
                 foreach ($subinventario->libros as $libro) {
-                    $libro->decrement('stock_subinventario', $libro->pivot->cantidad); // Cambiaremos este nombre después
+                    $libro->increment('stock', $libro->pivot->cantidad);
+                    $libro->decrement('stock_subinventario', $libro->pivot->cantidad);
                 }
             }
 
@@ -306,9 +307,10 @@ class SubInventarioController extends Controller
 
         DB::beginTransaction();
         try {
-            // Reducir el stock en sub-inventario (ya se vendió)
+            // Solo reducir el contador de stock en subinventarios
+            // (el stock general ya se restó cuando se creó el subinventario)
             foreach ($subinventario->libros as $libro) {
-                $libro->decrement('stock_subinventario', $libro->pivot->cantidad); // Cambiaremos este nombre después
+                $libro->decrement('stock_subinventario', $libro->pivot->cantidad);
             }
 
             $subinventario->update(['estado' => 'completado']);

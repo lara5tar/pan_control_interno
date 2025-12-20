@@ -132,10 +132,10 @@
                         <option value="">Selecciona un libro</option>
                         ${libros.map(libro => `
                             <option value="${libro.id}" 
-                                    data-stock="${libro.stock_disponible_edicion || libro.stock_disponible || libro.stock}" 
+                                    data-stock="${libro.stock_disponible_edicion || libro.stock}" 
                                     data-subinventario="${libro.stock_subinventario || 0}"
                                     ${libroId == libro.id ? 'selected' : ''}>
-                                ${libro.nombre} - Stock: ${libro.stock_disponible_edicion || libro.stock_disponible || (libro.stock - (libro.stock_subinventario || 0))} disponibles
+                                ${libro.nombre} - Stock: ${libro.stock_disponible_edicion || libro.stock} disponibles
                             </option>
                         `).join('')}
                     </select>

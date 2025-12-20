@@ -40,10 +40,10 @@ class Libro extends Model
     }
 
     /**
-     * Obtener el stock disponible (stock - stock_subinventario)
+     * Obtener el stock total (inventario general + subinventarios)
      */
-    public function getStockDisponibleAttribute()
+    public function getStockTotalAttribute()
     {
-        return $this->stock - ($this->stock_subinventario ?? 0);
+        return $this->stock + ($this->stock_subinventario ?? 0);
     }
 }
