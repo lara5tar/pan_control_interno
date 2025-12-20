@@ -86,6 +86,9 @@ class VentaFormManager {
         if (existingLibroItems.length > 0) {
             this.removeEmptyMessage();
         }
+        
+        // Actualizar botones inline después de inicializar
+        this.updateAddLibroButtons();
     }
 
     addLibro() {
@@ -114,6 +117,7 @@ class VentaFormManager {
         this.libroIndex++;
         
         this.removeEmptyMessage();
+        this.updateAddLibroButtons(); // Actualizar botones inline
         this.updateCalculations();
     }
 
@@ -122,6 +126,7 @@ class VentaFormManager {
             e.target.closest('.libro-item').remove();
             this.reindexLibros();
             this.showEmptyMessageIfNeeded();
+            this.updateAddLibroButtons(); // Actualizar botones inline después de eliminar
             this.updateCalculations();
         }
     }
@@ -135,6 +140,31 @@ class VentaFormManager {
             });
         });
         this.libroIndex = this.elements.librosContainer.children.length;
+    }
+    
+    /**
+     * Actualizar visibilidad de botones "Agregar Otro Libro"
+     * Solo el último libro debe mostrar el botón
+     */
+    updateAddLibroButtons() {
+        const libroItems = document.querySelectorAll('.libro-item');
+        
+        // Ocultar todos los botones primero
+        libroItems.forEach(item => {
+            const container = item.querySelector('.add-libro-inline-container');
+            if (container) {
+                container.classList.add('hidden');
+            }
+        });
+        
+        // Mostrar solo en el último libro
+        if (libroItems.length > 0) {
+            const lastItem = libroItems[libroItems.length - 1];
+            const lastContainer = lastItem.querySelector('.add-libro-inline-container');
+            if (lastContainer) {
+                lastContainer.classList.remove('hidden');
+            }
+        }
     }
 
     removeEmptyMessage() {
@@ -422,5 +452,5 @@ class VentaFormManager {
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function() {
     const libroIndex = parseInt(document.getElementById('ventaForm').dataset.libroIndex) || 0;
-    window.ventaFormManager = new VentaFormManager(libroIndex);
+    window.ventaFormManagerInstance = new VentaFormManager(libroIndex);
 });

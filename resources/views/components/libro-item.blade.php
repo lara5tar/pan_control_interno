@@ -86,4 +86,16 @@
         <span class="text-sm text-gray-600">Subtotal:</span>
         <span class="subtotal-libro font-bold text-primary-600">$0.00</span>
     </div>
+    
+    <!-- Botón Agregar Otro Libro (solo se mostrará en el último libro) -->
+    <div class="add-libro-inline-container hidden mt-3">
+        <button 
+            type="button" 
+            class="add-libro-inline w-full px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+            onclick="if(window.ventaFormManagerInstance) window.ventaFormManagerInstance.addLibro()"
+        >
+            <i class="fas fa-plus"></i>
+            <span>Agregar Otro Libro</span>
+        </button>
+    </div>
 </div>
