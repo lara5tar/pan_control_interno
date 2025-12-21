@@ -338,18 +338,29 @@
                         <div class="flex-1">
                             <div class="flex justify-between items-start mb-3">
                                 <div>
-                                    <h3 class="font-semibold text-gray-900 text-base">
-                                        {{ $movimiento->libro->nombre }}
-                                    </h3>
-                                    <p class="text-sm text-gray-600">
-                                        Código: <span class="font-mono">{{ $movimiento->libro->codigo_barras }}</span>
-                                    </p>
+                                    @if($movimiento->libro)
+                                        <h3 class="font-semibold text-gray-900 text-base">
+                                            {{ $movimiento->libro->nombre }}
+                                        </h3>
+                                        <p class="text-sm text-gray-600">
+                                            Código: <span class="font-mono">{{ $movimiento->libro->codigo_barras }}</span>
+                                        </p>
+                                    @else
+                                        <h3 class="font-semibold text-red-600 text-base">
+                                            (Libro eliminado)
+                                        </h3>
+                                        <p class="text-sm text-gray-500">
+                                            ID del libro: {{ $movimiento->libro_id }}
+                                        </p>
+                                    @endif
                                 </div>
-                                <a href="{{ route('inventario.show', $movimiento->libro) }}" 
-                                   class="text-primary-600 hover:text-primary-700"
-                                   title="Ver libro">
-                                    <i class="fas fa-external-link-alt"></i>
-                                </a>
+                                @if($movimiento->libro)
+                                    <a href="{{ route('inventario.show', $movimiento->libro) }}" 
+                                       class="text-primary-600 hover:text-primary-700"
+                                       title="Ver libro">
+                                        <i class="fas fa-external-link-alt"></i>
+                                    </a>
+                                @endif
                             </div>
 
                             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -443,6 +454,28 @@
         <!-- Acciones -->
         <x-card title="Acciones">
             <div class="space-y-3">
+                @php
+                    $roles = session('roles', []);
+                    $isAdmin = false;
+                    foreach ($roles as $rol) {
+                        $rolNombre = strtoupper(trim($rol['ROL'] ?? ''));
+                        if ($rolNombre === 'ADMIN LIBRERIA' || $rolNombre === 'ADMIN LIBRERÍA') {
+                            $isAdmin = true;
+                            break;
+                        }
+                    }
+                @endphp
+                
+                @if($isAdmin)
+                    <x-button 
+                        href="{{ route('ventas.edit', $venta) }}" 
+                        variant="warning" 
+                        icon="fas fa-edit"
+                        class="w-full justify-center">
+                        Editar Venta
+                    </x-button>
+                @endif
+                
                 @if($venta->estado === 'completada')
                     <form action="{{ route('ventas.cancelar', $venta) }}" method="POST">
                         @csrf

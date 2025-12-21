@@ -67,6 +67,7 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Tipo de Inventario -->
+        @if(!$venta)
         <div class="lg:col-span-2">
             <label for="tipo_inventario" class="block text-sm font-medium text-gray-700 mb-2">
                 Tipo de Inventario <span class="text-red-500">*</span>
@@ -178,8 +179,10 @@
                 <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
             @enderror
         </div>
+        @endif
 
         <!-- Selección de Subinventario (solo visible cuando se selecciona subinventario) -->
+        @if(!$venta)
         <div id="subinventarioSelector" class="lg:col-span-2" style="display: none;">
             <label for="subinventario_id" class="block text-sm font-medium text-gray-700 mb-2">
                 Seleccionar Subinventario <span class="text-red-500">*</span>
@@ -209,6 +212,7 @@
                 <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
             @enderror
         </div>
+        @endif
 
         <!-- Cliente -->
         <div class="lg:col-span-2">
@@ -234,7 +238,7 @@
                     type="date" 
                     name="fecha_venta" 
                     id="fecha_venta" 
-                    value="{{ old('fecha_venta', $venta?->fecha_venta ?? date('Y-m-d')) }}"
+                    value="{{ old('fecha_venta', $venta?->fecha_venta?->format('Y-m-d') ?? date('Y-m-d')) }}"
                     required
                     class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 @error('fecha_venta') border-red-500 @enderror">
             </div>
@@ -490,7 +494,9 @@
     window.ventaLibrosData = @json($libros);
     window.subinventariosData = @json($subinventarios);
 </script>
+@if(!$venta)
 <script src="{{ asset('js/venta-inventario-toggle.js') }}"></script>
+@endif
 <script>
     // Gestión de Venta a Plazos con validación de cliente
     document.addEventListener('DOMContentLoaded', function() {

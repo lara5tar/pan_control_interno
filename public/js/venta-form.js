@@ -58,37 +58,46 @@ class VentaFormManager {
      */
     initExistingLibros() {
         console.log('[Venta Form] Initializing existing libro items...');
-        const existingLibroItems = document.querySelectorAll('.libro-item');
         
-        if (existingLibroItems.length === 0) {
-            console.log('[Venta Form] No existing libro items found');
-            return;
-        }
-        
-        console.log(`[Venta Form] Found ${existingLibroItems.length} existing libro items`);
-        
-        existingLibroItems.forEach((item, index) => {
-            const searchContainer = item.querySelector('[id*="libro_search_libros_"]');
-            if (searchContainer) {
-                const containerId = searchContainer.id;
-                console.log(`[Venta Form] Initializing libro search for existing item ${index}:`, containerId);
-                
-                if (window.ventaLibrosData && typeof window.initLibroSearch === 'function') {
-                    window.libroSearchInstances[containerId] = window.initLibroSearch(
-                        containerId,
-                        window.ventaLibrosData
-                    );
-                }
+        // Usar requestAnimationFrame para asegurar que el DOM esté completamente renderizado
+        requestAnimationFrame(() => {
+            // Solo seleccionar libros EDITABLES (excluir libros eliminados con clase libro-eliminado-readonly)
+            const existingLibroItems = document.querySelectorAll('.libro-item:not(.libro-eliminado-readonly)');
+            
+            if (existingLibroItems.length === 0) {
+                console.log('[Venta Form] No existing editable libro items found');
+                return;
             }
+            
+            console.log(`[Venta Form] Found ${existingLibroItems.length} existing editable libro items`);
+            
+            existingLibroItems.forEach((item, index) => {
+                const searchContainer = item.querySelector('[id*="libro_search_libros_"]');
+                if (searchContainer) {
+                    const containerId = searchContainer.id;
+                    console.log(`[Venta Form] Initializing libro search for existing item ${index}:`, containerId);
+                    
+                    if (window.ventaLibrosData && typeof window.initLibroSearch === 'function') {
+                        window.libroSearchInstances[containerId] = window.initLibroSearch(
+                            containerId,
+                            window.ventaLibrosData
+                        );
+                    }
+                }
+            });
+            
+            // Eliminar mensaje de vacío si hay libros (editables o eliminados)
+            const allLibroItems = document.querySelectorAll('.libro-item, .libro-eliminado-readonly');
+            if (allLibroItems.length > 0) {
+                this.removeEmptyMessage();
+            }
+            
+            // Actualizar botones inline después de inicializar
+            this.updateAddLibroButtons();
+            
+            // Recalcular totales para libros eliminados
+            this.calculateTotal();
         });
-        
-        // Eliminar mensaje de vacío si hay libros
-        if (existingLibroItems.length > 0) {
-            this.removeEmptyMessage();
-        }
-        
-        // Actualizar botones inline después de inicializar
-        this.updateAddLibroButtons();
     }
 
     addLibro() {
@@ -266,12 +275,20 @@ class VentaFormManager {
 
             // Restaurar libros
             if (formData.libros && formData.libros.length > 0) {
-                // Limpiar libros existentes
-                this.elements.librosContainer.innerHTML = '';
-                this.libroIndex = 0;
+                // Preservar libros eliminados (elementos con bg-red-50) - NO eliminarlos
+                const deletedBooks = Array.from(this.elements.librosContainer.querySelectorAll('.libro-item.bg-red-50'));
+                console.log('[Venta Form] Preserving', deletedBooks.length, 'deleted books');
+                
+                // NO limpiar si hay libros eliminados que deben preservarse
+                if (deletedBooks.length === 0) {
+                    // Solo limpiar si no hay libros eliminados
+                    this.elements.librosContainer.innerHTML = '';
+                }
+                
+                this.libroIndex = deletedBooks.length; // Empezar desde el índice correcto
 
                 formData.libros.forEach((libro, index) => {
-                    // Agregar libro
+                    // Agregar libro después de los eliminados
                     const newLibro = this.elements.template.content.cloneNode(true);
                     const libroDiv = newLibro.querySelector('.libro-item');
                     
@@ -361,7 +378,8 @@ class VentaFormManager {
     updateCalculations() {
         let subtotal = 0;
 
-        document.querySelectorAll('.libro-item').forEach(item => {
+        // Incluir tanto libros editables como eliminados (readonly)
+        document.querySelectorAll('.libro-item, .libro-eliminado-readonly').forEach(item => {
             const libroIdInput = item.querySelector('input[name*="[libro_id]"]');
             const cantidadInput = item.querySelector('.cantidad-input');
             const descuentoInput = item.querySelector('.descuento-input');
@@ -369,22 +387,31 @@ class VentaFormManager {
             const stockMessage = item.querySelector('.stock-message');
             
             if (libroIdInput && libroIdInput.value) {
-                // Obtener precio y stock de los atributos data del input
-                const precio = parseFloat(libroIdInput.getAttribute('data-precio')) || 0;
-                const stock = parseInt(libroIdInput.getAttribute('data-stock')) || 0;
-                const cantidad = parseInt(cantidadInput.value) || 0;
-                const descuento = parseFloat(descuentoInput.value) || 0;
-                
-                // Validar stock
-                if (stockMessage) {
-                    if (cantidad > stock) {
-                        stockMessage.textContent = `⚠️ Stock insuficiente (disponible: ${stock})`;
-                        stockMessage.className = 'stock-message text-xs text-red-600 mt-1';
-                    } else {
-                        stockMessage.textContent = `✓ Stock restante: ${stock - cantidad}`;
-                        stockMessage.className = 'stock-message text-xs text-green-600 mt-1';
+                // Para libros eliminados, obtener el precio del input hidden precio_unitario
+                let precio;
+                if (item.classList.contains('libro-eliminado-readonly')) {
+                    const precioUnitarioInput = item.querySelector('input[name*="[precio_unitario]"]');
+                    precio = precioUnitarioInput ? parseFloat(precioUnitarioInput.value) || 0 : 0;
+                } else {
+                    // Para libros normales, obtener precio y stock de los atributos data del input
+                    precio = parseFloat(libroIdInput.getAttribute('data-precio')) || 0;
+                    const stock = parseInt(libroIdInput.getAttribute('data-stock')) || 0;
+                    const cantidad = parseInt(cantidadInput.value) || 0;
+                    
+                    // Validar stock (solo para libros editables)
+                    if (stockMessage) {
+                        if (cantidad > stock) {
+                            stockMessage.textContent = `⚠️ Stock insuficiente (disponible: ${stock})`;
+                            stockMessage.className = 'stock-message text-xs text-red-600 mt-1';
+                        } else {
+                            stockMessage.textContent = `✓ Stock restante: ${stock - cantidad}`;
+                            stockMessage.className = 'stock-message text-xs text-green-600 mt-1';
+                        }
                     }
                 }
+                
+                const cantidad = parseInt(cantidadInput.value) || 0;
+                const descuento = parseFloat(descuentoInput.value) || 0;
                 
                 // Calcular subtotal
                 const precioConDescuento = precio - (precio * descuento / 100);

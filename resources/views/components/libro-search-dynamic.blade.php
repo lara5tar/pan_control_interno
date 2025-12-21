@@ -90,11 +90,11 @@
     
     <!-- Libro seleccionado - Ocupa espacio normal en el flujo del documento -->
     <div class="libro-selected mt-3 hidden">
-        <div class="p-3 bg-primary-50 border border-primary-200 rounded-lg shadow-sm">
+        <div class="p-3 bg-gray-50 border border-gray-300 rounded-lg shadow-sm">
             <div class="flex items-start justify-between">
                 <div class="flex-1">
                     <div class="flex items-center gap-2 mb-1">
-                        <i class="fas fa-book text-primary-600"></i>
+                        <i class="fas fa-book text-gray-600"></i>
                         <p class="font-semibold text-gray-900 libro-selected-nombre"></p>
                     </div>
                     <div class="text-sm text-gray-600 space-y-1">

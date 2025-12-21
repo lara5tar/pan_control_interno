@@ -160,8 +160,13 @@
                     </x-table-cell>
                     <x-table-cell>
                         <div class="text-sm">
-                            <div class="font-medium text-gray-900">{{ $movimiento->libro->nombre }}</div>
-                            <div class="text-gray-500 text-xs">{{ $movimiento->libro->codigo_barras }}</div>
+                            @if($movimiento->libro)
+                                <div class="font-medium text-gray-900">{{ $movimiento->libro->nombre }}</div>
+                                <div class="text-gray-500 text-xs">{{ $movimiento->libro->codigo_barras }}</div>
+                            @else
+                                <div class="font-medium text-red-600">(Libro eliminado)</div>
+                                <div class="text-gray-500 text-xs">ID: {{ $movimiento->libro_id }}</div>
+                            @endif
                         </div>
                     </x-table-cell>
                     <x-table-cell>

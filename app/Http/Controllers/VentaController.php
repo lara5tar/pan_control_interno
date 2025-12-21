@@ -377,18 +377,35 @@ class VentaController extends Controller
      */
     public function edit(Venta $venta)
     {
-        // Solo permitir editar ventas pendientes
-        if ($venta->estado !== 'pendiente') {
+        // Solo permitir editar a usuarios con rol ADMIN LIBRERIA
+        if (!$this->isAdmin()) {
             return redirect()->route('ventas.index')
-                ->with('warning', 'Solo se pueden editar ventas pendientes');
+                ->with('error', 'No tienes permisos para editar ventas. Solo administradores.');
         }
 
-        // Mostrar solo libros con stock disponible en inventario general
+        // Cargar relaciones necesarias
+        $venta->load(['movimientos.libro', 'cliente', 'pagos']);
+
+        // Obtener todos los libros disponibles (con stock > 0)
         $libros = Libro::where('stock', '>', 0)
             ->orderBy('nombre')
             ->get();
 
-        return view('ventas.edit', compact('venta', 'libros'));
+        // Agregar los libros que están en esta venta pero que podrían no tener stock
+        // o incluso haber sido eliminados (para permitir su edición)
+        $librosEnVenta = $venta->movimientos->pluck('libro_id')->toArray();
+        $librosAdicionales = Libro::whereIn('id', $librosEnVenta)
+            ->whereNotIn('id', $libros->pluck('id'))
+            ->orderBy('nombre')
+            ->get();
+        
+        // Combinar ambas colecciones
+        $libros = $libros->merge($librosAdicionales);
+
+        // No necesitamos subinventarios en edición
+        $subinventarios = collect([]);
+
+        return view('ventas.edit', compact('venta', 'libros', 'subinventarios'));
     }
 
     /**
@@ -396,22 +413,150 @@ class VentaController extends Controller
      */
     public function update(Request $request, Venta $venta)
     {
-        // Solo permitir actualizar ventas pendientes
-        if ($venta->estado !== 'pendiente') {
+        // Solo permitir actualizar a usuarios con rol ADMIN LIBRERIA
+        if (!$this->isAdmin()) {
             return redirect()->route('ventas.index')
-                ->with('warning', 'Solo se pueden editar ventas pendientes');
+                ->with('error', 'No tienes permisos para editar ventas. Solo administradores.');
         }
 
         $validated = $request->validate([
-            'cliente' => 'nullable|string|max:255',
+            'cliente_id' => 'nullable|exists:clientes,id',
+            'fecha_venta' => 'required|date',
+            'tipo_pago' => 'required|in:contado,credito,mixto',
             'observaciones' => 'nullable|string|max:500',
-            'estado' => 'required|in:pendiente,completada,cancelada',
+            'descuento_global' => 'nullable|numeric|min:0|max:100',
+            'es_a_plazos' => 'nullable|boolean',
+            'tiene_envio' => 'nullable|boolean',
+            'fecha_limite' => 'nullable|date|after:today',
+            
+            // Movimientos
+            'libros' => 'required|array|min:1',
+            'libros.*.libro_id' => 'required|exists:libros,id',
+            'libros.*.cantidad' => 'required|integer|min:1',
+            'libros.*.descuento' => 'nullable|numeric|min:0|max:100',
+        ], [
+            'fecha_venta.required' => 'La fecha de venta es obligatoria',
+            'tipo_pago.required' => 'Debes seleccionar el tipo de pago',
+            'libros.required' => 'Debes agregar al menos un libro a la venta',
+            'libros.min' => 'Debes agregar al menos un libro a la venta',
+            'fecha_limite.after' => 'La fecha límite debe ser posterior a hoy',
         ]);
 
-        $venta->update($validated);
+        DB::beginTransaction();
+        try {
+            $esAPLazos = isset($validated['es_a_plazos']) && $validated['es_a_plazos'];
+            
+            // Validar que si es a plazos, debe tener cliente
+            if ($esAPLazos && empty($validated['cliente_id'])) {
+                return back()->withErrors([
+                    'error' => 'Las ventas a plazos requieren un cliente asignado'
+                ])->withInput();
+            }
 
-        return redirect()->route('ventas.show', $venta)
-            ->with('success', 'Venta actualizada exitosamente');
+            // Obtener los movimientos actuales de la venta
+            $movimientosActuales = $venta->movimientos()->get();
+            $librosActuales = $movimientosActuales->keyBy('libro_id');
+
+            // Validar stock para los libros nuevos o con cantidad incrementada
+            // Solo validar si NO es a plazos (las ventas a plazos no descuentan stock inmediatamente)
+            if (!$esAPLazos && !$venta->es_a_plazos) {
+                foreach ($validated['libros'] as $item) {
+                    $libro = Libro::findOrFail($item['libro_id']);
+                    $cantidadActual = $librosActuales->has($item['libro_id']) 
+                        ? $librosActuales[$item['libro_id']]->cantidad 
+                        : 0;
+                    $diferencia = $item['cantidad'] - $cantidadActual;
+                    
+                    // Si necesitamos más stock del que teníamos
+                    if ($diferencia > 0) {
+                        // Validar que hay suficiente stock disponible
+                        if ($libro->stock < $diferencia) {
+                            return back()->withErrors([
+                                'error' => "Stock insuficiente para '{$libro->nombre}'. Stock disponible: {$libro->stock}, se necesitan {$diferencia} unidades adicionales."
+                            ])->withInput();
+                        }
+                    }
+                }
+            }
+
+            // Restaurar el stock de los movimientos que se van a eliminar o modificar
+            // Solo si NO era a plazos (porque las ventas a plazos no descuentan stock)
+            if (!$venta->es_a_plazos) {
+                foreach ($movimientosActuales as $movimiento) {
+                    $libro = $movimiento->libro;
+                    // Solo restaurar stock si el libro todavía existe
+                    if ($libro) {
+                        $libro->increment('stock', $movimiento->cantidad);
+                    }
+                }
+            }
+
+            // Eliminar todos los movimientos actuales
+            $venta->movimientos()->delete();
+
+            // Calcular totales
+            $subtotal = 0;
+            $descuentoGlobal = $validated['descuento_global'] ?? 0;
+
+            // Crear los nuevos movimientos y actualizar stock
+            foreach ($validated['libros'] as $item) {
+                $libro = Libro::findOrFail($item['libro_id']);
+                $cantidad = $item['cantidad'];
+                $descuentoItem = $item['descuento'] ?? 0;
+                $precioConDescuento = $libro->precio * (1 - $descuentoItem / 100);
+                $subtotalItem = $precioConDescuento * $cantidad;
+                
+                $subtotal += $subtotalItem;
+
+                // Crear movimiento
+                Movimiento::create([
+                    'libro_id' => $libro->id,
+                    'venta_id' => $venta->id,
+                    'tipo_movimiento' => 'salida',
+                    'tipo_salida' => 'venta',
+                    'cantidad' => $cantidad,
+                    'precio_unitario' => $libro->precio,
+                    'descuento' => $descuentoItem,
+                    'observaciones' => 'Actualización de venta',
+                    'usuario' => session('username'),
+                    'fecha' => $validated['fecha_venta'],
+                ]);
+
+                // Descontar stock solo si NO es a plazos
+                if (!$esAPLazos) {
+                    $libro->decrement('stock', $cantidad);
+                }
+            }
+
+            // Calcular total con descuento global
+            $descuentoMonto = $subtotal * ($descuentoGlobal / 100);
+            $total = $subtotal - $descuentoMonto;
+
+            // Actualizar la venta
+            $venta->update([
+                'cliente_id' => $validated['cliente_id'],
+                'fecha_venta' => $validated['fecha_venta'],
+                'tipo_pago' => $validated['tipo_pago'],
+                'subtotal' => $subtotal,
+                'descuento_global' => $descuentoGlobal,
+                'total' => $total,
+                'observaciones' => $validated['observaciones'] ?? '',
+                'es_a_plazos' => $esAPLazos,
+                'tiene_envio' => isset($validated['tiene_envio']) && $validated['tiene_envio'],
+                'fecha_limite' => $validated['fecha_limite'] ?? null,
+                'estado_pago' => $esAPLazos ? 'pendiente' : 'completado',
+            ]);
+
+            DB::commit();
+
+            return redirect()->route('ventas.show', $venta)
+                ->with('success', 'Venta actualizada exitosamente');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => 'Error al actualizar la venta: ' . $e->getMessage()])
+                ->withInput();
+        }
     }
 
     /**
@@ -853,6 +998,27 @@ class VentaController extends Controller
                 'message' => 'Error al crear la venta: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Verifica si el usuario actual es administrador
+     */
+    private function isAdmin()
+    {
+        $roles = session('roles', []);
+        
+        if (empty($roles)) {
+            return false;
+        }
+        
+        foreach ($roles as $rol) {
+            $rolNombre = strtoupper(trim($rol['ROL'] ?? ''));
+            if ($rolNombre === 'ADMIN LIBRERIA' || $rolNombre === 'ADMIN LIBRERÍA') {
+                return true;
+            }
+        }
+        
+        return false;
     }
 }
 

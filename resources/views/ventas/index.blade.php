@@ -371,6 +371,28 @@
                                 title="Ver detalles">
                             </x-button>
                             
+                            @php
+                                $roles = session('roles', []);
+                                $isAdmin = false;
+                                foreach ($roles as $rol) {
+                                    $rolNombre = strtoupper(trim($rol['ROL'] ?? ''));
+                                    if ($rolNombre === 'ADMIN LIBRERIA' || $rolNombre === 'ADMIN LIBRERÍA') {
+                                        $isAdmin = true;
+                                        break;
+                                    }
+                                }
+                            @endphp
+                            
+                            @if($isAdmin)
+                                <x-button 
+                                    href="{{ route('ventas.edit', $venta) }}" 
+                                    variant="warning" 
+                                    size="sm"
+                                    icon="fas fa-edit"
+                                    title="Editar venta">
+                                </x-button>
+                            @endif
+                            
                             @if($venta->es_a_plazos && $venta->estado_pago !== 'completado' && $venta->estado !== 'cancelada')
                                 <x-button 
                                     href="{{ route('ventas.pagos.create', $venta) }}" 

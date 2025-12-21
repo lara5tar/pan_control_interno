@@ -50,19 +50,31 @@
                             <i class="fas fa-book"></i> INFORMACIÓN DEL LIBRO
                         </h4>
                         <div class="space-y-2">
-                            <div>
-                                <p class="text-xs text-gray-500">Nombre</p>
-                                <p class="text-lg font-semibold text-gray-900">{{ $movimiento->libro->nombre }}</p>
-                            </div>
-                            <div>
-                                <p class="text-xs text-gray-500">Código de Barras</p>
-                                <p class="font-mono text-gray-700">{{ $movimiento->libro->codigo_barras }}</p>
-                            </div>
-                            <div>
-                                <p class="text-xs text-gray-500">Stock Actual</p>
-                                <p class="text-lg font-bold text-primary-600">
-                                    <i class="fas fa-boxes"></i> {{ $movimiento->libro->stock }} unidades
-                                </p>
+                            @if($movimiento->libro)
+                                <div>
+                                    <p class="text-xs text-gray-500">Nombre</p>
+                                    <p class="text-lg font-semibold text-gray-900">{{ $movimiento->libro->nombre }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-500">Código de Barras</p>
+                                    <p class="font-mono text-gray-700">{{ $movimiento->libro->codigo_barras }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-500">Stock Actual</p>
+                                    <p class="text-lg font-bold text-primary-600">
+                                        <i class="fas fa-boxes"></i> {{ $movimiento->libro->stock }} unidades
+                                    </p>
+                                </div>
+                            @else
+                                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                                    <p class="text-red-600 font-semibold">
+                                        <i class="fas fa-exclamation-triangle"></i> Libro Eliminado
+                                    </p>
+                                    <p class="text-sm text-gray-600 mt-1">
+                                        Este movimiento pertenecía a un libro que ya no existe en el sistema (ID: {{ $movimiento->libro_id }})
+                                    </p>
+                                </div>
+                            @endif
                             </div>
                         </div>
                     </div>
@@ -232,14 +244,25 @@
                         Volver al Listado
                     </x-button>
                     
-                    <x-button 
-                        variant="primary" 
-                        icon="fas fa-book"
-                        onclick="window.location='{{ route('inventario.show', $movimiento->libro) }}'"
-                        class="w-full justify-center"
-                    >
-                        Ver Libro
-                    </x-button>
+                    @if($movimiento->libro)
+                        <x-button 
+                            variant="primary" 
+                            icon="fas fa-book"
+                            onclick="window.location='{{ route('inventario.show', $movimiento->libro) }}'"
+                            class="w-full justify-center"
+                        >
+                            Ver Libro
+                        </x-button>
+                    @else
+                        <x-button 
+                            variant="secondary" 
+                            icon="fas fa-exclamation-triangle"
+                            class="w-full justify-center"
+                            disabled
+                        >
+                            Libro No Disponible
+                        </x-button>
+                    @endif
                 </div>
             </x-card>
         </div>
