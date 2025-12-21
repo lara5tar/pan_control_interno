@@ -11,6 +11,8 @@ use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\PagoController;
 use App\Http\Controllers\EnvioController;
 use App\Http\Controllers\SubInventarioController;
+use App\Http\Controllers\ApartadoController;
+use App\Http\Controllers\AbonoController;
 
 // Rutas públicas de autenticación
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -86,4 +88,78 @@ Route::middleware('checkauth')->group(function () {
     Route::post('/subinventarios/{subinventario}/cancelar', [SubInventarioController::class, 'cancelar'])->name('subinventarios.cancelar');
     Route::post('/subinventarios/{subinventario}/devolver-parcial', [SubInventarioController::class, 'devolverParcial'])->name('subinventarios.devolver-parcial');
     
+    // Rutas de apartados
+    Route::resource('apartados', ApartadoController::class);
+    Route::put('/apartados/{apartado}/liquidar', [ApartadoController::class, 'liquidar'])->name('apartados.liquidar');
+    Route::put('/apartados/{apartado}/cancelar', [ApartadoController::class, 'cancelar'])->name('apartados.cancelar');
+    
+    // Rutas de abonos (dentro del módulo de apartados)
+    Route::get('/apartados/{apartado}/abonos/crear', [AbonoController::class, 'create'])->name('apartados.abonos.create');
+    Route::post('/apartados/{apartado}/abonos', [AbonoController::class, 'store'])->name('apartados.abonos.store');
+    Route::delete('/abonos/{abono}', [AbonoController::class, 'destroy'])->name('apartados.abonos.destroy');
+    
 });
+
+// Ruta especial para ejecutar migraciones de apartados en hosting
+// Acceso: /run-apartados-migration?key=TU_CLAVE_SECRETA
+Route::get('/run-apartados-migration', function () {
+    $key = request('key');
+    
+    // Validar clave secreta (cámbiala por una segura)
+    if ($key !== 'pan2025secure') {
+        abort(403, 'Acceso no autorizado');
+    }
+    
+    try {
+        // Ejecutar migraciones específicas de apartados
+        $output = [];
+        
+        // 1. Crear tabla apartados
+        \Artisan::call('migrate', [
+            '--path' => 'database/migrations/2025_11_24_020150_create_apartados_table.php',
+            '--force' => true
+        ]);
+        $output[] = "1. create_apartados_table:\n" . \Artisan::output();
+        
+        // 2. Agregar stock_apartado a libros
+        \Artisan::call('migrate', [
+            '--path' => 'database/migrations/2025_11_24_020235_add_stock_apartado_to_libros_table.php',
+            '--force' => true
+        ]);
+        $output[] = "2. add_stock_apartado_to_libros:\n" . \Artisan::output();
+        
+        // 3. Crear tabla apartados_sistema (apartado_detalles)
+        \Artisan::call('migrate', [
+            '--path' => 'database/migrations/2025_12_21_062800_create_apartados_sistema_table.php',
+            '--force' => true
+        ]);
+        $output[] = "3. create_apartados_sistema_table:\n" . \Artisan::output();
+        
+        // 4. Agregar apartado_id a ventas
+        \Artisan::call('migrate', [
+            '--path' => 'database/migrations/2025_12_21_062801_add_apartado_id_to_ventas_table.php',
+            '--force' => true
+        ]);
+        $output[] = "4. add_apartado_id_to_ventas:\n" . \Artisan::output();
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Migraciones de apartados ejecutadas correctamente',
+            'migrations' => [
+                '2025_11_24_020150_create_apartados_table.php',
+                '2025_11_24_020235_add_stock_apartado_to_libros_table.php',
+                '2025_12_21_062800_create_apartados_sistema_table.php',
+                '2025_12_21_062801_add_apartado_id_to_ventas_table.php'
+            ],
+            'output' => implode("\n\n", $output)
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al ejecutar las migraciones',
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+})->name('migration.apartados');

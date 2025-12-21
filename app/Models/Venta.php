@@ -11,6 +11,7 @@ class Venta extends Model
 
     protected $fillable = [
         'cliente_id',
+        'apartado_id',
         'fecha_venta',
         'tipo_pago',
         'subtotal',
@@ -68,6 +69,14 @@ class Venta extends Model
     {
         return $this->belongsToMany(Envio::class, 'envio_venta')
                     ->withTimestamps();
+    }
+
+    /**
+     * Relación: Una venta puede originarse de un apartado
+     */
+    public function apartado()
+    {
+        return $this->belongsTo(Apartado::class);
     }
 
     /**

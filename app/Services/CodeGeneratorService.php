@@ -177,4 +177,50 @@ class CodeGeneratorService
 
         return $codigo;
     }
+
+    /**
+     * Genera un código único para cualquier modelo
+     * 
+     * @param string $modelClass Clase del modelo (ej: 'Apartado', 'Venta')
+     * @param string $prefix Prefijo del código (ej: 'AP', 'V')
+     * @param string $field Campo que contiene el código (default: 'folio' o 'codigo')
+     * @return string Código generado (ej: AP-2025-0001)
+     */
+    public function generateCode(string $modelClass, string $prefix, string $field = null): string
+    {
+        $modelClass = "App\\Models\\{$modelClass}";
+        
+        if (!class_exists($modelClass)) {
+            throw new \Exception("Model {$modelClass} does not exist");
+        }
+
+        // Determinar el campo a usar (folio o codigo)
+        $field = $field ?? (in_array($prefix, ['AP']) ? 'folio' : 'codigo');
+        
+        $year = date('Y');
+        $pattern = "{$prefix}-{$year}-%";
+        
+        // Obtener el último código del año actual
+        $lastRecord = $modelClass::where($field, 'like', $pattern)
+            ->orderBy($field, 'desc')
+            ->first();
+        
+        if ($lastRecord) {
+            // Extraer el número del último código (ej: AP-2025-0001 -> 0001)
+            $lastCode = $lastRecord->$field;
+            preg_match('/-(\d+)$/', $lastCode, $matches);
+            $lastNumber = isset($matches[1]) ? intval($matches[1]) : 0;
+            $nextNumber = $lastNumber + 1;
+        } else {
+            $nextNumber = 1;
+        }
+        
+        // Generar código con formato PREFIX-YYYY-####
+        do {
+            $codigo = sprintf("%s-%s-%04d", $prefix, $year, $nextNumber);
+            $nextNumber++;
+        } while ($modelClass::where($field, $codigo)->exists());
+
+        return $codigo;
+    }
 }

@@ -110,6 +110,13 @@
                 step="0.01"
                 value="{{ $descuento }}">
         </div>
+        
+        <!-- Precio Unitario (Hidden) -->
+        <input 
+            type="hidden" 
+            name="libros[{{ $indexValue }}][precio_unitario]" 
+            class="precio-unitario-input" 
+            value="{{ $libroEliminado ? $precioUnitario : 0 }}">
     </div>
 
     <!-- Subtotal -->
@@ -185,6 +192,13 @@
                 step="0.01"
                 value="{{ $descuento }}">
         </div>
+        
+        <!-- Precio Unitario (Hidden) -->
+        <input 
+            type="hidden" 
+            name="libros[{{ $indexValue }}][precio_unitario]" 
+            class="precio-unitario-input" 
+            value="0">
     </div>
 
     <!-- Subtotal -->

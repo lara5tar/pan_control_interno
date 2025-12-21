@@ -51,6 +51,15 @@
                     Ventas
                 </a>
                 
+                <a href="{{ route('apartados.index') }}" 
+                   class="px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150
+                          {{ request()->routeIs('apartados.*')
+                              ? 'bg-gray-800 text-white' 
+                              : 'text-gray-700 hover:bg-gray-100' }}">
+                    <i class="fas fa-handshake mr-2"></i>
+                    Apartados
+                </a>
+                
                 <a href="{{ route('envios.index') }}" 
                    class="px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150
                           {{ request()->routeIs('envios.*') 
@@ -180,6 +189,15 @@
                           : 'text-gray-700 hover:bg-gray-100' }}">
                 <i class="fas fa-cash-register w-6"></i>
                 <span class="ml-3">Ventas</span>
+            </a>
+            
+            <a href="{{ route('apartados.index') }}" 
+               class="flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-colors duration-150
+                      {{ request()->routeIs('apartados.*')
+                          ? 'bg-gray-800 text-white' 
+                          : 'text-gray-700 hover:bg-gray-100' }}">
+                <i class="fas fa-handshake w-6"></i>
+                <span class="ml-3">Apartados</span>
             </a>
             
             <a href="{{ route('envios.index') }}" 

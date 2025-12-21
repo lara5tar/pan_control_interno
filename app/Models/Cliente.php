@@ -20,6 +20,14 @@ class Cliente extends Model
     }
 
     /**
+     * Relación: Un cliente puede tener muchos apartados
+     */
+    public function apartados()
+    {
+        return $this->hasMany(Apartado::class);
+    }
+
+    /**
      * Obtener el total de ventas del cliente
      */
     public function getTotalVentasAttribute()

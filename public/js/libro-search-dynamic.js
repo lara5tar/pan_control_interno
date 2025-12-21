@@ -190,6 +190,15 @@ class LibroSearchDynamic {
         this.dropdown.classList.add('hidden');
         this.clearBtn.classList.add('hidden');
         
+        // Update precio_unitario hidden input (for forms that need it)
+        const libroItem = this.container.closest('.libro-item');
+        if (libroItem) {
+            const precioUnitarioInput = libroItem.querySelector('.precio-unitario-input');
+            if (precioUnitarioInput) {
+                precioUnitarioInput.value = libro.precio;
+            }
+        }
+        
         // Dispatch change event for calculations
         this.hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
     }
@@ -203,6 +212,15 @@ class LibroSearchDynamic {
         this.searchInput.value = '';
         this.clearBtn.classList.add('hidden');
         this.searchInput.placeholder = 'Buscar libro...';
+        
+        // Clear precio_unitario hidden input
+        const libroItem = this.container.closest('.libro-item');
+        if (libroItem) {
+            const precioUnitarioInput = libroItem.querySelector('.precio-unitario-input');
+            if (precioUnitarioInput) {
+                precioUnitarioInput.value = 0;
+            }
+        }
         
         // Dispatch change event
         this.hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
