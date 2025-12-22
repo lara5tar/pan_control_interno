@@ -114,12 +114,16 @@ Route::get('/run-apartados-migration', function () {
         // Ejecutar migraciones específicas de apartados
         $output = [];
         
-        // 1. Agregar stock_apartado a libros (si no existe)
-        \Artisan::call('migrate', [
-            '--path' => 'database/migrations/2025_11_24_020235_add_stock_apartado_to_libros_table.php',
-            '--force' => true
-        ]);
-        $output[] = "1️⃣  add_stock_apartado_to_libros:\n" . \Artisan::output();
+        // 1. Verificar y agregar stock_apartado a libros si no existe
+        if (!\Schema::hasColumn('libros', 'stock_apartado')) {
+            \Artisan::call('migrate', [
+                '--path' => 'database/migrations/2025_11_24_020235_add_stock_apartado_to_libros_table.php',
+                '--force' => true
+            ]);
+            $output[] = "1️⃣  add_stock_apartado_to_libros:\n" . \Artisan::output();
+        } else {
+            $output[] = "1️⃣  ✓ Columna 'stock_apartado' ya existe en tabla 'libros', omitiendo...";
+        }
         
         // 2. Crear tablas apartados, apartado_detalles y abonos (sistema completo)
         \Artisan::call('migrate', [
@@ -128,12 +132,16 @@ Route::get('/run-apartados-migration', function () {
         ]);
         $output[] = "2️⃣  create_apartados_sistema_table:\n" . \Artisan::output();
         
-        // 3. Agregar apartado_id a ventas
-        \Artisan::call('migrate', [
-            '--path' => 'database/migrations/2025_12_21_062801_add_apartado_id_to_ventas_table.php',
-            '--force' => true
-        ]);
-        $output[] = "3️⃣  add_apartado_id_to_ventas:\n" . \Artisan::output();
+        // 3. Verificar y agregar apartado_id a ventas si no existe
+        if (!\Schema::hasColumn('ventas', 'apartado_id')) {
+            \Artisan::call('migrate', [
+                '--path' => 'database/migrations/2025_12_21_062801_add_apartado_id_to_ventas_table.php',
+                '--force' => true
+            ]);
+            $output[] = "3️⃣  add_apartado_id_to_ventas:\n" . \Artisan::output();
+        } else {
+            $output[] = "3️⃣  ✓ Columna 'apartado_id' ya existe en tabla 'ventas', omitiendo...";
+        }
         
         return response()->json([
             'success' => true,
