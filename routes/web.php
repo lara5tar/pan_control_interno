@@ -163,3 +163,123 @@ Route::get('/run-apartados-migration', function () {
         ], 500);
     }
 })->name('migration.apartados');
+
+// Ruta para limpiar y recrear tablas de apartados (usar solo si hay conflictos)
+// Acceso: /clean-apartados-migration?key=TU_CLAVE_SECRETA
+Route::get('/clean-apartados-migration', function () {
+    $key = request('key');
+    
+    // Validar clave secreta
+    if ($key !== 'pan2025secure') {
+        abort(403, 'Acceso no autorizado');
+    }
+    
+    try {
+        $output = [];
+        
+        // 1. Desactivar verificación de llaves foráneas temporalmente
+        \DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        $output[] = "✓ Llaves foráneas desactivadas temporalmente";
+        
+        // 2. Eliminar tablas relacionadas con apartados en orden correcto
+        $tablesToDrop = ['abonos', 'apartado_detalles', 'apartado_libro', 'apartados'];
+        foreach ($tablesToDrop as $table) {
+            if (\Schema::hasTable($table)) {
+                \Schema::drop($table);
+                $output[] = "✓ Tabla '$table' eliminada exitosamente";
+            } else {
+                $output[] = "• Tabla '$table' no existe, omitiendo...";
+            }
+        }
+        
+        // 3. Eliminar columna stock_apartado de libros si existe
+        if (\Schema::hasColumn('libros', 'stock_apartado')) {
+            \Schema::table('libros', function($table) {
+                $table->dropColumn('stock_apartado');
+            });
+            $output[] = "✓ Columna 'stock_apartado' eliminada de tabla 'libros'";
+        } else {
+            $output[] = "• Columna 'stock_apartado' no existe en 'libros'";
+        }
+        
+        // 4. Eliminar columna apartado_id de ventas si existe
+        if (\Schema::hasTable('ventas') && \Schema::hasColumn('ventas', 'apartado_id')) {
+            \Schema::table('ventas', function($table) {
+                // Intentar eliminar llave foránea si existe
+                try {
+                    $table->dropForeign(['apartado_id']);
+                } catch (\Exception $e) {
+                    // Ignorar si no existe la llave
+                }
+                $table->dropColumn('apartado_id');
+            });
+            $output[] = "✓ Columna 'apartado_id' eliminada de tabla 'ventas'";
+        } else {
+            $output[] = "• Columna 'apartado_id' no existe en 'ventas'";
+        }
+        
+        // 5. Eliminar registros de migrations para estas tablas
+        $deletedRows = \DB::table('migrations')
+            ->whereIn('migration', [
+                '2025_11_24_020150_create_apartados_table',
+                '2025_11_24_020235_add_stock_apartado_to_libros_table',
+                '2025_12_21_062800_create_apartados_sistema_table',
+                '2025_12_21_062801_add_apartado_id_to_ventas_table',
+                '2025_11_25_222721_rename_apartados_to_subinventarios'
+            ])
+            ->delete();
+        $output[] = "✓ $deletedRows registro(s) de migraciones eliminados";
+        
+        // 6. Reactivar verificación de llaves foráneas
+        \DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        $output[] = "✓ Llaves foráneas reactivadas";
+        
+        $output[] = "\n========== EJECUTANDO MIGRACIONES ==========\n";
+        
+        // 7. Ejecutar migraciones en orden
+        \Artisan::call('migrate', [
+            '--path' => 'database/migrations/2025_11_24_020150_create_apartados_table.php',
+            '--force' => true
+        ]);
+        $output[] = "1️⃣  create_apartados_table:\n" . \Artisan::output();
+        
+        \Artisan::call('migrate', [
+            '--path' => 'database/migrations/2025_11_24_020235_add_stock_apartado_to_libros_table.php',
+            '--force' => true
+        ]);
+        $output[] = "2️⃣  add_stock_apartado_to_libros:\n" . \Artisan::output();
+        
+        \Artisan::call('migrate', [
+            '--path' => 'database/migrations/2025_12_21_062800_create_apartados_sistema_table.php',
+            '--force' => true
+        ]);
+        $output[] = "3️⃣  create_apartados_sistema_table:\n" . \Artisan::output();
+        
+        \Artisan::call('migrate', [
+            '--path' => 'database/migrations/2025_12_21_062801_add_apartado_id_to_ventas_table.php',
+            '--force' => true
+        ]);
+        $output[] = "4️⃣  add_apartado_id_to_ventas:\n" . \Artisan::output();
+        
+        return response()->json([
+            'success' => true,
+            'message' => '✅ Tablas limpiadas y migraciones ejecutadas correctamente',
+            'output' => implode("\n", $output),
+            'timestamp' => now()->toDateTimeString()
+        ]);
+        
+    } catch (\Exception $e) {
+        // Asegurarse de reactivar llaves foráneas en caso de error
+        try {
+            \DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        } catch (\Exception $ignore) {}
+        
+        return response()->json([
+            'success' => false,
+            'message' => '❌ Error al limpiar y ejecutar las migraciones',
+            'error' => $e->getMessage(),
+            'line' => $e->getLine(),
+            'file' => $e->getFile()
+        ], 500);
+    }
+})->name('migration.apartados.clean');
