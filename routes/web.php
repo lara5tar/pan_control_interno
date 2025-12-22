@@ -182,13 +182,14 @@ Route::get('/clean-apartados-migration', function () {
         $output[] = "✓ Llaves foráneas desactivadas temporalmente";
         
         // 2. Eliminar tablas relacionadas con apartados en orden correcto
+        // Usar DROP TABLE directamente para asegurar eliminación
         $tablesToDrop = ['abonos', 'apartado_detalles', 'apartado_libro', 'apartados'];
         foreach ($tablesToDrop as $table) {
-            if (\Schema::hasTable($table)) {
-                \Schema::drop($table);
-                $output[] = "✓ Tabla '$table' eliminada exitosamente";
-            } else {
-                $output[] = "• Tabla '$table' no existe, omitiendo...";
+            try {
+                \DB::statement("DROP TABLE IF EXISTS `$table`");
+                $output[] = "✓ Tabla '$table' eliminada con DROP TABLE IF EXISTS";
+            } catch (\Exception $e) {
+                $output[] = "⚠ Error al eliminar tabla '$table': " . $e->getMessage();
             }
         }
         
