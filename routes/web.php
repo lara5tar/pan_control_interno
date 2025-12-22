@@ -114,52 +114,46 @@ Route::get('/run-apartados-migration', function () {
         // Ejecutar migraciones específicas de apartados
         $output = [];
         
-        // 1. Crear tabla apartados
-        \Artisan::call('migrate', [
-            '--path' => 'database/migrations/2025_11_24_020150_create_apartados_table.php',
-            '--force' => true
-        ]);
-        $output[] = "1. create_apartados_table:\n" . \Artisan::output();
-        
-        // 2. Agregar stock_apartado a libros
+        // 1. Agregar stock_apartado a libros (si no existe)
         \Artisan::call('migrate', [
             '--path' => 'database/migrations/2025_11_24_020235_add_stock_apartado_to_libros_table.php',
             '--force' => true
         ]);
-        $output[] = "2. add_stock_apartado_to_libros:\n" . \Artisan::output();
+        $output[] = "1️⃣  add_stock_apartado_to_libros:\n" . \Artisan::output();
         
-        // 3. Crear tabla apartados_sistema (apartado_detalles)
+        // 2. Crear tablas apartados, apartado_detalles y abonos (sistema completo)
         \Artisan::call('migrate', [
             '--path' => 'database/migrations/2025_12_21_062800_create_apartados_sistema_table.php',
             '--force' => true
         ]);
-        $output[] = "3. create_apartados_sistema_table:\n" . \Artisan::output();
+        $output[] = "2️⃣  create_apartados_sistema_table:\n" . \Artisan::output();
         
-        // 4. Agregar apartado_id a ventas
+        // 3. Agregar apartado_id a ventas
         \Artisan::call('migrate', [
             '--path' => 'database/migrations/2025_12_21_062801_add_apartado_id_to_ventas_table.php',
             '--force' => true
         ]);
-        $output[] = "4. add_apartado_id_to_ventas:\n" . \Artisan::output();
+        $output[] = "3️⃣  add_apartado_id_to_ventas:\n" . \Artisan::output();
         
         return response()->json([
             'success' => true,
-            'message' => 'Migraciones de apartados ejecutadas correctamente',
+            'message' => '✅ Migraciones de apartados ejecutadas correctamente',
             'migrations' => [
-                '2025_11_24_020150_create_apartados_table.php',
                 '2025_11_24_020235_add_stock_apartado_to_libros_table.php',
                 '2025_12_21_062800_create_apartados_sistema_table.php',
                 '2025_12_21_062801_add_apartado_id_to_ventas_table.php'
             ],
-            'output' => implode("\n\n", $output)
+            'output' => implode("\n\n", $output),
+            'timestamp' => now()->toDateTimeString()
         ]);
         
     } catch (\Exception $e) {
         return response()->json([
             'success' => false,
-            'message' => 'Error al ejecutar las migraciones',
+            'message' => '❌ Error al ejecutar las migraciones',
             'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
+            'line' => $e->getLine(),
+            'file' => basename($e->getFile())
         ], 500);
     }
 })->name('migration.apartados');
