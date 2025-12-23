@@ -223,6 +223,7 @@ class ApartadoFormManager {
             const libroIdInput = item.querySelector('input[name*="[libro_id]"]');
             const cantidadInput = item.querySelector('.cantidad-input');
             const descuentoInput = item.querySelector('.descuento-input');
+            const precioUnitarioInput = item.querySelector('.precio-unitario-input');
             const subtotalLibro = item.querySelector('.subtotal-libro');
             const stockMessage = item.querySelector('.stock-message');
             
@@ -232,6 +233,11 @@ class ApartadoFormManager {
                 const stock = parseInt(libroIdInput.getAttribute('data-stock')) || 0;
                 const cantidad = parseInt(cantidadInput.value) || 0;
                 const descuento = parseFloat(descuentoInput.value) || 0;
+                
+                // IMPORTANTE: Actualizar el campo hidden de precio_unitario
+                if (precioUnitarioInput) {
+                    precioUnitarioInput.value = precio.toFixed(2);
+                }
                 
                 // Validar stock disponible para apartado
                 if (stockMessage) {
@@ -251,6 +257,11 @@ class ApartadoFormManager {
                     subtotalLibro.textContent = '$' + subtotalItem.toFixed(2);
                 }
                 subtotal += subtotalItem;
+            } else {
+                // Si no hay libro seleccionado, limpiar el precio_unitario
+                if (precioUnitarioInput) {
+                    precioUnitarioInput.value = '0';
+                }
             }
         });
 
