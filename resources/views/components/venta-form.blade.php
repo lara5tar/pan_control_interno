@@ -504,6 +504,21 @@
         
         // Ejecutar al cargar para mantener el estado si hay old() values
         toggleCostoEnvio();
+
+        // Prevenir que el botón quede deshabilitado al mostrar alert de validación
+        const ventaForm = document.getElementById('ventaForm');
+        if (ventaForm) {
+            ventaForm.addEventListener('submit', function(e) {
+                const submitButton = ventaForm.querySelector('button[type="submit"]');
+                if (submitButton) {
+                    // Si la validación falla (el alert se muestra), reactivar el botón después
+                    setTimeout(() => {
+                        submitButton.disabled = false;
+                        submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                    }, 100);
+                }
+            });
+        }
     });
 </script>
 <script src="{{ asset('js/cliente-search-dynamic.js') }}"></script>

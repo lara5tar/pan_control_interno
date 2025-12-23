@@ -313,6 +313,23 @@
 <script>
     // Global libros data for libro search components
     window.apartadoLibrosData = @json($libros);
+    
+    // Prevenir que el botón quede deshabilitado al mostrar alert de validación
+    document.addEventListener('DOMContentLoaded', function() {
+        const apartadoForm = document.getElementById('apartadoForm');
+        if (apartadoForm) {
+            apartadoForm.addEventListener('submit', function(e) {
+                const submitButton = apartadoForm.querySelector('button[type="submit"]');
+                if (submitButton) {
+                    // Si la validación falla (el alert se muestra), reactivar el botón después
+                    setTimeout(() => {
+                        submitButton.disabled = false;
+                        submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                    }, 100);
+                }
+            });
+        }
+    });
 </script>
 <script src="{{ asset('js/libro-search-dynamic.js') }}"></script>
 <script src="{{ asset('js/apartado-form.js') }}"></script>

@@ -130,7 +130,7 @@
         <button 
             type="button" 
             class="add-libro-inline w-full px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
-            onclick="if(window.ventaFormManagerInstance) window.ventaFormManagerInstance.addLibro()"
+            onclick="if(window.ventaFormManagerInstance) { window.ventaFormManagerInstance.addLibro(); } else if(window.apartadoFormManagerInstance) { window.apartadoFormManagerInstance.addLibro(); }"
         >
             <i class="fas fa-plus"></i>
             <span>Agregar Otro Libro</span>
@@ -239,7 +239,7 @@
         <button 
             type="button" 
             class="add-libro-inline w-full px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
-            onclick="if(window.ventaFormManagerInstance) window.ventaFormManagerInstance.addLibro()"
+            onclick="if(window.ventaFormManagerInstance) { window.ventaFormManagerInstance.addLibro(); } else if(window.apartadoFormManagerInstance) { window.apartadoFormManagerInstance.addLibro(); }"
         >
             <i class="fas fa-plus"></i>
             <span>Agregar Otro Libro</span>
