@@ -365,13 +365,13 @@ class VentaFormManager {
      */
     initCalculations() {
         this.elements.librosContainer.addEventListener('change', (e) => {
-            if (e.target.matches('input[name*="[libro_id]"], .cantidad-input, .descuento-input')) {
+            if (e.target.matches('input[name*="[libro_id]"], .cantidad-input, .descuento-input, .precio-custom-input, .precio-custom-checkbox')) {
                 this.updateCalculations();
             }
         });
 
         this.elements.librosContainer.addEventListener('input', (e) => {
-            if (e.target.matches('.cantidad-input, .descuento-input')) {
+            if (e.target.matches('.cantidad-input, .descuento-input, .precio-custom-input')) {
                 this.updateCalculations();
             }
         });
@@ -391,6 +391,10 @@ class VentaFormManager {
         this.updateCalculations();
     }
 
+    calculateTotal() {
+        this.updateCalculations();
+    }
+
     updateCalculations() {
         let subtotal = 0;
 
@@ -403,18 +407,30 @@ class VentaFormManager {
             const stockMessage = item.querySelector('.stock-message');
             
             if (libroIdInput && libroIdInput.value) {
-                // Para libros eliminados, obtener el precio del input hidden precio_unitario
                 let precio;
-                if (item.classList.contains('libro-eliminado-readonly')) {
+                
+                // Verificar si hay precio personalizado habilitado (solo para admin)
+                const precioCustomCheckbox = item.querySelector('.precio-custom-checkbox');
+                const precioCustomInput = item.querySelector('.precio-custom-input');
+                
+                if (precioCustomCheckbox && precioCustomCheckbox.checked && precioCustomInput && precioCustomInput.value) {
+                    // Usar precio personalizado del admin
+                    precio = parseFloat(precioCustomInput.value) || 0;
+                    console.log('[Venta Form] Using custom price for libro:', precio);
+                } else if (item.classList.contains('libro-eliminado-readonly')) {
+                    // Para libros eliminados, obtener el precio del input hidden precio_unitario
                     const precioUnitarioInput = item.querySelector('input[name*="[precio_unitario]"]');
                     precio = precioUnitarioInput ? parseFloat(precioUnitarioInput.value) || 0 : 0;
                 } else {
-                    // Para libros normales, obtener precio y stock de los atributos data del input
+                    // Para libros normales, obtener precio del libro
                     precio = parseFloat(libroIdInput.getAttribute('data-precio')) || 0;
+                }
+                
+                // Validar stock (solo para libros editables normales)
+                if (!item.classList.contains('libro-eliminado-readonly')) {
                     const stock = parseInt(libroIdInput.getAttribute('data-stock')) || 0;
                     const cantidad = parseInt(cantidadInput.value) || 0;
                     
-                    // Validar stock (solo para libros editables)
                     if (stockMessage) {
                         if (cantidad > stock) {
                             stockMessage.textContent = `⚠️ Stock insuficiente (disponible: ${stock})`;

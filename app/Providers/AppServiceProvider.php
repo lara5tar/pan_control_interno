@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Blade;
+use App\Helpers\AuthHelper;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -34,5 +36,10 @@ class AppServiceProvider extends ServiceProvider
         if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
             URL::forceScheme('https');
         }
+
+        // Registrar helper global para verificar si es admin
+        Blade::if('isAdmin', function () {
+            return AuthHelper::isAdmin();
+        });
     }
 }

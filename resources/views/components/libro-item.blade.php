@@ -42,8 +42,8 @@
         <h4 class="font-semibold text-orange-800">
             Libro #<span class="libro-number">{{ $numeroLibro }}</span>
         </h4>
-        <button type="button" class="remove-libro text-red-600 hover:text-red-700 transition-colors" title="Eliminar de la venta">
-            <i class="fas fa-times-circle"></i>
+        <button type="button" class="remove-libro text-red-500 hover:text-red-700 transition-colors text-xl" title="Eliminar de la venta">
+            <i class="fas fa-times"></i>
         </button>
     </div>
 
@@ -145,8 +145,8 @@
         <h4 class="font-semibold text-gray-800">
             Libro #<span class="libro-number">{{ $numeroLibro }}</span>
         </h4>
-        <button type="button" class="remove-libro text-red-600 hover:text-red-700 transition-colors">
-            <i class="fas fa-times-circle"></i>
+        <button type="button" class="remove-libro text-red-500 hover:text-red-700 transition-colors text-xl" title="Eliminar de la venta">
+            <i class="fas fa-times"></i>
         </button>
     </div>
 
@@ -192,6 +192,33 @@
                 step="0.01"
                 value="{{ $descuento }}">
         </div>
+
+        <!-- Precio Unitario Editable (Solo para Admins) -->
+        @isAdmin
+        <div class="md:col-span-2">
+            <div class="flex items-center gap-3 text-sm text-gray-600">
+                <input 
+                    type="checkbox" 
+                    class="precio-custom-checkbox h-4 w-4 text-gray-600 focus:ring-gray-500 border-gray-300 rounded"
+                    id="precio_custom_checkbox_{{ $indexValue }}"
+                    onchange="togglePrecioCustom({{ $indexValue }})">
+                <label for="precio_custom_checkbox_{{ $indexValue }}" class="cursor-pointer">
+                    Precio personalizado
+                </label>
+                <div class="precio-custom-input-container hidden flex items-center gap-2">
+                    <span class="text-gray-500">$</span>
+                    <input 
+                        type="number" 
+                        name="libros[{{ $indexValue }}][precio_custom]" 
+                        class="precio-custom-input w-24 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400" 
+                        min="0" 
+                        step="0.01"
+                        placeholder="0.00"
+                        disabled>
+                </div>
+            </div>
+        </div>
+        @endisAdmin
         
         <!-- Precio Unitario (Hidden) -->
         <input 
@@ -220,3 +247,40 @@
     </div>
 </div>
 @endif
+
+<script>
+/**
+ * Toggle del campo de precio personalizado (solo para admin)
+ */
+function togglePrecioCustom(index) {
+    const checkbox = document.getElementById(`precio_custom_checkbox_${index}`);
+    const libroItem = checkbox.closest('.libro-item');
+    const container = libroItem.querySelector('.precio-custom-input-container');
+    const input = libroItem.querySelector('.precio-custom-input');
+    
+    if (checkbox.checked) {
+        // Mostrar el campo de precio
+        container.classList.remove('hidden');
+        input.disabled = false;
+        input.required = true;
+        
+        // Obtener el precio actual del libro para pre-llenar
+        const libroSelect = libroItem.querySelector('input[name*="[libro_id]"]');
+        if (libroSelect && libroSelect.value) {
+            const precioActual = parseFloat(libroSelect.getAttribute('data-precio')) || 0;
+            input.value = precioActual.toFixed(2);
+        }
+    } else {
+        // Ocultar el campo de precio
+        container.classList.add('hidden');
+        input.disabled = true;
+        input.required = false;
+        input.value = '';
+    }
+    
+    // Recalcular totales
+    if (window.ventaFormManagerInstance) {
+        window.ventaFormManagerInstance.calculateTotal();
+    }
+}
+</script>

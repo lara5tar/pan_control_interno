@@ -219,6 +219,7 @@ class VentaController extends Controller
             'libros.*.libro_id' => 'required|exists:libros,id',
             'libros.*.cantidad' => 'required|integer|min:1',
             'libros.*.descuento' => 'nullable|numeric|min:0|max:100',
+            'libros.*.precio_custom' => 'nullable|numeric|min:0',
         ], [
             'tipo_inventario.required' => 'Debes seleccionar el tipo de inventario',
             'subinventario_id.required_if' => 'Debes seleccionar un subinventario',
@@ -304,6 +305,14 @@ class VentaController extends Controller
             foreach ($validated['libros'] as $item) {
                 $libro = Libro::findOrFail($item['libro_id']);
 
+                // Determinar el precio unitario a usar
+                // Si es admin y especificó un precio personalizado, usarlo
+                $precioUnitario = $libro->precio;
+                
+                if ($this->isAdmin() && isset($item['precio_custom']) && !empty($item['precio_custom'])) {
+                    $precioUnitario = floatval($item['precio_custom']);
+                }
+
                 // Crear movimiento
                 $movimiento = Movimiento::create([
                     'venta_id' => $venta->id,
@@ -311,7 +320,7 @@ class VentaController extends Controller
                     'tipo_movimiento' => 'salida',
                     'tipo_salida' => 'venta',
                     'cantidad' => $item['cantidad'],
-                    'precio_unitario' => $libro->precio,
+                    'precio_unitario' => $precioUnitario,
                     'descuento' => $item['descuento'] ?? 0,
                     'fecha' => $validated['fecha_venta'],
                     'observaciones' => "Venta #{$venta->id}" . ($tipoInventario === 'subinventario' ? " - SubInv #{$subinventarioId}" : ''),
@@ -437,6 +446,7 @@ class VentaController extends Controller
             'libros.*.libro_id' => 'required|exists:libros,id',
             'libros.*.cantidad' => 'required|integer|min:1',
             'libros.*.descuento' => 'nullable|numeric|min:0|max:100',
+            'libros.*.precio_custom' => 'nullable|numeric|min:0',
         ], [
             'fecha_venta.required' => 'La fecha de venta es obligatoria',
             'tipo_pago.required' => 'Debes seleccionar el tipo de pago',
@@ -506,7 +516,16 @@ class VentaController extends Controller
                 $libro = Libro::findOrFail($item['libro_id']);
                 $cantidad = $item['cantidad'];
                 $descuentoItem = $item['descuento'] ?? 0;
-                $precioConDescuento = $libro->precio * (1 - $descuentoItem / 100);
+                
+                // Determinar el precio unitario a usar
+                // Si es admin y especificó un precio personalizado, usarlo
+                $precioUnitario = $libro->precio;
+                
+                if ($this->isAdmin() && isset($item['precio_custom']) && !empty($item['precio_custom'])) {
+                    $precioUnitario = floatval($item['precio_custom']);
+                }
+                
+                $precioConDescuento = $precioUnitario * (1 - $descuentoItem / 100);
                 $subtotalItem = $precioConDescuento * $cantidad;
                 
                 $subtotal += $subtotalItem;
@@ -518,7 +537,7 @@ class VentaController extends Controller
                     'tipo_movimiento' => 'salida',
                     'tipo_salida' => 'venta',
                     'cantidad' => $cantidad,
-                    'precio_unitario' => $libro->precio,
+                    'precio_unitario' => $precioUnitario,
                     'descuento' => $descuentoItem,
                     'observaciones' => 'Actualización de venta',
                     'usuario' => session('username'),
