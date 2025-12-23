@@ -12,6 +12,7 @@ use App\Services\CodeGeneratorService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class ApartadoController extends Controller
 {
@@ -223,6 +224,17 @@ class ApartadoController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            
+            // Log detallado del error
+            Log::error('Error al crear apartado', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'data' => $request->except(['_token']),
+                'user' => Auth::user()->name ?? 'Sistema',
+            ]);
+            
             return back()->withErrors(['error' => 'Error al crear el apartado: ' . $e->getMessage()])
                 ->withInput();
         }
@@ -287,6 +299,16 @@ class ApartadoController extends Controller
                 ->with('success', 'Apartado actualizado exitosamente');
 
         } catch (\Exception $e) {
+            Log::error('Error al actualizar apartado', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'apartado_id' => $apartado->id,
+                'data' => $request->except(['_token']),
+                'user' => Auth::user()->name ?? 'Sistema',
+            ]);
+            
             return back()->withErrors(['error' => 'Error al actualizar el apartado: ' . $e->getMessage()])
                 ->withInput();
         }
@@ -360,6 +382,19 @@ class ApartadoController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            
+            Log::error('Error al liquidar apartado', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'apartado_id' => $apartado->id,
+                'apartado_folio' => $apartado->folio,
+                'apartado_monto_total' => $apartado->monto_total,
+                'apartado_saldo_pendiente' => $apartado->saldo_pendiente,
+                'user' => Auth::user()->name ?? 'Sistema',
+            ]);
+            
             return back()->withErrors(['error' => 'Error al liquidar el apartado: ' . $e->getMessage()]);
         }
     }
@@ -392,6 +427,17 @@ class ApartadoController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            
+            Log::error('Error al cancelar apartado', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'apartado_id' => $apartado->id,
+                'apartado_folio' => $apartado->folio,
+                'user' => Auth::user()->name ?? 'Sistema',
+            ]);
+            
             return back()->withErrors(['error' => 'Error al cancelar el apartado: ' . $e->getMessage()]);
         }
     }
@@ -417,6 +463,17 @@ class ApartadoController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            
+            Log::error('Error al eliminar apartado', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'apartado_id' => $apartado->id,
+                'apartado_folio' => $apartado->folio,
+                'user' => Auth::user()->name ?? 'Sistema',
+            ]);
+            
             return back()->withErrors(['error' => 'Error al eliminar el apartado: ' . $e->getMessage()]);
         }
     }
