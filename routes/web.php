@@ -286,3 +286,37 @@ Route::get('/clean-apartados-migration', function () {
         ], 500);
     }
 })->name('migration.apartados.clean');
+
+// Ruta para ejecutar migración de costo de envío en hosting
+Route::get('/migration/costo-envio', function() {
+    try {
+        $output = [];
+        
+        // Ejecutar la migración de costo_envio
+        \Artisan::call('migrate', [
+            '--path' => 'database/migrations/2025_12_23_010854_add_costo_envio_to_ventas_table.php',
+            '--force' => true
+        ]);
+        $output[] = "✅ Migración add_costo_envio_to_ventas_table ejecutada:\n" . \Artisan::output();
+        
+        // Verificar que el campo se agregó correctamente
+        $hasColumn = \Schema::hasColumn('ventas', 'costo_envio');
+        
+        return response()->json([
+            'success' => true,
+            'message' => '✅ Migración de costo de envío ejecutada correctamente',
+            'column_exists' => $hasColumn,
+            'output' => implode("\n", $output),
+            'timestamp' => now()->toDateTimeString()
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => '❌ Error al ejecutar la migración',
+            'error' => $e->getMessage(),
+            'line' => $e->getLine(),
+            'file' => $e->getFile()
+        ], 500);
+    }
+})->name('migration.costo-envio');

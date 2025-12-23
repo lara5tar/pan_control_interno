@@ -62,14 +62,6 @@
             icon-color="text-green-600"
         />
 
-        <x-stat-card 
-            icon="fas fa-calendar-alt"
-            label="A Plazos"
-            :value="$estadisticas['ventas_a_plazos']"
-            bg-color="bg-purple-100"
-            icon-color="text-purple-600"
-        />
-
         @if($estadisticas['ventas_vencidas'] > 0)
         <x-stat-card 
             icon="fas fa-clock"
@@ -248,7 +240,7 @@
             :showActions="false"
         >
             @foreach($ventas as $venta)
-                <x-data-table-row class="{{ $venta->es_a_plazos && $venta->estado_pago !== 'completado' && $venta->fecha_limite && $venta->fecha_limite->isPast() ? 'bg-red-50' : '' }}">
+                <x-data-table-row>
                     <!-- ID -->
                     <x-data-table-cell bold>
                         <div class="flex items-center gap-1">
@@ -256,16 +248,6 @@
                             @if($venta->tiene_envio)
                                 <span class="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded" title="Tiene envío asignado">
                                     <i class="fas fa-shipping-fast"></i>
-                                </span>
-                            @endif
-                            @if($venta->es_a_plazos)
-                                <span class="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded" title="Venta a plazos">
-                                    <i class="fas fa-calendar-alt"></i>
-                                </span>
-                            @endif
-                            @if($venta->es_a_plazos && $venta->estado_pago !== 'completado' && $venta->fecha_limite && $venta->fecha_limite->isPast())
-                                <span class="text-xs px-1.5 py-0.5 bg-red-100 text-red-700 rounded" title="Vencida">
-                                    <i class="fas fa-exclamation-triangle"></i>
                                 </span>
                             @endif
                         </div>
@@ -280,11 +262,6 @@
                             <div class="text-xs text-gray-500">
                                 {{ $venta->fecha_venta->format('H:i') }}
                             </div>
-                            @if($venta->es_a_plazos && $venta->fecha_limite)
-                                <div class="text-xs {{ $venta->fecha_limite->isPast() && $venta->estado_pago !== 'completado' ? 'text-red-600 font-semibold' : 'text-gray-500' }}">
-                                    <i class="fas fa-clock"></i> Vence: {{ $venta->fecha_limite->format('d/m/Y') }}
-                                </div>
-                            @endif
                         </div>
                     </x-data-table-cell>
 
@@ -337,11 +314,6 @@
                                 <div class="font-semibold text-orange-600">
                                     <i class="fas fa-exclamation-circle mr-1"></i>${{ number_format($venta->saldo_pendiente, 2) }}
                                 </div>
-                                @if($venta->es_a_plazos && $venta->total_pagado > 0)
-                                    <div class="text-xs text-gray-500">
-                                        {{ number_format(($venta->total_pagado / $venta->total) * 100, 1) }}% pagado
-                                    </div>
-                                @endif
                             @elseif($venta->total_pagado === 0)
                                 <span class="text-sm text-gray-400">Sin pagos</span>
                             @else
@@ -390,16 +362,6 @@
                                     size="sm"
                                     icon="fas fa-edit"
                                     title="Editar venta">
-                                </x-button>
-                            @endif
-                            
-                            @if($venta->es_a_plazos && $venta->estado_pago !== 'completado' && $venta->estado !== 'cancelada')
-                                <x-button 
-                                    href="{{ route('ventas.pagos.create', $venta) }}" 
-                                    variant="success" 
-                                    size="sm"
-                                    icon="fas fa-dollar-sign"
-                                    title="Registrar abono o pago">
                                 </x-button>
                             @endif
                             

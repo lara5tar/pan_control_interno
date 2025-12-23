@@ -101,6 +101,17 @@
                             </div>
                         @endif
 
+                        @if($venta->tiene_envio && $venta->costo_envio > 0)
+                            <div class="flex justify-between items-center py-3 border-b border-gray-100">
+                                <span class="text-blue-600 font-medium">
+                                    <i class="fas fa-shipping-fast mr-1"></i> Costo de Envío:
+                                </span>
+                                <span class="text-blue-600 font-semibold text-lg">
+                                    +${{ number_format($venta->costo_envio, 2) }}
+                                </span>
+                            </div>
+                        @endif
+
                         <div class="flex justify-between items-center py-3 bg-primary-50 rounded-lg px-3">
                             <span class="text-gray-800 font-bold">Total:</span>
                             <span class="text-primary-600 font-bold text-2xl">
@@ -121,205 +132,6 @@
             </x-card>
         </div>
     </div>
-
-    <!-- Gestión de Pagos -->
-    @if($venta->es_a_plazos)
-        <div id="pagos"></div>
-        <x-card title="Gestión de Pagos a Plazos">
-            <!-- Resumen de Estado de Pago -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div class="text-center p-4 bg-green-50 rounded-lg border border-gray-200">
-                    <p class="text-sm text-gray-600 mb-2">Total Pagado</p>
-                    <p class="text-2xl font-bold text-green-600">
-                        ${{ number_format($venta->total_pagado, 2) }}
-                    </p>
-                    <p class="text-xs text-gray-500 mt-1">
-                        de ${{ number_format($venta->total, 2) }}
-                    </p>
-                </div>
-
-                <div class="text-center p-4 bg-orange-50 rounded-lg border border-gray-200">
-                    <p class="text-sm text-gray-600 mb-2">Saldo Pendiente</p>
-                    <p class="text-2xl font-bold text-orange-600">
-                        ${{ number_format($venta->saldo_pendiente, 2) }}
-                    </p>
-                    <div class="mt-2 bg-gray-200 rounded-full h-2 overflow-hidden">
-                        <div class="bg-green-500 h-2 transition-all duration-300" 
-                             style="width: {{ ($venta->total_pagado / $venta->total) * 100 }}%">
-                        </div>
-                    </div>
-                    <p class="text-xs text-gray-500 mt-1">
-                        {{ number_format(($venta->total_pagado / $venta->total) * 100, 1) }}% pagado
-                    </p>
-                </div>
-
-                @if($venta->fecha_limite)
-                    <div class="text-center p-4 {{ $venta->fecha_limite->isPast() && $venta->estado_pago !== 'completado' ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200' }} rounded-lg border">
-                        <p class="text-sm text-gray-600 mb-2">Fecha Límite</p>
-                        <p class="text-xl font-bold {{ $venta->fecha_limite->isPast() && $venta->estado_pago !== 'completado' ? 'text-red-600' : 'text-blue-600' }}">
-                            {{ $venta->fecha_limite->format('d/m/Y') }}
-                        </p>
-                        @if($venta->fecha_limite->isPast() && $venta->estado_pago !== 'completado')
-                            <p class="text-xs text-red-600 mt-1 font-medium">
-                                <i class="fas fa-exclamation-triangle"></i> Vencida
-                            </p>
-                        @else
-                            <p class="text-xs text-gray-500 mt-1">
-                                {{ $venta->fecha_limite->diffForHumans() }}
-                            </p>
-                        @endif
-                    </div>
-                @else
-                    <div class="text-center p-4 bg-gray-50 rounded-lg border border-gray-200">
-                        <p class="text-sm text-gray-600 mb-2">Pagos Realizados</p>
-                        <p class="text-2xl font-bold text-gray-700">
-                            {{ $venta->pagos->count() }}
-                        </p>
-                        <p class="text-xs text-gray-500 mt-1">
-                            pago(s) registrado(s)
-                        </p>
-                    </div>
-                @endif
-            </div>
-
-            @if($venta->estado_pago === 'completado')
-                <!-- Mensaje de Completado -->
-                <div class="p-4 bg-green-50 border border-green-200 rounded-lg mb-6">
-                    <p class="text-sm text-green-800 text-center">
-                        <i class="fas fa-check-circle mr-2"></i>
-                        <strong>¡Venta completamente pagada!</strong> El stock ya ha sido descontado.
-                    </p>
-                </div>
-            @endif
-
-            <!-- Historial de Pagos -->
-            @if($venta->pagos->count() > 0)
-                <div class="mt-4">
-                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 gap-3">
-                        <h3 class="text-lg font-semibold text-gray-800 flex items-center">
-                            <i class="fas fa-history text-gray-500 mr-2"></i>
-                            Historial de Pagos ({{ $venta->pagos->count() }})
-                        </h3>
-                        @if($venta->estado_pago !== 'completado' && $venta->estado !== 'cancelada')
-                            <x-button 
-                                href="{{ route('ventas.pagos.create', $venta) }}" 
-                                variant="primary" 
-                                icon="fas fa-plus-circle">
-                                Registrar Nuevo Pago
-                            </x-button>
-                        @endif
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo de Pago</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Comprobante</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notas</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Registrado</th>
-                                    @if($venta->estado_pago !== 'completado' && $venta->estado !== 'cancelada')
-                                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acción</th>
-                                    @endif
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                @foreach($venta->pagos->sortByDesc('fecha_pago') as $index => $pago)
-                                    <tr class="hover:bg-gray-50 transition-colors">
-                                        <td class="px-4 py-4 whitespace-nowrap">
-                                            <span class="inline-flex items-center justify-center w-8 h-8 bg-gradient-to-br from-green-100 to-green-200 rounded-full text-green-700 font-bold text-sm">
-                                                {{ $venta->pagos->count() - $index }}
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-4 whitespace-nowrap">
-                                            <span class="text-lg font-bold text-green-600">
-                                                ${{ number_format($pago->monto, 2) }}
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {{ \Carbon\Carbon::parse($pago->fecha_pago)->format('d/m/Y') }}
-                                        </td>
-                                        <td class="px-4 py-4 whitespace-nowrap">
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $pago->metodo_pago === 'contado' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800' }}">
-                                                <i class="fas {{ $pago->metodo_pago === 'contado' ? 'fa-money-bill-wave' : 'fa-credit-card' }} mr-1"></i>
-                                                {{ $pago->getTipoPagoLabel() }}
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 font-mono">
-                                            {{ $pago->comprobante ?? '-' }}
-                                        </td>
-                                        <td class="px-4 py-4 text-sm text-gray-900 max-w-xs">
-                                            @if($pago->notas)
-                                                <div class="truncate" title="{{ $pago->notas }}">
-                                                    <i class="fas fa-sticky-note text-blue-500 mr-1"></i>
-                                                    {{ $pago->notas }}
-                                                </div>
-                                            @else
-                                                <span class="text-gray-400">-</span>
-                                            @endif
-                                        </td>
-                                        <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            <i class="fas fa-clock text-gray-400 mr-1"></i>
-                                            {{ $pago->created_at->format('d/m/Y H:i') }}
-                                        </td>
-                                        @if($venta->estado_pago !== 'completado' && $venta->estado !== 'cancelada')
-                                            <td class="px-4 py-4 whitespace-nowrap text-center">
-                                                <form action="{{ route('pagos.destroy', $pago) }}" method="POST" 
-                                                      onsubmit="return confirm('¿Estás seguro de eliminar este pago?')"
-                                                      class="inline">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" 
-                                                            class="text-red-600 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition-colors"
-                                                            title="Eliminar pago">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
-                                                </form>
-                                            </td>
-                                        @endif
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            @else
-                <!-- Sin pagos aún -->
-                <div class="flex flex-col items-center justify-center py-6">
-                    <i class="fas fa-receipt text-gray-300 text-5xl mb-3"></i>
-                    <p class="text-gray-500 text-base font-medium mb-1">
-                        Aún no se han registrado pagos para esta venta
-                    </p>
-                    <p class="text-gray-400 text-sm mb-5">
-                        Registra el primer abono o pago para comenzar
-                    </p>
-                    @if($venta->estado_pago !== 'completado' && $venta->estado !== 'cancelada')
-                        <x-button 
-                            href="{{ route('ventas.pagos.create', $venta) }}" 
-                            variant="primary" 
-                            icon="fas fa-plus-circle">
-                            Registrar Primer Pago
-                        </x-button>
-                    @endif
-                </div>
-            @endif
-        </x-card>
-    @else
-        <!-- Venta al contado -->
-        <x-card title="Información de Pago">
-            <div class="p-4 bg-green-50 border border-green-200 rounded-lg text-center">
-                <i class="fas fa-check-circle text-green-600 text-3xl mb-2"></i>
-                <p class="text-sm text-green-800">
-                    <strong>Venta pagada al contado.</strong>
-                </p>
-                <p class="text-xs text-green-700 mt-1">
-                    El stock ya ha sido descontado del inventario.
-                </p>
-            </div>
-        </x-card>
-    @endif
 
     <!-- Libros de la Venta -->
     <x-card title="Libros de la Venta">

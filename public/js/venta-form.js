@@ -29,7 +29,13 @@ class VentaFormManager {
             // Displays
             subtotalDisplay: document.getElementById('subtotalDisplay'),
             descuentoDisplay: document.getElementById('descuentoDisplay'),
-            totalDisplay: document.getElementById('totalDisplay')
+            costoEnvioDisplay: document.getElementById('costoEnvioDisplay'),
+            costoEnvioDisplayContainer: document.getElementById('costoEnvioDisplayContainer'),
+            totalDisplay: document.getElementById('totalDisplay'),
+            
+            // Campos de envío
+            tieneEnvio: document.getElementById('tiene_envio'),
+            costoEnvio: document.getElementById('costo_envio')
         };
     }
 
@@ -372,6 +378,16 @@ class VentaFormManager {
 
         this.elements.descuentoGlobal.addEventListener('input', () => this.updateCalculations());
         
+        // Escuchar cambios en el campo de costo de envío
+        if (this.elements.costoEnvio) {
+            this.elements.costoEnvio.addEventListener('input', () => this.updateCalculations());
+        }
+        
+        // Escuchar cambios en el checkbox de tiene_envio
+        if (this.elements.tieneEnvio) {
+            this.elements.tieneEnvio.addEventListener('change', () => this.updateCalculations());
+        }
+        
         this.updateCalculations();
     }
 
@@ -426,7 +442,19 @@ class VentaFormManager {
         // Calcular total
         const descuentoGlobalValor = parseFloat(this.elements.descuentoGlobal.value) || 0;
         const descuentoMonto = subtotal * descuentoGlobalValor / 100;
-        const total = subtotal - descuentoMonto;
+        let total = subtotal - descuentoMonto;
+        
+        // Agregar costo de envío si está marcado
+        const tieneEnvio = this.elements.tieneEnvio && this.elements.tieneEnvio.checked;
+        const costoEnvio = tieneEnvio ? (parseFloat(this.elements.costoEnvio.value) || 0) : 0;
+        
+        if (costoEnvio > 0) {
+            total += costoEnvio;
+            this.elements.costoEnvioDisplay.textContent = '+$' + costoEnvio.toFixed(2);
+            this.elements.costoEnvioDisplayContainer.style.display = 'flex';
+        } else {
+            this.elements.costoEnvioDisplayContainer.style.display = 'none';
+        }
 
         // Actualizar displays
         this.elements.subtotalDisplay.textContent = '$' + subtotal.toFixed(2);

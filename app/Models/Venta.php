@@ -19,6 +19,7 @@ class Venta extends Model
         'total',
         'estado',
         'tiene_envio',
+        'costo_envio',
         'observaciones',
         'usuario',
         'es_a_plazos',
@@ -34,6 +35,7 @@ class Venta extends Model
         'total' => 'decimal:2',
         'es_a_plazos' => 'boolean',
         'tiene_envio' => 'boolean',
+        'costo_envio' => 'decimal:2',
         'total_pagado' => 'decimal:2',
         'fecha_limite' => 'date',
     ];
@@ -96,7 +98,7 @@ class Venta extends Model
     }
 
     /**
-     * Calcular el total aplicando descuento global
+     * Calcular el total aplicando descuento global y sumando costo de envío
      */
     public function calcularTotal()
     {
@@ -104,10 +106,17 @@ class Venta extends Model
         
         if ($this->descuento_global > 0) {
             $descuento = ($subtotal * $this->descuento_global) / 100;
-            return $subtotal - $descuento;
+            $total = $subtotal - $descuento;
+        } else {
+            $total = $subtotal;
         }
         
-        return $subtotal;
+        // Sumar el costo de envío si aplica
+        if ($this->tiene_envio && $this->costo_envio > 0) {
+            $total += $this->costo_envio;
+        }
+        
+        return $total;
     }
 
     /**

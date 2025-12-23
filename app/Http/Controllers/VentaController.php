@@ -211,6 +211,7 @@ class VentaController extends Controller
             'observaciones' => 'nullable|string|max:500',
             'es_a_plazos' => 'nullable|boolean',
             'tiene_envio' => 'nullable|boolean',
+            'costo_envio' => 'nullable|numeric|min:0',
             'fecha_limite' => 'nullable|date|after:today',
             
             // Movimientos
@@ -293,6 +294,7 @@ class VentaController extends Controller
                 'usuario' => session('username'),
                 'es_a_plazos' => $esAPLazos,
                 'tiene_envio' => isset($validated['tiene_envio']) && $validated['tiene_envio'],
+                'costo_envio' => isset($validated['tiene_envio']) && $validated['tiene_envio'] ? ($validated['costo_envio'] ?? 0) : 0,
                 'fecha_limite' => $validated['fecha_limite'] ?? null,
                 'estado_pago' => $esAPLazos ? 'pendiente' : 'completado',
                 'total_pagado' => 0,
@@ -427,6 +429,7 @@ class VentaController extends Controller
             'descuento_global' => 'nullable|numeric|min:0|max:100',
             'es_a_plazos' => 'nullable|boolean',
             'tiene_envio' => 'nullable|boolean',
+            'costo_envio' => 'nullable|numeric|min:0',
             'fecha_limite' => 'nullable|date|after:today',
             
             // Movimientos
@@ -528,9 +531,15 @@ class VentaController extends Controller
                 }
             }
 
-            // Calcular total con descuento global
+            // Calcular total con descuento global y costo de envío
             $descuentoMonto = $subtotal * ($descuentoGlobal / 100);
             $total = $subtotal - $descuentoMonto;
+            
+            // Sumar costo de envío si aplica
+            $costoEnvio = isset($validated['tiene_envio']) && $validated['tiene_envio'] ? ($validated['costo_envio'] ?? 0) : 0;
+            if ($costoEnvio > 0) {
+                $total += $costoEnvio;
+            }
 
             // Actualizar la venta
             $venta->update([
@@ -543,6 +552,7 @@ class VentaController extends Controller
                 'observaciones' => $validated['observaciones'] ?? '',
                 'es_a_plazos' => $esAPLazos,
                 'tiene_envio' => isset($validated['tiene_envio']) && $validated['tiene_envio'],
+                'costo_envio' => $costoEnvio,
                 'fecha_limite' => $validated['fecha_limite'] ?? null,
                 'estado_pago' => $esAPLazos ? 'pendiente' : 'completado',
             ]);
@@ -935,6 +945,7 @@ class VentaController extends Controller
                 'usuario' => $validated['usuario'],
                 'es_a_plazos' => false,
                 'tiene_envio' => false,
+                'costo_envio' => 0,
                 'estado_pago' => 'completado',
                 'total_pagado' => 0,
             ]);

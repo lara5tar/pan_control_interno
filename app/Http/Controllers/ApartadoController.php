@@ -318,6 +318,7 @@ class ApartadoController extends Controller
                 'total' => $apartado->monto_total,
                 'estado' => 'completada',
                 'tiene_envio' => false,
+                'costo_envio' => 0,
                 'observaciones' => "Venta generada del apartado {$apartado->folio}",
                 'usuario' => Auth::user()->name ?? 'Sistema',
                 'es_a_plazos' => false,
