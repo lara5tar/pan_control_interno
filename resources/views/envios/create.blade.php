@@ -95,35 +95,6 @@
                     @enderror
                 </div>
 
-                <!-- Monto a Pagar -->
-                <div>
-                    <label for="monto_a_pagar" class="block text-sm font-medium text-gray-700 mb-2">
-                        Monto a Pagar a FedEx <span class="text-red-500">*</span>
-                    </label>
-                    <div class="relative">
-                        <span class="absolute left-3 top-2.5 text-gray-400">
-                            <i class="fas fa-dollar-sign"></i>
-                        </span>
-                        <input 
-                            type="number" 
-                            name="monto_a_pagar" 
-                            id="monto_a_pagar" 
-                            value="{{ old('monto_a_pagar', '0.00') }}"
-                            step="0.01"
-                            min="0"
-                            required
-                            placeholder="0.00"
-                            class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 @error('monto_a_pagar') border-red-500 @enderror"
-                        >
-                    </div>
-                    <p class="mt-1 text-sm text-gray-500">
-                        <i class="fas fa-info-circle"></i> Costo total del servicio de envío
-                    </p>
-                    @error('monto_a_pagar')
-                        <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
-                    @enderror
-                </div>
-
                 <!-- Comprobante -->
                 <div class="lg:col-span-2">
                     <label for="comprobante" class="block text-sm font-medium text-gray-700 mb-2">
@@ -216,7 +187,10 @@
                                             Estado
                                         </th>
                                         <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Total
+                                            Costo Envío
+                                        </th>
+                                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Total Venta
                                         </th>
                                     </tr>
                                 </thead>
@@ -230,6 +204,7 @@
                                                     value="{{ $venta->id }}"
                                                     id="venta_{{ $venta->id }}"
                                                     class="venta-checkbox rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                                    data-costo-envio="{{ $venta->costo_envio ?? 0 }}"
                                                     onchange="updateVentasCount()"
                                                     {{ in_array($venta->id, old('ventas', [])) ? 'checked' : '' }}
                                                 >
@@ -256,6 +231,11 @@
                                                 </span>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-right">
+                                                <span class="text-sm font-semibold text-blue-600">
+                                                    ${{ number_format($venta->costo_envio ?? 0, 2) }}
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-right">
                                                 <span class="text-sm font-semibold text-gray-900">${{ number_format($venta->total, 2) }}</span>
                                             </td>
                                         </tr>
@@ -269,6 +249,32 @@
                         <i class="fas fa-info-circle"></i>
                         Solo se muestran ventas <strong>marcadas con "Requiere Envío"</strong> que aún no han sido asignadas a ningún envío.
                     </p>
+
+                    <!-- Resumen de Costos de Envío -->
+                    <div class="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-600 mb-1">
+                                    <i class="fas fa-shipping-fast text-blue-600 mr-2"></i>
+                                    Total de Costos de Envío
+                                </h4>
+                                <p class="text-xs text-gray-500">
+                                    Suma de los costos de envío de las ventas seleccionadas
+                                </p>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-4xl font-bold text-blue-600" id="totalCostoEnvioDisplay">
+                                    $0.00
+                                </div>
+                                <div class="text-xs text-gray-500 mt-1">
+                                    <span id="ventasEnTotalDisplay">0</span> ventas
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Campo hidden para enviar el monto -->
+                    <input type="hidden" name="monto_a_pagar" id="monto_a_pagar" value="0.00">
                 @else
                     <div class="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-12 text-center ">
                         <div class="flex flex-col items-center">
@@ -327,10 +333,38 @@
 </x-page-layout>
 
 <script>
-    // Actualizar contador de ventas seleccionadas
+    // Actualizar contador de ventas seleccionadas y calcular total de costos de envío
     function updateVentasCount() {
-        const checked = document.querySelectorAll('.venta-checkbox:checked').length;
-        document.getElementById('ventasSeleccionadas').textContent = checked;
+        const checkboxes = document.querySelectorAll('.venta-checkbox:checked');
+        const count = checkboxes.length;
+        
+        // Actualizar contador en el header
+        document.getElementById('ventasSeleccionadas').textContent = count;
+        
+        // Calcular total de costos de envío
+        let totalCostoEnvio = 0;
+        checkboxes.forEach(checkbox => {
+            const costoEnvio = parseFloat(checkbox.getAttribute('data-costo-envio')) || 0;
+            totalCostoEnvio += costoEnvio;
+        });
+        
+        // Actualizar el display del total (grande)
+        const totalDisplay = document.getElementById('totalCostoEnvioDisplay');
+        if (totalDisplay) {
+            totalDisplay.textContent = '$' + totalCostoEnvio.toFixed(2);
+        }
+        
+        // Actualizar el contador de ventas en el resumen
+        const ventasEnTotal = document.getElementById('ventasEnTotalDisplay');
+        if (ventasEnTotal) {
+            ventasEnTotal.textContent = count;
+        }
+        
+        // Actualizar el campo hidden para enviar el valor
+        const montoAPagarInput = document.getElementById('monto_a_pagar');
+        if (montoAPagarInput) {
+            montoAPagarInput.value = totalCostoEnvio.toFixed(2);
+        }
     }
 
     // Toggle individual venta
