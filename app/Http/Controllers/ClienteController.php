@@ -213,5 +213,27 @@ class ClienteController extends Controller
 
         return response()->json($clientes);
     }
+
+    /**
+     * API: Buscar clientes para autocompletado
+     */
+    public function apiBuscar(Request $request)
+    {
+        $query = Cliente::query();
+
+        if ($request->filled('q')) {
+            $search = $request->q;
+            $query->where(function($q) use ($search) {
+                $q->where('nombre', 'like', "%{$search}%")
+                  ->orWhere('telefono', 'like', "%{$search}%");
+            });
+        }
+
+        $clientes = $query->orderBy('nombre', 'asc')
+            ->limit(10)
+            ->get(['id', 'nombre', 'telefono']);
+
+        return response()->json($clientes);
+    }
 }
 

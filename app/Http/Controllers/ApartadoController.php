@@ -477,4 +477,30 @@ class ApartadoController extends Controller
             return back()->withErrors(['error' => 'Error al eliminar el apartado: ' . $e->getMessage()]);
         }
     }
+
+    /**
+     * API: Buscar apartados por folio o cliente
+     */
+    public function apiBuscar(Request $request)
+    {
+        $query = Apartado::with(['cliente'])
+            ->where('estado', 'activo')
+            ->where('saldo_pendiente', '>', 0);
+
+        if ($request->filled('folio')) {
+            $query->where('folio', 'like', '%' . $request->folio . '%');
+        }
+
+        if ($request->filled('cliente')) {
+            $query->whereHas('cliente', function($q) use ($request) {
+                $q->where('nombre', 'like', '%' . $request->cliente . '%');
+            });
+        }
+
+        $apartados = $query->orderBy('fecha_apartado', 'desc')
+            ->limit(10)
+            ->get();
+
+        return response()->json($apartados);
+    }
 }
