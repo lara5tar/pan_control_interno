@@ -14,6 +14,74 @@ use App\Http\Controllers\SubInventarioController;
 use App\Http\Controllers\ApartadoController;
 use App\Http\Controllers\AbonoController;
 
+// Ruta para marcar migraciones antiguas como ejecutadas (SOLO UNA VEZ)
+Route::get('/fix-migrations/{token}', function ($token) {
+    $secretToken = 'pan2026migrations';
+    
+    if ($token !== $secretToken) {
+        abort(403, 'Token inválido');
+    }
+    
+    try {
+        $migrator = app('migrator');
+        $repository = $migrator->getRepository();
+        
+        // Lista de migraciones que YA EXISTEN en tu base de datos
+        $existingMigrations = [
+            '0001_01_01_000000_create_users_table',
+            '0001_01_01_000001_create_cache_table',
+            '0001_01_01_000002_create_jobs_table',
+            '2025_10_20_201429_create_libros_table',
+            '2025_10_20_224244_create_movimientos_table',
+            '2025_10_28_200724_add_descuento_and_fecha_to_movimientos_table',
+            '2025_10_29_020753_create_ventas_table',
+            '2025_10_29_020825_add_venta_id_to_movimientos_table',
+            '2025_11_01_193401_create_clientes_table',
+            '2025_11_01_193416_add_cliente_id_to_ventas_table',
+            '2025_11_02_081018_remove_codigo_from_ventas_table',
+            '2025_11_03_203723_create_pagos_table',
+            '2025_11_03_203757_add_plazos_fields_to_ventas_table',
+            '2025_11_03_230851_update_metodo_pago_in_pagos_table',
+            '2025_11_18_185239_create_envios_table',
+            '2025_11_18_185309_create_envio_venta_table',
+            '2025_11_18_223945_add_tiene_envio_to_ventas_table',
+            '2025_11_19_011544_add_estado_pago_to_envios_table',
+            '2025_11_19_023011_remove_estado_from_envios_table',
+            '2025_11_19_080203_add_referencia_pago_to_envios_table',
+            '2025_11_24_020150_create_apartados_table',
+            '2025_11_24_020235_add_stock_apartado_to_libros_table',
+            '2025_11_25_222721_rename_apartados_to_subinventarios',
+            '2025_12_21_062800_create_apartados_sistema_table',
+            '2025_12_21_062801_add_apartado_id_to_ventas_table',
+            '2025_12_23_010854_add_costo_envio_to_ventas_table',
+        ];
+        
+        $marked = [];
+        foreach ($existingMigrations as $migration) {
+            // Solo marcar si no está ya registrada
+            if (!in_array($migration, $repository->getRan())) {
+                $repository->log($migration, 1); // batch 1
+                $marked[] = $migration;
+            }
+        }
+        
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Migraciones antiguas marcadas como ejecutadas',
+            'marked' => $marked,
+            'total' => count($marked),
+            'timestamp' => now()->format('Y-m-d H:i:s')
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Error al marcar migraciones',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+})->name('fix.migrations');
+
 // Ruta especial para ejecutar migraciones en hosting (PROTEGIDA CON TOKEN)
 Route::get('/run-migrations/{token}', function ($token) {
     // Token de seguridad - cambia esto por uno único
@@ -24,7 +92,31 @@ Route::get('/run-migrations/{token}', function ($token) {
     }
     
     try {
-        // Ejecutar las migraciones pendientes
+        // Obtener migraciones pendientes antes de ejecutar
+        $pendingMigrations = [];
+        $migrator = app('migrator');
+        $migrator->setConnection(config('database.default'));
+        
+        // Verificar qué migraciones están pendientes
+        $ran = $migrator->getRepository()->getRan();
+        $files = $migrator->getMigrationFiles(database_path('migrations'));
+        
+        foreach ($files as $file) {
+            if (!in_array($migrator->getMigrationName($file), $ran)) {
+                $pendingMigrations[] = basename($file);
+            }
+        }
+        
+        if (empty($pendingMigrations)) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'No hay migraciones pendientes',
+                'pending' => [],
+                'timestamp' => now()->format('Y-m-d H:i:s')
+            ]);
+        }
+        
+        // Ejecutar solo las migraciones pendientes
         \Illuminate\Support\Facades\Artisan::call('migrate', [
             '--force' => true, // Necesario para producción
         ]);
@@ -34,6 +126,7 @@ Route::get('/run-migrations/{token}', function ($token) {
         return response()->json([
             'status' => 'success',
             'message' => 'Migraciones ejecutadas correctamente',
+            'pending_before' => $pendingMigrations,
             'output' => $output,
             'timestamp' => now()->format('Y-m-d H:i:s')
         ]);
@@ -42,7 +135,8 @@ Route::get('/run-migrations/{token}', function ($token) {
         return response()->json([
             'status' => 'error',
             'message' => 'Error al ejecutar migraciones',
-            'error' => $e->getMessage()
+            'error' => $e->getMessage(),
+            'trace' => config('app.debug') ? $e->getTraceAsString() : null
         ], 500);
     }
 })->name('run.migrations');
