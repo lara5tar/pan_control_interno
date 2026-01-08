@@ -108,12 +108,35 @@
             </div>
 
             <div class="flex justify-between items-center">
-                <x-button type="submit" variant="primary" icon="fas fa-filter">
-                    Aplicar Filtros
-                </x-button>
-                <a href="{{ route('apartados.index') }}" class="text-gray-600 hover:text-gray-800">
-                    <i class="fas fa-times-circle mr-1"></i> Limpiar Filtros
-                </a>
+                <div class="flex gap-3">
+                    <x-button type="submit" variant="primary" icon="fas fa-filter">
+                        Aplicar Filtros
+                    </x-button>
+                    <a href="{{ route('apartados.index') }}" class="text-gray-600 hover:text-gray-800">
+                        <i class="fas fa-times-circle mr-1"></i> Limpiar Filtros
+                    </a>
+                </div>
+
+                <!-- Botones de exportación -->
+                <div class="flex gap-3">
+                    <x-button 
+                        type="button" 
+                        variant="success" 
+                        icon="fas fa-file-excel"
+                        onclick="window.location='{{ route('apartados.export.excel', request()->query()) }}'"
+                    >
+                        Exportar Excel
+                    </x-button>
+                    
+                    <x-button 
+                        type="button" 
+                        variant="danger" 
+                        icon="fas fa-file-pdf"
+                        onclick="window.location='{{ route('apartados.export.pdf', request()->query()) }}'"
+                    >
+                        Exportar PDF
+                    </x-button>
+                </div>
             </div>
         </form>
     </x-card>

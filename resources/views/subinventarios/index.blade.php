@@ -69,17 +69,40 @@
             </div>
 
             <!-- Botones de acción -->
-            <div class="flex flex-wrap gap-3 pt-2">
-                <x-button type="submit" variant="primary" icon="fas fa-filter">
-                    Aplicar Filtros
-                </x-button>
-
-                @if(request()->hasAny(['search', 'estado', 'fecha', 'ordenar']))
-                    <x-button type="button" variant="secondary" icon="fas fa-times" 
-                              onclick="window.location='{{ route('subinventarios.index') }}'">
-                        Limpiar Filtros
+            <div class="flex flex-wrap justify-between gap-3 pt-2">
+                <div class="flex gap-3">
+                    <x-button type="submit" variant="primary" icon="fas fa-filter">
+                        Aplicar Filtros
                     </x-button>
-                @endif
+
+                    @if(request()->hasAny(['search', 'estado', 'fecha', 'ordenar']))
+                        <x-button type="button" variant="secondary" icon="fas fa-times" 
+                                  onclick="window.location='{{ route('subinventarios.index') }}'">
+                            Limpiar Filtros
+                        </x-button>
+                    @endif
+                </div>
+
+                <!-- Botones de exportación -->
+                <div class="flex gap-3">
+                    <x-button 
+                        type="button" 
+                        variant="success" 
+                        icon="fas fa-file-excel"
+                        onclick="window.location='{{ route('subinventarios.export.excel', request()->query()) }}'"
+                    >
+                        Exportar Excel
+                    </x-button>
+                    
+                    <x-button 
+                        type="button" 
+                        variant="danger" 
+                        icon="fas fa-file-pdf"
+                        onclick="window.location='{{ route('subinventarios.export.pdf', request()->query()) }}'"
+                    >
+                        Exportar PDF
+                    </x-button>
+                </div>
             </div>
         </form>
     </x-card>

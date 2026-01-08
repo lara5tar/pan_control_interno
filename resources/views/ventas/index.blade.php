@@ -39,22 +39,6 @@
         />
 
         <x-stat-card 
-            icon="fas fa-hand-holding-usd"
-            label="Total Pagado"
-            :value="'$' . number_format($estadisticas['total_pagado'], 2)"
-            bg-color="bg-teal-100"
-            icon-color="text-teal-600"
-        />
-
-        <x-stat-card 
-            icon="fas fa-exclamation-circle"
-            label="Saldo Pendiente"
-            :value="'$' . number_format($estadisticas['total_pendiente'], 2)"
-            bg-color="bg-orange-100"
-            icon-color="text-orange-600"
-        />
-
-        <x-stat-card 
             icon="fas fa-check-circle"
             label="Completadas"
             :value="$estadisticas['ventas_completadas']"
@@ -157,6 +141,18 @@
                     </select>
                 </div>
 
+                <!-- Filtro por Apartados -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-box-open text-gray-400"></i> Tipo de Venta
+                    </label>
+                    <select name="es_apartado" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        <option value="">Todas</option>
+                        <option value="1" {{ request('es_apartado') === '1' ? 'selected' : '' }}>Solo Apartados</option>
+                        <option value="0" {{ request('es_apartado') === '0' ? 'selected' : '' }}>Solo Ventas Directas</option>
+                    </select>
+                </div>
+
                 <!-- Filtro Ventas Vencidas -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -198,7 +194,7 @@
                         Aplicar Filtros
                     </x-button>
 
-                    @if(request()->hasAny(['cliente_id', 'estado', 'tipo_pago', 'estado_pago', 'libro_id', 'fecha_desde', 'fecha_hasta', 'vencidas']))
+                    @if(request()->hasAny(['cliente_id', 'estado', 'tipo_pago', 'estado_pago', 'es_apartado', 'libro_id', 'fecha_desde', 'fecha_hasta', 'vencidas']))
                         <x-button type="button" variant="secondary" icon="fas fa-times" 
                                   onclick="window.location='{{ route('ventas.index') }}'">
                             Limpiar Filtros
@@ -233,7 +229,7 @@
     <!-- Tabla de ventas -->
     <x-card>
         <x-data-table 
-            :headers="['ID', 'Fecha', 'Cliente', 'Total', 'Pagos / Saldo', 'Estado', 'Acciones']"
+            :headers="['ID', 'Fecha', 'Cliente', 'Total', 'Estado', 'Acciones']"
             :rows="$ventas"
             emptyMessage="No se encontraron ventas"
             emptyIcon="fas fa-shopping-cart"
@@ -248,6 +244,11 @@
                             @if($venta->tiene_envio)
                                 <span class="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded" title="Tiene envío asignado">
                                     <i class="fas fa-shipping-fast"></i>
+                                </span>
+                            @endif
+                            @if($venta->esApartado())
+                                <span class="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded" title="Venta generada desde apartado">
+                                    <i class="fas fa-box-open"></i>
                                 </span>
                             @endif
                         </div>
@@ -298,28 +299,6 @@
                                 <div class="text-xs text-yellow-600">
                                     <i class="fas fa-tag mr-1"></i>{{ $venta->descuento_global }}% desc.
                                 </div>
-                            @endif
-                        </div>
-                    </x-data-table-cell>
-
-                    <!-- Pagos / Saldo -->
-                    <x-data-table-cell>
-                        <div class="text-sm">
-                            @if($venta->total_pagado > 0)
-                                <div class="font-medium text-green-600">
-                                    <i class="fas fa-check-circle mr-1"></i>${{ number_format($venta->total_pagado, 2) }}
-                                </div>
-                            @endif
-                            @if($venta->saldo_pendiente > 0)
-                                <div class="font-semibold text-orange-600">
-                                    <i class="fas fa-exclamation-circle mr-1"></i>${{ number_format($venta->saldo_pendiente, 2) }}
-                                </div>
-                            @elseif($venta->total_pagado === 0)
-                                <span class="text-sm text-gray-400">Sin pagos</span>
-                            @else
-                                <span class="text-sm text-green-500">
-                                    <i class="fas fa-check-double mr-1"></i>Pagado
-                                </span>
                             @endif
                         </div>
                     </x-data-table-cell>

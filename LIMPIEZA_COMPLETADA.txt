@@ -1,0 +1,53 @@
+═══════════════════════════════════════════════════════════
+    LIMPIEZA DE ARCHIVOS INNECESARIOS - COMPLETADA
+═══════════════════════════════════════════════════════════
+
+Archivos y carpetas eliminados:
+
+✓ .playwright-mcp/                  (Carpeta completa con screenshots)
+  - apartado-create-after.png
+  - apartado-create-before.png
+  - apartado-create-funcionando.png
+  - apartados-create-new-design.png
+  - apartados-with-libro-item.png
+  - migration-route-success.png
+  - ventas-create-design.png
+  - ventas-with-libro-item.png
+
+✓ Archivos .DS_Store                (6 archivos de macOS)
+  - ./database/.DS_Store
+  - ./.DS_Store
+  - ./bootstrap/.DS_Store
+  - ./app/.DS_Store
+  - ./app/Http/.DS_Store
+  - ./resources/.DS_Store
+
+✓ public/test-subinventario.html    (Archivo de prueba HTML)
+
+✓ storage/logs/laravel.log          (Limpiado - era 196KB)
+
+✓ tests/                            (Carpeta vacía eliminada)
+
+✓ tests/puppeteer/                  (Ya fue eliminada anteriormente)
+
+═══════════════════════════════════════════════════════════
+
+ARCHIVOS CONSERVADOS (Documentación útil):
+
+→ API.md                            (1.0K - Documentación de API)
+→ ESTRATEGIA_TIENE_ENVIO.md         (5.7K - Estrategia de envíos)
+→ MIGRATION_ROUTE_APARTADOS.md      (3.0K - Migración de rutas)
+→ MODULO_APARTADOS.md               (6.5K - Documentación apartados)
+→ MODULO_ENVIOS.md                  (7.2K - Documentación envíos)
+→ TRACKING_ORIGEN_VENTAS.md         (7.8K - Documentación tracking)
+
+Estos archivos contienen documentación importante del sistema.
+
+═══════════════════════════════════════════════════════════
+
+ESPACIO LIBERADO: ~200KB + screenshots
+
+node_modules: 102MB (NECESARIO - contiene dependencias)
+vendor/: (NECESARIO - dependencias de Composer/Laravel)
+
+═══════════════════════════════════════════════════════════

@@ -20,7 +20,15 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <p class="text-sm text-gray-600 mb-1">ID de Venta</p>
-                        <p class="text-lg font-mono font-bold text-gray-800">#{{ $venta->id }}</p>
+                        <div class="flex items-center gap-2">
+                            <p class="text-lg font-mono font-bold text-gray-800">#{{ $venta->id }}</p>
+                            @if($venta->esApartado())
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                    <i class="fas fa-box-open mr-1"></i>
+                                    Apartado #{{ $venta->apartado->id }}
+                                </span>
+                            @endif
+                        </div>
                     </div>
 
                     <div>
@@ -242,6 +250,27 @@
                         {{ $venta->usuario ?? 'N/A' }}
                     </span>
                 </div>
+                
+                <div class="flex items-center justify-between py-3 border-b border-gray-100">
+                    <span class="text-gray-600 font-medium">
+                        <i class="fas fa-warehouse text-purple-500 mr-2"></i>
+                        Origen de Inventario
+                    </span>
+                    <span class="text-gray-800 font-semibold">
+                        @if($venta->tipo_inventario === 'subinventario' && $venta->subinventario)
+                            <span class="px-2 py-1 bg-purple-100 text-purple-800 rounded text-sm">
+                                <i class="fas fa-store mr-1"></i>
+                                {{ $venta->subinventario->descripcion ?: 'Sub-Inv #' . $venta->subinventario_id }}
+                            </span>
+                        @else
+                            <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm">
+                                <i class="fas fa-boxes mr-1"></i>
+                                Inventario General
+                            </span>
+                        @endif
+                    </span>
+                </div>
+                
                 <div class="flex items-center justify-between py-3 border-b border-gray-100">
                     <span class="text-gray-600 font-medium">
                         <i class="fas fa-calendar-plus text-green-500 mr-2"></i>

@@ -4,11 +4,24 @@ namespace App\Http\Controllers;
 
 use App\Models\SubInventario;
 use App\Models\Libro;
+use App\Services\ExcelReportService;
+use App\Services\PdfReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SubInventarioController extends Controller
 {
+    protected $excelReportService;
+    protected $pdfReportService;
+
+    public function __construct(
+        ExcelReportService $excelReportService,
+        PdfReportService $pdfReportService
+    ) {
+        $this->excelReportService = $excelReportService;
+        $this->pdfReportService = $pdfReportService;
+    }
     /**
      * Display a listing of the resource.
      */
@@ -139,7 +152,91 @@ class SubInventarioController extends Controller
     {
         $subinventario->load('libros');
         
-        return view('subinventarios.show', compact('subinventario'));
+        // Obtener usuarios asignados a este subinventario
+        $usuariosAsignados = DB::table('subinventario_user')
+            ->where('subinventario_id', $subinventario->id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        return view('subinventarios.show', compact('subinventario', 'usuariosAsignados'));
+    }
+
+    /**
+     * Mostrar vista para gestionar usuarios del subinventario
+     */
+    public function usuarios(SubInventario $subinventario)
+    {
+        $usuariosAsignados = DB::table('subinventario_user')
+            ->where('subinventario_id', $subinventario->id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        return view('subinventarios.usuarios', compact('subinventario', 'usuariosAsignados'));
+    }
+
+    /**
+     * Asignar congregante al subinventario
+     */
+    public function assignUser(Request $request, SubInventario $subinventario)
+    {
+        $validated = $request->validate([
+            'cod_congregante' => 'required|string|max:50',
+            'nombre_congregante' => 'required|string|max:255',
+        ]);
+
+        try {
+            // Verificar si el congregante ya está asignado
+            $existe = DB::table('subinventario_user')
+                ->where('subinventario_id', $subinventario->id)
+                ->where('cod_congregante', $validated['cod_congregante'])
+                ->exists();
+
+            if ($existe) {
+                return redirect()->route('subinventarios.usuarios', $subinventario)
+                    ->with('error', 'Este congregante ya está asignado a este subinventario');
+            }
+
+            DB::table('subinventario_user')->insert([
+                'subinventario_id' => $subinventario->id,
+                'cod_congregante' => $validated['cod_congregante'],
+                'nombre_congregante' => $validated['nombre_congregante'],
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            return redirect()->route('subinventarios.usuarios', $subinventario)
+                ->with('success', 'Congregante asignado correctamente');
+        } catch (\Exception $e) {
+            Log::error('Error al asignar congregante a subinventario', [
+                'error' => $e->getMessage(),
+                'subinventario_id' => $subinventario->id
+            ]);
+            return redirect()->route('subinventarios.usuarios', $subinventario)
+                ->with('error', 'Error al asignar el congregante: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Remover congregante del subinventario
+     */
+    public function removeUser(Request $request, SubInventario $subinventario)
+    {
+        $validated = $request->validate([
+            'cod_congregante' => 'required|string|max:50',
+        ]);
+
+        $deleted = DB::table('subinventario_user')
+            ->where('subinventario_id', $subinventario->id)
+            ->where('cod_congregante', $validated['cod_congregante'])
+            ->delete();
+
+        if ($deleted) {
+            return redirect()->route('subinventarios.usuarios', $subinventario)
+                ->with('success', 'Congregante removido correctamente');
+        }
+
+        return redirect()->route('subinventarios.usuarios', $subinventario)
+            ->with('error', 'No se pudo remover el congregante');
     }
 
     /**
@@ -451,4 +548,271 @@ class SubInventarioController extends Controller
 
         return response()->json($subinventarios);
     }
+
+    /**
+     * Exportar sub-inventarios filtrados a Excel
+     */
+    public function exportExcel(Request $request)
+    {
+        $query = $this->buildFilteredQuery($request);
+        $subinventarios = $query->get();
+        
+        // Crear spreadsheet usando el servicio
+        $spreadsheet = $this->excelReportService->createSpreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        // Título
+        $row = $this->excelReportService->setTitle($sheet, 'REPORTE DE SUB-INVENTARIOS', 'F', 1);
+        $row++; // Espacio
+        
+        // Filtros aplicados
+        $filtros = $this->buildFiltersList($request);
+        $row = $this->excelReportService->setFilters($sheet, $filtros, $row);
+        
+        // Encabezados de tabla
+        $headers = ['ID', 'Fecha Sub-Inventario', 'Descripción', 'Libros', 'Unidades Totales', 'Estado'];
+        $row = $this->excelReportService->setTableHeaders($sheet, $headers, $row);
+        
+        // Datos
+        $data = [];
+        foreach ($subinventarios as $subinventario) {
+            $data[] = [
+                $subinventario->id,
+                $subinventario->fecha_subinventario->format('d/m/Y'),
+                $subinventario->descripcion,
+                $subinventario->libros->count(),
+                $subinventario->total_unidades,
+                $this->getEstadoLabel($subinventario->estado),
+            ];
+        }
+        
+        $lastRow = $this->excelReportService->fillData($sheet, $data, $row);
+        
+        // Auto ajustar columnas
+        $this->excelReportService->autoSizeColumns($sheet, ['A', 'B', 'C', 'D', 'E', 'F']);
+        
+        // Descargar
+        $filename = $this->excelReportService->generateFilename('reporte_subinventarios');
+        $this->excelReportService->download($spreadsheet, $filename);
+    }
+
+    /**
+     * Exportar sub-inventarios filtrados a PDF
+     */
+    public function exportPdf(Request $request)
+    {
+        $query = $this->buildFilteredQuery($request);
+        $subinventarios = $query->get();
+        
+        // Preparar filtros usando el helper
+        $filtros = $this->buildFiltersList($request);
+        
+        // Obtener estilos base del servicio
+        $styles = $this->pdfReportService->getBaseStyles();
+        
+        // Generar PDF usando el servicio
+        $filename = $this->pdfReportService->generateFilename('reporte_subinventarios');
+        
+        return $this->pdfReportService->generate(
+            'subinventarios.pdf-report',
+            compact('subinventarios', 'filtros', 'styles'),
+            $filename
+        );
+    }
+
+    /**
+     * Construir query con filtros aplicados
+     */
+    private function buildFilteredQuery(Request $request)
+    {
+        $query = SubInventario::with('libros');
+
+        // Filtro por estado
+        if ($request->filled('estado')) {
+            $query->where('estado', $request->estado);
+        }
+
+        // Filtro por fecha
+        if ($request->filled('fecha')) {
+            $query->porFecha($request->fecha);
+        }
+
+        // Búsqueda por descripción
+        if ($request->filled('search')) {
+            $query->where('descripcion', 'like', '%' . $request->search . '%');
+        }
+
+        // Ordenar
+        $ordenar = $request->get('ordenar', 'reciente');
+        switch ($ordenar) {
+            case 'antiguo':
+                $query->orderBy('fecha_subinventario', 'asc');
+                break;
+            case 'fecha_asc':
+                $query->orderBy('fecha_subinventario', 'asc');
+                break;
+            case 'fecha_desc':
+                $query->orderBy('fecha_subinventario', 'desc');
+                break;
+            default: // reciente
+                $query->orderBy('created_at', 'desc');
+                break;
+        }
+
+        return $query;
+    }
+
+    /**
+     * Construir lista de filtros aplicados
+     */
+    private function buildFiltersList(Request $request): array
+    {
+        $filtros = [];
+        
+        if ($request->filled('search')) {
+            $filtros[] = 'Búsqueda: ' . $request->search;
+        }
+        
+        if ($request->filled('estado')) {
+            $estadoLabels = [
+                'activo' => 'Estado: Activo',
+                'completado' => 'Estado: Completado',
+                'cancelado' => 'Estado: Cancelado'
+            ];
+            $filtros[] = $estadoLabels[$request->estado] ?? 'Estado: ' . $request->estado;
+        }
+        
+        if ($request->filled('fecha')) {
+            $filtros[] = 'Fecha: ' . date('d/m/Y', strtotime($request->fecha));
+        }
+        
+        if ($request->filled('ordenar')) {
+            $ordenarLabels = [
+                'reciente' => 'Orden: Más reciente',
+                'antiguo' => 'Orden: Más antiguo',
+                'fecha_asc' => 'Orden: Fecha ascendente',
+                'fecha_desc' => 'Orden: Fecha descendente'
+            ];
+            $filtros[] = $ordenarLabels[$request->ordenar] ?? 'Orden: ' . $request->ordenar;
+        }
+        
+        if (empty($filtros)) {
+            $filtros[] = 'Sin filtros aplicados';
+        }
+        
+        return $filtros;
+    }
+
+    /**
+     * Helper para obtener etiqueta de estado
+     */
+    private function getEstadoLabel($estado): string
+    {
+        return match($estado) {
+            'activo' => 'Activo',
+            'completado' => 'Completado',
+            'cancelado' => 'Cancelado',
+            default => $estado
+        };
+    }
+
+    /**
+     * Buscar congregantes desde la API externa (AJAX)
+     */
+    public function buscarCongregantes(Request $request)
+    {
+        $codCongregante = session('codCongregante');
+        $termino = $request->get('termino', '');
+        
+        Log::info('Búsqueda de congregantes iniciada', [
+            'termino' => $termino,
+            'codCongregante' => $codCongregante ? 'presente' : 'ausente'
+        ]);
+        
+        // Verificar sesión
+        if (!$codCongregante) {
+            return response()->json([
+                'error' => true,
+                'message' => 'Sesión no válida. Por favor, inicia sesión nuevamente.'
+            ], 401);
+        }
+        
+        if (empty($termino) || strlen($termino) < 2) {
+            return response()->json([
+                'error' => false,
+                'congregantes' => []
+            ]);
+        }
+
+        try {
+            $url = 'https://www.sistemasdevida.com/pan/rest2/index.php/congregante/buscar_paginado';
+            $params = [
+                'codCongregante' => $codCongregante,
+                'termino' => $termino,
+                'pagina' => 0
+            ];
+            
+            Log::info('Llamando a API externa', [
+                'url' => $url,
+                'params' => $params
+            ]);
+            
+            $response = \Illuminate\Support\Facades\Http::timeout(10)->post($url, $params);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                
+                Log::info('Respuesta de API externa', [
+                    'error' => $data['error'] ?? 'no definido',
+                    'total_congregantes' => count($data['congregantes'] ?? [])
+                ]);
+                
+                if (!$data['error']) {
+                    $congregantes = collect($data['congregantes'] ?? [])
+                        ->map(function($congregante) {
+                            return [
+                                'cod_congregante' => $congregante['CODCONGREGANTE'],
+                                'nombre_completo' => trim($congregante['NOMBREF'] ?? $congregante['NOMBRE'] . ' ' . $congregante['APELLIDOS']),
+                                'ciudad' => $congregante['CIUDAD'] ?? '',
+                                'celular' => $congregante['CEL'] ?? '',
+                            ];
+                        })
+                        ->take(10) // Limitar a 10 resultados
+                        ->values();
+                    
+                    return response()->json([
+                        'error' => false,
+                        'congregantes' => $congregantes
+                    ]);
+                } else {
+                    return response()->json([
+                        'error' => true,
+                        'message' => $data['message'] ?? 'Error en la API externa'
+                    ], 400);
+                }
+            }
+
+            Log::error('API externa respondió con error', [
+                'status' => $response->status(),
+                'body' => $response->body()
+            ]);
+
+            return response()->json([
+                'error' => true,
+                'message' => 'La API externa no respondió correctamente'
+            ], 500);
+
+        } catch (\Exception $e) {
+            Log::error('Excepción al buscar congregantes', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => true,
+                'message' => 'Error al conectar con el servidor: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
+

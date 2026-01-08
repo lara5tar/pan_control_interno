@@ -9,6 +9,8 @@ use App\Models\Libro;
 use App\Models\Venta;
 use App\Models\Movimiento;
 use App\Services\CodeGeneratorService;
+use App\Services\ExcelReportService;
+use App\Services\PdfReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -17,10 +19,17 @@ use Illuminate\Support\Facades\Log;
 class ApartadoController extends Controller
 {
     protected $codeGenerator;
+    protected $excelReportService;
+    protected $pdfReportService;
 
-    public function __construct(CodeGeneratorService $codeGenerator)
-    {
+    public function __construct(
+        CodeGeneratorService $codeGenerator,
+        ExcelReportService $excelReportService,
+        PdfReportService $pdfReportService
+    ) {
         $this->codeGenerator = $codeGenerator;
+        $this->excelReportService = $excelReportService;
+        $this->pdfReportService = $pdfReportService;
     }
 
     /**
@@ -329,6 +338,13 @@ class ApartadoController extends Controller
 
         DB::beginTransaction();
         try {
+            Log::info('Iniciando liquidación de apartado', [
+                'apartado_id' => $apartado->id,
+                'apartado_folio' => $apartado->folio,
+                'cliente_id' => $apartado->cliente_id,
+                'monto_total' => $apartado->monto_total,
+            ]);
+
             // Crear la venta
             $venta = Venta::create([
                 'cliente_id' => $apartado->cliente_id,
@@ -348,8 +364,20 @@ class ApartadoController extends Controller
                 'estado_pago' => 'completado',
             ]);
 
+            Log::info('Venta creada exitosamente', [
+                'venta_id' => $venta->id,
+                'apartado_id' => $apartado->id,
+            ]);
+
             // Crear movimientos de salida y descontar inventario
             foreach ($apartado->detalles as $detalle) {
+                Log::info('Procesando detalle de apartado', [
+                    'libro_id' => $detalle->libro_id,
+                    'cantidad' => $detalle->cantidad,
+                    'stock_actual' => $detalle->libro->stock,
+                    'stock_apartado_actual' => $detalle->libro->stock_apartado,
+                ]);
+
                 Movimiento::create([
                     'libro_id' => $detalle->libro_id,
                     'venta_id' => $venta->id,
@@ -367,11 +395,22 @@ class ApartadoController extends Controller
                 $libro = $detalle->libro;
                 $libro->decrement('stock', $detalle->cantidad);
                 $libro->decrement('stock_apartado', $detalle->cantidad);
+
+                Log::info('Stock actualizado', [
+                    'libro_id' => $detalle->libro_id,
+                    'stock_nuevo' => $libro->fresh()->stock,
+                    'stock_apartado_nuevo' => $libro->fresh()->stock_apartado,
+                ]);
             }
 
             // Actualizar apartado
             $apartado->update([
                 'estado' => 'liquidado',
+                'venta_id' => $venta->id,
+            ]);
+
+            Log::info('Apartado liquidado exitosamente', [
+                'apartado_id' => $apartado->id,
                 'venta_id' => $venta->id,
             ]);
 
@@ -503,4 +542,145 @@ class ApartadoController extends Controller
 
         return response()->json($apartados);
     }
+
+    /**
+     * Exportar apartados filtrados a Excel
+     */
+    public function exportExcel(Request $request)
+    {
+        $query = $this->buildFilteredQuery($request);
+        $apartados = $query->get();
+        
+        // Crear spreadsheet usando el servicio
+        $spreadsheet = $this->excelReportService->createSpreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        // Título
+        $row = $this->excelReportService->setTitle($sheet, 'REPORTE DE APARTADOS', 'H', 1);
+        $row++; // Espacio
+        
+        // Filtros aplicados
+        $filtros = $this->buildFiltersList($request);
+        $row = $this->excelReportService->setFilters($sheet, $filtros, $row);
+        
+        // Encabezados de tabla
+        $headers = ['ID', 'Folio', 'Cliente', 'Fecha Apartado', 'Fecha Límite', 'Monto Total', 'Total Pagado', 'Saldo Pendiente', 'Estado'];
+        $row = $this->excelReportService->setTableHeaders($sheet, $headers, $row);
+        
+        // Datos
+        $data = [];
+        foreach ($apartados as $apartado) {
+            $data[] = [
+                $apartado->id,
+                $apartado->folio,
+                $apartado->cliente->nombre,
+                $apartado->fecha_apartado->format('d/m/Y'),
+                $apartado->fecha_limite ? $apartado->fecha_limite->format('d/m/Y') : 'N/A',
+                '$' . number_format($apartado->monto_total, 2),
+                '$' . number_format($apartado->totalPagado, 2),
+                '$' . number_format($apartado->saldo_pendiente, 2),
+                $apartado->getEstadoLabel(),
+            ];
+        }
+        
+        $lastRow = $this->excelReportService->fillData($sheet, $data, $row);
+        
+        // Auto ajustar columnas
+        $this->excelReportService->autoSizeColumns($sheet, ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']);
+        
+        // Descargar
+        $filename = $this->excelReportService->generateFilename('reporte_apartados');
+        $this->excelReportService->download($spreadsheet, $filename);
+    }
+
+    /**
+     * Exportar apartados filtrados a PDF
+     */
+    public function exportPdf(Request $request)
+    {
+        $query = $this->buildFilteredQuery($request);
+        $apartados = $query->get();
+        
+        // Preparar filtros usando el helper
+        $filtros = $this->buildFiltersList($request);
+        
+        // Obtener estilos base del servicio
+        $styles = $this->pdfReportService->getBaseStyles();
+        
+        // Generar PDF usando el servicio
+        $filename = $this->pdfReportService->generateFilename('reporte_apartados');
+        
+        return $this->pdfReportService->generate(
+            'apartados.pdf-report',
+            compact('apartados', 'filtros', 'styles'),
+            $filename
+        );
+    }
+
+    /**
+     * Construir query con filtros aplicados
+     */
+    private function buildFilteredQuery(Request $request)
+    {
+        $query = Apartado::with(['cliente', 'detalles.libro', 'abonos']);
+
+        // Filtro por estado
+        if ($request->filled('estado')) {
+            $query->where('estado', $request->estado);
+        }
+
+        // Filtro por cliente
+        if ($request->filled('cliente_id')) {
+            $query->where('cliente_id', $request->cliente_id);
+        }
+
+        // Filtro por fechas
+        if ($request->filled('fecha_desde')) {
+            $query->whereDate('fecha_apartado', '>=', $request->fecha_desde);
+        }
+        if ($request->filled('fecha_hasta')) {
+            $query->whereDate('fecha_apartado', '<=', $request->fecha_hasta);
+        }
+
+        return $query->orderBy('fecha_apartado', 'desc');
+    }
+
+    /**
+     * Construir lista de filtros aplicados
+     */
+    private function buildFiltersList(Request $request): array
+    {
+        $filtros = [];
+        
+        if ($request->filled('cliente_id')) {
+            $cliente = Cliente::find($request->cliente_id);
+            if ($cliente) {
+                $filtros[] = 'Cliente: ' . $cliente->nombre;
+            }
+        }
+        
+        if ($request->filled('estado')) {
+            $estadoLabels = [
+                'activo' => 'Estado: Activo',
+                'liquidado' => 'Estado: Liquidado',
+                'cancelado' => 'Estado: Cancelado'
+            ];
+            $filtros[] = $estadoLabels[$request->estado] ?? 'Estado: ' . $request->estado;
+        }
+        
+        if ($request->filled('fecha_desde')) {
+            $filtros[] = 'Desde: ' . date('d/m/Y', strtotime($request->fecha_desde));
+        }
+        
+        if ($request->filled('fecha_hasta')) {
+            $filtros[] = 'Hasta: ' . date('d/m/Y', strtotime($request->fecha_hasta));
+        }
+        
+        if (empty($filtros)) {
+            $filtros[] = 'Sin filtros aplicados';
+        }
+        
+        return $filtros;
+    }
 }
+

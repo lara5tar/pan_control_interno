@@ -144,7 +144,14 @@ class ClienteSearchDynamic {
     async loadInitialClientes() {
         try {
             // Cargar primeros 20 clientes (igual que libros)
-            const response = await fetch('/clientes/search?q=');
+            const response = await fetch('/clientes/search?q=', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            });
             
             if (!response.ok) {
                 throw new Error('Error al cargar clientes');
@@ -161,7 +168,14 @@ class ClienteSearchDynamic {
     
     async searchClientes(query) {
         try {
-            const response = await fetch(`/clientes/search?q=${encodeURIComponent(query)}`);
+            const response = await fetch(`/clientes/search?q=${encodeURIComponent(query)}`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            });
             
             if (!response.ok) {
                 throw new Error('Error en la búsqueda');

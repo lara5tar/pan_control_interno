@@ -22,6 +22,8 @@ class Venta extends Model
         'costo_envio',
         'observaciones',
         'usuario',
+        'tipo_inventario',
+        'subinventario_id',
         'es_a_plazos',
         'total_pagado',
         'estado_pago',
@@ -79,6 +81,14 @@ class Venta extends Model
     public function apartado()
     {
         return $this->belongsTo(Apartado::class);
+    }
+
+    /**
+     * Relación: Una venta puede provenir de un subinventario (punto de venta)
+     */
+    public function subinventario()
+    {
+        return $this->belongsTo(SubInventario::class);
     }
 
     /**
@@ -245,6 +255,25 @@ class Venta extends Model
         return $query->whereHas('movimientos', function($q) use ($libroId) {
             $q->where('libro_id', $libroId);
         });
+    }
+
+    /**
+     * Scope para filtrar ventas que son apartados
+     */
+    public function scopeEsApartado($query, $esApartado = true)
+    {
+        if ($esApartado) {
+            return $query->whereNotNull('apartado_id');
+        }
+        return $query->whereNull('apartado_id');
+    }
+
+    /**
+     * Verificar si la venta es un apartado
+     */
+    public function esApartado()
+    {
+        return !is_null($this->apartado_id);
     }
 
     /**

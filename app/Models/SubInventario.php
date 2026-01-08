@@ -32,6 +32,15 @@ class SubInventario extends Model
     }
 
     /**
+     * Relación muchos a muchos con usuarios (pivot table)
+     */
+    public function users()
+    {
+        return $this->belongsToMany(User::class, 'subinventario_user', 'subinventario_id', 'user_name', 'id', 'name')
+                    ->withTimestamps();
+    }
+
+    /**
      * Scope para filtrar sub-inventarios activos
      */
     public function scopeActivos($query)

@@ -14,6 +14,39 @@ use App\Http\Controllers\SubInventarioController;
 use App\Http\Controllers\ApartadoController;
 use App\Http\Controllers\AbonoController;
 
+// Ruta especial para ejecutar migraciones en hosting (PROTEGIDA CON TOKEN)
+Route::get('/run-migrations/{token}', function ($token) {
+    // Token de seguridad - cambia esto por uno único
+    $secretToken = 'pan2026migrations'; // CAMBIAR EN PRODUCCIÓN
+    
+    if ($token !== $secretToken) {
+        abort(403, 'Token inválido');
+    }
+    
+    try {
+        // Ejecutar las migraciones pendientes
+        \Illuminate\Support\Facades\Artisan::call('migrate', [
+            '--force' => true, // Necesario para producción
+        ]);
+        
+        $output = \Illuminate\Support\Facades\Artisan::output();
+        
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Migraciones ejecutadas correctamente',
+            'output' => $output,
+            'timestamp' => now()->format('Y-m-d H:i:s')
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Error al ejecutar migraciones',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+})->name('run.migrations');
+
 // Rutas públicas de autenticación
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');
@@ -83,15 +116,27 @@ Route::middleware('checkauth')->group(function () {
     Route::get('/envios-export/pdf', [EnvioController::class, 'exportPdf'])->name('envios.export.pdf');
     
     // Rutas de sub-inventarios
+    // IMPORTANTE: Rutas específicas ANTES del resource para evitar conflictos
+    Route::get('/subinventarios/buscar-congregantes', [SubInventarioController::class, 'buscarCongregantes'])->name('subinventarios.buscar-congregantes');
+    Route::get('/subinventarios-export/excel', [SubInventarioController::class, 'exportExcel'])->name('subinventarios.export.excel');
+    Route::get('/subinventarios-export/pdf', [SubInventarioController::class, 'exportPdf'])->name('subinventarios.export.pdf');
+    
     Route::resource('subinventarios', SubInventarioController::class);
     Route::post('/subinventarios/{subinventario}/completar', [SubInventarioController::class, 'completar'])->name('subinventarios.completar');
     Route::post('/subinventarios/{subinventario}/cancelar', [SubInventarioController::class, 'cancelar'])->name('subinventarios.cancelar');
     Route::post('/subinventarios/{subinventario}/devolver-parcial', [SubInventarioController::class, 'devolverParcial'])->name('subinventarios.devolver-parcial');
     
+    // Rutas para gestionar usuarios de subinventarios
+    Route::get('/subinventarios/{subinventario}/usuarios', [SubInventarioController::class, 'usuarios'])->name('subinventarios.usuarios');
+    Route::post('/subinventarios/{subinventario}/assign-user', [SubInventarioController::class, 'assignUser'])->name('subinventarios.assign-user');
+    Route::delete('/subinventarios/{subinventario}/remove-user', [SubInventarioController::class, 'removeUser'])->name('subinventarios.remove-user');
+    
     // Rutas de apartados
     Route::resource('apartados', ApartadoController::class);
     Route::put('/apartados/{apartado}/liquidar', [ApartadoController::class, 'liquidar'])->name('apartados.liquidar');
     Route::put('/apartados/{apartado}/cancelar', [ApartadoController::class, 'cancelar'])->name('apartados.cancelar');
+    Route::get('/apartados-export/excel', [ApartadoController::class, 'exportExcel'])->name('apartados.export.excel');
+    Route::get('/apartados-export/pdf', [ApartadoController::class, 'exportPdf'])->name('apartados.export.pdf');
     
     // Rutas de abonos (dentro del módulo de apartados)
     Route::get('/apartados/{apartado}/abonos/crear', [AbonoController::class, 'create'])->name('apartados.abonos.create');

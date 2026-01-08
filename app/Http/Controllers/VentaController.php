@@ -32,7 +32,7 @@ class VentaController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Venta::with(['movimientos.libro', 'cliente', 'pagos']);
+        $query = Venta::with(['movimientos.libro', 'cliente', 'pagos', 'apartado']);
 
         // ===== FILTROS PARA REPORTES =====
 
@@ -70,6 +70,15 @@ class VentaController extends Controller
                 $query->ventasAPlazo();
             } elseif ($request->es_a_plazos == '0') {
                 $query->where('es_a_plazos', false);
+            }
+        }
+
+        // Filtro por apartados
+        if ($request->filled('es_apartado')) {
+            if ($request->es_apartado == '1') {
+                $query->esApartado(true);
+            } elseif ($request->es_apartado == '0') {
+                $query->esApartado(false);
             }
         }
 
@@ -236,6 +245,20 @@ class VentaController extends Controller
             $tipoInventario = $validated['tipo_inventario'];
             $subinventarioId = $validated['subinventario_id'] ?? null;
             
+            // VALIDACIÓN: Si es subinventario, verificar que el usuario tenga acceso
+            if ($tipoInventario === 'subinventario' && $subinventarioId) {
+                $tieneAcceso = DB::table('subinventario_user')
+                    ->where('subinventario_id', $subinventarioId)
+                    ->where('cod_congregante', session('codCongregante'))
+                    ->exists();
+                
+                if (!$tieneAcceso) {
+                    return back()->withErrors([
+                        'error' => 'No tienes acceso a este punto de venta (subinventario)'
+                    ])->withInput();
+                }
+            }
+            
             // Validar que si es a plazos, debe tener cliente
             if ($esAPLazos && empty($validated['cliente_id'])) {
                 return back()->withErrors([
@@ -280,19 +303,16 @@ class VentaController extends Controller
             }
 
             // Crear la venta
-            $observaciones = $validated['observaciones'] ?? '';
-            if ($tipoInventario === 'subinventario') {
-                $observaciones .= ($observaciones ? ' | ' : '') . "SubInv #{$subinventarioId}";
-            }
-            
             $venta = Venta::create([
                 'cliente_id' => $validated['cliente_id'],
                 'fecha_venta' => $validated['fecha_venta'],
                 'tipo_pago' => $validated['tipo_pago'],
                 'descuento_global' => $validated['descuento_global'] ?? 0,
                 'estado' => 'completada',
-                'observaciones' => $observaciones,
+                'observaciones' => $validated['observaciones'] ?? '',
                 'usuario' => session('username'),
+                'tipo_inventario' => $tipoInventario,
+                'subinventario_id' => $subinventarioId,
                 'es_a_plazos' => $esAPLazos,
                 'tiene_envio' => isset($validated['tiene_envio']) && $validated['tiene_envio'],
                 'costo_envio' => isset($validated['tiene_envio']) && $validated['tiene_envio'] ? ($validated['costo_envio'] ?? 0) : 0,
@@ -378,7 +398,7 @@ class VentaController extends Controller
      */
     public function show(Venta $venta)
     {
-        $venta->load(['movimientos.libro', 'cliente']);
+        $venta->load(['movimientos.libro', 'cliente', 'apartado', 'subinventario']);
         
         return view('ventas.show', compact('venta'));
     }
@@ -719,8 +739,8 @@ class VentaController extends Controller
         // Estadísticas
         if ($ventas->count() > 0) {
             $totalMonto = $ventas->sum('total');
-            $totalPagado = $ventas->sum('total_pagado');
-            $totalPendiente = $totalMonto - $totalPagado;
+            $totalUnidades = $ventas->sum(function($v) { return $v->movimientos->sum('cantidad'); });
+            $ventasConEnvio = $ventas->where('tiene_envio', true)->count();
             
             $sheet->setCellValue('A' . $row, 'RESUMEN:');
             $sheet->getStyle('A' . $row)->getFont()->setBold(true);
@@ -730,30 +750,43 @@ class VentaController extends Controller
             $row++;
             $sheet->setCellValue('A' . $row, 'Monto total: $' . number_format($totalMonto, 2));
             $row++;
-            $sheet->setCellValue('A' . $row, 'Total pagado: $' . number_format($totalPagado, 2));
+            $sheet->setCellValue('A' . $row, 'Unidades vendidas: ' . $totalUnidades);
             $row++;
-            $sheet->setCellValue('A' . $row, 'Saldo pendiente: $' . number_format($totalPendiente, 2));
+            $sheet->setCellValue('A' . $row, 'Ventas con envío: ' . $ventasConEnvio);
             $row += 2; // Espacio
         }
         
         // Encabezados de tabla
-        $headers = ['ID', 'Fecha', 'Cliente', 'Libros', 'Tipo Pago', 'Subtotal', 'Desc.', 'Total', 'Pagado', 'Saldo', 'Estado'];
+        $headers = ['ID', 'Fecha', 'Cliente', 'Origen', 'Apartado', 'Libros', 'Unidades', 'Tipo Pago', 'Desc.', 'Total', 'Envío', 'Estado'];
         $row = $this->excelReportService->setTableHeaders($sheet, $headers, $row);
         
         // Datos
         $data = [];
         foreach ($ventas as $venta) {
+            // Determinar origen
+            $origen = 'General';
+            if ($venta->tipo_inventario === 'subinventario' && $venta->subinventario) {
+                $origen = 'SubInv #' . $venta->subinventario->id;
+            }
+            
+            // Determinar si es apartado
+            $apartado = 'No';
+            if ($venta->esApartado() && $venta->apartado) {
+                $apartado = 'Sí (Apt #' . $venta->apartado->id . ')';
+            }
+            
             $data[] = [
                 $venta->id,
                 $venta->fecha_venta->format('d/m/Y H:i'),
                 $venta->cliente?->nombre ?: 'Sin cliente',
-                $venta->movimientos->count() . ' libros (' . $venta->movimientos->sum('cantidad') . ' unidades)',
+                $origen,
+                $apartado,
+                $venta->movimientos->count(),
+                $venta->movimientos->sum('cantidad'),
                 $venta->getTipoPagoLabel(),
-                '$' . number_format($venta->subtotal, 2),
                 $venta->descuento_global ? $venta->descuento_global . '%' : '0%',
                 '$' . number_format($venta->total, 2),
-                '$' . number_format($venta->total_pagado, 2),
-                '$' . number_format($venta->saldo_pendiente, 2),
+                $venta->tiene_envio ? 'Sí' : 'No',
                 $venta->getEstadoUnificadoLabel(),
             ];
         }
@@ -761,7 +794,7 @@ class VentaController extends Controller
         $lastRow = $this->excelReportService->fillData($sheet, $data, $row);
         
         // Auto ajustar columnas
-        $this->excelReportService->autoSizeColumns($sheet, ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']);
+        $this->excelReportService->autoSizeColumns($sheet, ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']);
         
         // Descargar
         $filename = $this->excelReportService->generateFilename('reporte_ventas');
@@ -786,8 +819,8 @@ class VentaController extends Controller
         $estadisticas = [
             'total' => $ventasActivas->count(),
             'monto_total' => $ventasActivas->sum('total'),
-            'total_pagado' => $ventasActivas->sum('total_pagado'),
-            'saldo_pendiente' => $ventasActivas->sum('total') - $ventasActivas->sum('total_pagado'),
+            'unidades_vendidas' => $ventasActivas->sum(function($v) { return $v->movimientos->sum('cantidad'); }),
+            'ventas_con_envio' => $ventasActivas->where('tiene_envio', true)->count(),
             'completadas' => $ventas->where('estado', 'completada')->count(),
             'canceladas' => $ventas->where('estado', 'cancelada')->count(),
         ];
@@ -811,7 +844,7 @@ class VentaController extends Controller
      */
     private function buildFilteredQuery(Request $request)
     {
-        $query = Venta::with(['movimientos.libro', 'cliente', 'pagos']);
+        $query = Venta::with(['movimientos.libro', 'cliente', 'pagos', 'subinventario', 'apartado']);
 
         // Filtro por rango de fechas
         if ($request->filled('fecha_desde')) {
@@ -839,6 +872,15 @@ class VentaController extends Controller
         // Filtro por estado de pago
         if ($request->filled('estado_pago')) {
             $query->estadoPago($request->estado_pago);
+        }
+
+        // Filtro por apartados
+        if ($request->filled('es_apartado')) {
+            if ($request->es_apartado == '1') {
+                $query->esApartado(true);
+            } elseif ($request->es_apartado == '0') {
+                $query->esApartado(false);
+            }
         }
 
         // Filtro por ventas vencidas
