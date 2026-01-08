@@ -91,37 +91,38 @@ CREATE TABLE subinventario_user (
          │
          ↓
 ┌──────────────────────────────────────────────────────────────┐
-│  PASO 1: Consultar SubInventarios Disponibles                │
-│  GET /api/v1/subinventarios?estado=activo                    │
+│  PASO 1: Obtener Mis Subinventarios                          │
+│  GET /api/v1/mis-subinventarios/{codCongregante}             │
 └──────────────────────────────────────────────────────────────┘
          │
-         │ Respuesta: Lista de subinventarios activos
+         │ Respuesta: Lista de subinventarios asignados
+         │ (solo info básica: id, nombre, totales)
          │
          ↓
 ┌──────────────────────────────────────────────────────────────┐
-│  PASO 2: Filtrar por usuario (lógica en tu app)              │
-│  - Consultar tabla subinventario_user                        │
-│  - Buscar WHERE cod_congregante = [tu_token]                 │
+│  PASO 2: Usuario Selecciona un Punto de Venta               │
+│  App muestra lista de subinventarios                         │
+│  Usuario selecciona uno (ej: subinventario_id = 5)          │
 └──────────────────────────────────────────────────────────────┘
          │
-         │ Resultado: SubInventario(s) asignados al usuario
          │
          ↓
 ┌──────────────────────────────────────────────────────────────┐
-│  PASO 3: Mostrar Inventario Asignado                         │
-│  - ID del subinventario                                      │
-│  - Descripción                                               │
-│  - Libros disponibles (con cantidades)                       │
+│  PASO 3: Cargar Inventario del Punto de Venta               │
+│  GET /api/v1/subinventarios/5/libros                         │
+│       ?cod_congregante={codCongregante} (opcional)           │
 └──────────────────────────────────────────────────────────────┘
          │
-         │ Usuario selecciona libros y crea venta
+         │ Respuesta: Todos los libros con stock disponible
+         │ - ID, nombre, precio, cantidad_disponible
          │
          ↓
 ┌──────────────────────────────────────────────────────────────┐
-│  PASO 4: Crear Venta                                         │
+│  PASO 4: Realizar Ventas                                     │
+│  Usuario selecciona libros y cantidades                      │
 │  POST /api/v1/ventas                                         │
 │  Body: {                                                     │
-│    subinventario_id: X,                                      │
+│    subinventario_id: 5,                                      │
 │    usuario: "nombre_usuario",                                │
 │    libros: [...]                                             │
 │  }                                                           │
@@ -132,9 +133,102 @@ CREATE TABLE subinventario_user (
 
 ## 🌐 Endpoints Disponibles
 
-### 1. **GET** `/api/v1/subinventarios`
+### 1. **GET** `/api/v1/mis-subinventarios/{cod_congregante}`
 
-**Descripción:** Obtiene lista de subinventarios con sus libros asociados
+**Descripción:** Obtiene la lista de subinventarios asignados al usuario (sin libros, solo información básica)
+
+**Path Parameters:**
+- `cod_congregante` (obligatorio): Token/código del usuario
+
+**Respuesta de Ejemplo:**
+```json
+{
+  "success": true,
+  "message": "Subinventarios encontrados",
+  "data": [
+    {
+      "id": 1,
+      "descripcion": "Punto de Venta - Juan Pérez",
+      "fecha_subinventario": "2026-01-05",
+      "estado": "activo",
+      "observaciones": "Asignado para enero",
+      "total_libros": 27,
+      "total_unidades": 79
+    }
+  ]
+}
+```
+
+**Respuesta (sin subinventarios):**
+```json
+{
+  "success": false,
+  "message": "No tienes subinventarios asignados",
+  "data": []
+}
+```
+
+---
+
+### 2. **GET** `/api/v1/subinventarios/{id}/libros`
+
+**Descripción:** Obtiene todos los libros disponibles de un subinventario específico con stock y precios
+
+**Path Parameters:**
+- `id` (obligatorio): ID del subinventario
+
+**Query Parameters (opcional):**
+- `cod_congregante` (string): Para validar acceso del usuario al subinventario
+
+**Respuesta de Ejemplo:**
+```json
+{
+  "success": true,
+  "message": "Libros encontrados",
+  "data": {
+    "subinventario": {
+      "id": 1,
+      "descripcion": "Punto de Venta - Juan Pérez",
+      "fecha_subinventario": "2026-01-05",
+      "estado": "activo"
+    },
+    "total_libros": 27,
+    "total_unidades": 79,
+    "libros": [
+      {
+        "id": 12,
+        "nombre": "Biblia Reina Valera 1960",
+        "codigo_barras": "9788408234567",
+        "precio": 25.50,
+        "stock_general": 50,
+        "cantidad_disponible": 10
+      },
+      {
+        "id": 23,
+        "nombre": "Devocional Jesús Te Llama",
+        "codigo_barras": "9780718034047",
+        "precio": 15.00,
+        "stock_general": 30,
+        "cantidad_disponible": 5
+      }
+    ]
+  }
+}
+```
+
+**Respuesta Error (sin acceso):**
+```json
+{
+  "success": false,
+  "message": "No tienes acceso a este subinventario"
+}
+```
+
+---
+
+### 3. **GET** `/api/v1/subinventarios`
+
+**Descripción:** Obtiene lista de todos los subinventarios (uso interno/admin)
 
 **Query Parameters:**
 | Parámetro | Tipo | Descripción | Ejemplo |
@@ -145,54 +239,11 @@ CREATE TABLE subinventario_user (
 | `ordenar` | string | Orden de resultados | `reciente`, `antiguo`, `fecha_asc`, `fecha_desc` |
 | `per_page` | integer | Resultados por página | `15` (default) |
 
-**Respuesta de Ejemplo:**
-```json
-{
-  "current_page": 1,
-  "data": [
-    {
-      "id": 5,
-      "fecha_subinventario": "2026-01-05",
-      "descripcion": "Punto de Venta - Juan Pérez",
-      "estado": "activo",
-      "usuario": "Admin",
-      "observaciones": "Asignado para enero",
-      "created_at": "2026-01-05T10:00:00.000000Z",
-      "updated_at": "2026-01-05T10:00:00.000000Z",
-      "libros": [
-        {
-          "id": 12,
-          "nombre": "Biblia Reina Valera 1960",
-          "codigo_barras": "9788408234567",
-          "pivot": {
-            "subinventario_id": 5,
-            "libro_id": 12,
-            "cantidad": 10
-          }
-        },
-        {
-          "id": 23,
-          "nombre": "Devocional Jesús Te Llama",
-          "codigo_barras": "9780718034047",
-          "pivot": {
-            "subinventario_id": 5,
-            "libro_id": 23,
-            "cantidad": 5
-          }
-        }
-      ]
-    }
-  ],
-  "per_page": 15,
-  "total": 8
-}
-```
-
 **Código Fuente:** `app/Http/Controllers/SubInventarioController.php:511` (método `apiIndex`)
 
 ---
 
-### 2. **GET** `/api/v1/libros/buscar-codigo/{codigo}`
+### 4. **GET** `/api/v1/libros/buscar-codigo/{codigo}`
 
 **Descripción:** Buscar libro por código de barras o QR
 
@@ -216,7 +267,7 @@ CREATE TABLE subinventario_user (
 
 ---
 
-### 3. **GET** `/api/v1/clientes`
+### 5. **GET** `/api/v1/clientes`
 
 **Descripción:** Obtiene lista de clientes (para asignar a ventas)
 
@@ -244,7 +295,7 @@ CREATE TABLE subinventario_user (
 
 ---
 
-### 4. **POST** `/api/v1/ventas`
+### 6. **POST** `/api/v1/ventas`
 
 **Descripción:** Crear nueva venta desde la app móvil
 
@@ -513,7 +564,7 @@ public function apiStore(Request $request)
 
 ```javascript
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, Button } from 'react-native';
+import { View, Text, FlatList, Button, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_BASE = 'https://tu-dominio.com/api/v1';
@@ -522,7 +573,9 @@ function PuntoVentaScreen() {
     const [codCongregante, setCodCongregante] = useState(null);
     const [subinventarios, setSubinventarios] = useState([]);
     const [selectedSubinv, setSelectedSubinv] = useState(null);
+    const [libros, setLibros] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loadingLibros, setLoadingLibros] = useState(false);
     
     useEffect(() => {
         inicializar();
@@ -534,26 +587,18 @@ function PuntoVentaScreen() {
         setCodCongregante(token);
         
         if (token) {
-            await cargarMisInventarios(token);
+            await cargarMisSubinventarios(token);
         }
     }
     
-    // 2. Obtener subinventarios asignados al usuario
-    async function cargarMisInventarios(token) {
+    // 2. Obtener lista de subinventarios asignados (sin libros)
+    async function cargarMisSubinventarios(token) {
         try {
             setLoading(true);
             
-            // Opción A: Con endpoint nuevo
             const response = await fetch(
                 `${API_BASE}/mis-subinventarios/${token}`
             );
-            
-            /* Opción B: Sin endpoint, filtrar todos
-            const response = await fetch(
-                `${API_BASE}/subinventarios?estado=activo`
-            );
-            // Luego filtrar en cliente por token
-            */
             
             const data = await response.json();
             
@@ -562,17 +607,48 @@ function PuntoVentaScreen() {
                 
                 // Si solo hay uno, seleccionarlo automáticamente
                 if (data.data.length === 1) {
-                    setSelectedSubinv(data.data[0]);
+                    await seleccionarSubinventario(data.data[0]);
                 }
+            } else {
+                alert(data.message);
             }
         } catch (error) {
             console.error('Error cargando inventarios:', error);
+            alert('Error al cargar tus puntos de venta');
         } finally {
             setLoading(false);
         }
     }
     
-    // 3. Crear venta
+    // 3. Cargar libros del subinventario seleccionado
+    async function seleccionarSubinventario(subinv) {
+        try {
+            setLoadingLibros(true);
+            setSelectedSubinv(subinv);
+            
+            // Cargar libros con validación de acceso
+            const response = await fetch(
+                `${API_BASE}/subinventarios/${subinv.id}/libros?cod_congregante=${codCongregante}`
+            );
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                setLibros(data.data.libros);
+            } else {
+                alert(data.message);
+                setSelectedSubinv(null);
+            }
+        } catch (error) {
+            console.error('Error cargando libros:', error);
+            alert('Error al cargar el inventario');
+            setSelectedSubinv(null);
+        } finally {
+            setLoadingLibros(false);
+        }
+    }
+    
+    // 4. Crear venta
     async function crearVenta(librosSeleccionados) {
         if (!selectedSubinv) {
             alert('Debes seleccionar un punto de venta');
@@ -607,8 +683,8 @@ function PuntoVentaScreen() {
             
             if (data.success) {
                 alert(`Venta creada! Total: $${data.data.total}`);
-                // Recargar inventario
-                await cargarMisInventarios(codCongregante);
+                // Recargar inventario del punto de venta
+                await seleccionarSubinventario(selectedSubinv);
             } else {
                 alert(`Error: ${data.message}`);
             }
@@ -618,53 +694,119 @@ function PuntoVentaScreen() {
         }
     }
     
+    // Renderizado
     if (loading) {
-        return <Text>Cargando...</Text>;
-    }
-    
-    if (subinventarios.length === 0) {
         return (
-            <View>
-                <Text>No tienes puntos de venta asignados</Text>
+            <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+                <ActivityIndicator size="large" />
+                <Text>Cargando tus puntos de venta...</Text>
             </View>
         );
     }
     
+    if (subinventarios.length === 0) {
+        return (
+            <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20}}>
+                <Text style={{fontSize: 18, textAlign: 'center'}}>
+                    No tienes puntos de venta asignados
+                </Text>
+                <Text style={{marginTop: 10, color: '#666'}}>
+                    Contacta al administrador
+                </Text>
+            </View>
+        );
+    }
+    
+    // Si no ha seleccionado un punto de venta, mostrar lista
+    if (!selectedSubinv) {
+        return (
+            <View style={{flex: 1, padding: 20}}>
+                <Text style={{fontSize: 24, fontWeight: 'bold', marginBottom: 20}}>
+                    Mis Puntos de Venta
+                </Text>
+                
+                <FlatList
+                    data={subinventarios}
+                    keyExtractor={item => item.id.toString()}
+                    renderItem={({item}) => (
+                        <View style={{
+                            backgroundColor: '#f5f5f5',
+                            padding: 15,
+                            marginBottom: 10,
+                            borderRadius: 8
+                        }}>
+                            <Text style={{fontSize: 18, fontWeight: 'bold'}}>
+                                {item.descripcion || `Punto de Venta #${item.id}`}
+                            </Text>
+                            <Text style={{color: '#666', marginTop: 5}}>
+                                Libros: {item.total_libros} | Unidades: {item.total_unidades}
+                            </Text>
+                            <Text style={{color: '#666', fontSize: 12}}>
+                                Fecha: {new Date(item.fecha_subinventario).toLocaleDateString()}
+                            </Text>
+                            <Button 
+                                title="Seleccionar"
+                                onPress={() => seleccionarSubinventario(item)}
+                            />
+                        </View>
+                    )}
+                />
+            </View>
+        );
+    }
+    
+    // Vista del punto de venta seleccionado
     return (
-        <View>
-            <Text>Mis Puntos de Venta</Text>
+        <View style={{flex: 1}}>
+            <View style={{backgroundColor: '#007bff', padding: 15}}>
+                <Text style={{color: 'white', fontSize: 20, fontWeight: 'bold'}}>
+                    {selectedSubinv.descripcion || `Punto de Venta #${selectedSubinv.id}`}
+                </Text>
+                <Text style={{color: 'white'}}>
+                    {selectedSubinv.total_libros} libros - {selectedSubinv.total_unidades} unidades
+                </Text>
+                <Button 
+                    title="Cambiar punto de venta"
+                    color="#fff"
+                    onPress={() => {
+                        setSelectedSubinv(null);
+                        setLibros([]);
+                    }}
+                />
+            </View>
             
-            <FlatList
-                data={subinventarios}
-                keyExtractor={item => item.id.toString()}
-                renderItem={({item}) => (
-                    <View>
-                        <Text>{item.descripcion}</Text>
-                        <Text>Libros: {item.total_libros}</Text>
-                        <Text>Unidades: {item.total_unidades}</Text>
-                        <Button 
-                            title="Seleccionar"
-                            onPress={() => setSelectedSubinv(item)}
-                        />
-                    </View>
-                )}
-            />
-            
-            {selectedSubinv && (
-                <View>
-                    <Text>Inventario Activo: {selectedSubinv.descripcion}</Text>
-                    {/* Mostrar libros disponibles */}
-                    <FlatList
-                        data={selectedSubinv.libros}
-                        renderItem={({item}) => (
-                            <View>
-                                <Text>{item.nombre}</Text>
-                                <Text>Disponible: {item.cantidad_disponible}</Text>
-                                <Text>Precio: ${item.precio}</Text>
-                            </View>
-                        )}
-                    />
+            {loadingLibros ? (
+                <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+                    <ActivityIndicator size="large" />
+                    <Text>Cargando inventario...</Text>
                 </View>
+            ) : (
+                <FlatList
+                    data={libros}
+                    keyExtractor={item => item.id.toString()}
+                    renderItem={({item}) => (
+                        <View style={{
+                            padding: 15,
+                            borderBottomWidth: 1,
+                            borderBottomColor: '#eee'
+                        }}>
+                            <Text style={{fontSize: 16, fontWeight: 'bold'}}>
+                                {item.nombre}
+                            </Text>
+                            <Text style={{color: '#666'}}>
+                                Disponible: {item.cantidad_disponible} unidades
+                            </Text>
+                            <Text style={{color: '#007bff', fontSize: 18, fontWeight: 'bold'}}>
+                                ${item.precio}
+                            </Text>
+                            {item.codigo_barras && (
+                                <Text style={{fontSize: 12, color: '#999'}}>
+                                    Código: {item.codigo_barras}
+                                </Text>
+                            )}
+                        </View>
+                    )}
+                />
             )}
         </View>
     );

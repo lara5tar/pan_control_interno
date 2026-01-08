@@ -550,7 +550,7 @@ class SubInventarioController extends Controller
     }
 
     /**
-     * API - Obtener subinventarios asignados a un usuario específico
+     * API - Obtener subinventarios asignados a un usuario específico (sin libros)
      */
     public function apiMisSubinventarios(Request $request, $codCongregante)
     {
@@ -567,31 +567,26 @@ class SubInventarioController extends Controller
             ], 404);
         }
         
-        // Obtener los subinventarios con sus libros
-        $subinventarios = SubInventario::with(['libros' => function($query) {
-                $query->select('libros.id', 'libros.nombre', 'libros.codigo_barras', 'libros.precio')
-                      ->where('subinventario_libro.cantidad', '>', 0); // Solo libros con stock
-            }])
-            ->whereIn('id', $subinventariosIds)
+        // Obtener los subinventarios SIN cargar los libros (más rápido)
+        $subinventarios = SubInventario::whereIn('id', $subinventariosIds)
             ->where('estado', 'activo') // Solo activos
-            ->get()
+            ->get(['id', 'descripcion', 'fecha_subinventario', 'estado', 'observaciones'])
             ->map(function($subinventario) {
+                // Calcular totales sin cargar todos los libros
+                $stats = DB::table('subinventario_libro')
+                    ->where('subinventario_id', $subinventario->id)
+                    ->where('cantidad', '>', 0)
+                    ->selectRaw('COUNT(DISTINCT libro_id) as total_libros, SUM(cantidad) as total_unidades')
+                    ->first();
+                
                 return [
                     'id' => $subinventario->id,
                     'descripcion' => $subinventario->descripcion,
                     'fecha_subinventario' => $subinventario->fecha_subinventario,
                     'estado' => $subinventario->estado,
-                    'total_libros' => $subinventario->libros->count(),
-                    'total_unidades' => $subinventario->libros->sum('pivot.cantidad'),
-                    'libros' => $subinventario->libros->map(function($libro) {
-                        return [
-                            'id' => $libro->id,
-                            'nombre' => $libro->nombre,
-                            'codigo_barras' => $libro->codigo_barras,
-                            'precio' => $libro->precio,
-                            'cantidad_disponible' => $libro->pivot->cantidad
-                        ];
-                    })
+                    'observaciones' => $subinventario->observaciones,
+                    'total_libros' => $stats->total_libros ?? 0,
+                    'total_unidades' => $stats->total_unidades ?? 0
                 ];
             });
         
@@ -599,6 +594,70 @@ class SubInventarioController extends Controller
             'success' => true,
             'message' => 'Subinventarios encontrados',
             'data' => $subinventarios
+        ], 200);
+    }
+
+    /**
+     * API - Obtener libros disponibles de un subinventario específico
+     */
+    public function apiLibrosSubinventario(Request $request, $id)
+    {
+        // Verificar que el subinventario existe y está activo
+        $subinventario = SubInventario::where('id', $id)
+            ->where('estado', 'activo')
+            ->first();
+        
+        if (!$subinventario) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Subinventario no encontrado o no activo'
+            ], 404);
+        }
+        
+        // Validar acceso del usuario (opcional, si envían cod_congregante)
+        if ($request->filled('cod_congregante')) {
+            $tieneAcceso = DB::table('subinventario_user')
+                ->where('subinventario_id', $id)
+                ->where('cod_congregante', $request->cod_congregante)
+                ->exists();
+            
+            if (!$tieneAcceso) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No tienes acceso a este subinventario'
+                ], 403);
+            }
+        }
+        
+        // Obtener libros con stock disponible
+        $libros = $subinventario->libros()
+            ->wherePivot('cantidad', '>', 0)
+            ->get()
+            ->map(function($libro) {
+                return [
+                    'id' => $libro->id,
+                    'nombre' => $libro->nombre,
+                    'codigo_barras' => $libro->codigo_barras,
+                    'precio' => $libro->precio,
+                    'stock_general' => $libro->stock,
+                    'cantidad_disponible' => $libro->pivot->cantidad
+                ];
+            });
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Libros encontrados',
+            'data' => [
+                'subinventario' => [
+                    'id' => $subinventario->id,
+                    'descripcion' => $subinventario->descripcion,
+                    'fecha_subinventario' => $subinventario->fecha_subinventario,
+                    'estado' => $subinventario->estado
+                ],
+                'total_libros' => $libros->count(),
+                'total_unidades' => $libros->sum('cantidad_disponible'),
+                'libros' => $libros
+            ]
         ], 200);
     }
 
