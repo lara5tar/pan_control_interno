@@ -20,6 +20,8 @@ class Apartado extends Model
         'observaciones',
         'usuario',
         'venta_id',
+        'tipo_inventario',
+        'subinventario_id',
     ];
 
     protected $casts = [
@@ -36,6 +38,14 @@ class Apartado extends Model
     public function cliente(): BelongsTo
     {
         return $this->belongsTo(Cliente::class);
+    }
+
+    /**
+     * Relación con SubInventario
+     */
+    public function subinventario(): BelongsTo
+    {
+        return $this->belongsTo(SubInventario::class);
     }
 
     /**

@@ -116,8 +116,11 @@ class ApartadoController extends Controller
     {
         $clientes = Cliente::orderBy('nombre')->get();
         $libros = Libro::where('stock', '>', 0)->orderBy('nombre')->get();
+        $subinventarios = \App\Models\SubInventario::where('estado', 'activo')
+            ->orderBy('descripcion')
+            ->get();
 
-        return view('apartados.create', compact('clientes', 'libros'));
+        return view('apartados.create', compact('clientes', 'libros', 'subinventarios'));
     }
 
     /**
@@ -126,6 +129,8 @@ class ApartadoController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
+            'tipo_inventario' => 'nullable|in:general,subinventario',
+            'subinventario_id' => 'nullable|exists:subinventarios,id',
             'cliente_id' => 'required|exists:clientes,id',
             'fecha_apartado' => 'required|date',
             'enganche' => 'required|numeric|min:0',
@@ -137,6 +142,7 @@ class ApartadoController extends Controller
             'libros.*.precio_unitario' => 'required|numeric|min:0',
             'libros.*.descuento' => 'nullable|numeric|min:0|max:100',
         ], [
+            'tipo_inventario.in' => 'El tipo de inventario debe ser "general" o "subinventario"',
             'cliente_id.required' => 'Debe seleccionar un cliente',
             'fecha_apartado.required' => 'La fecha de apartado es obligatoria',
             'enganche.required' => 'El enganche es obligatorio',
@@ -146,20 +152,46 @@ class ApartadoController extends Controller
             'fecha_limite.after' => 'La fecha límite debe ser posterior a hoy',
         ]);
 
+        // Determinar tipo de inventario (por defecto general)
+        $tipoInventario = $validated['tipo_inventario'] ?? 'general';
+        
+        // Si es subinventario, validar que se proporcione subinventario_id
+        if ($tipoInventario === 'subinventario' && empty($validated['subinventario_id'])) {
+            return back()->withErrors(['error' => 'Debe seleccionar un subinventario'])
+                ->withInput();
+        }
+
         DB::beginTransaction();
         try {
             // Generar folio único
             $folio = $this->codeGenerator->generateCode('Apartado', 'AP');
 
-            // Calcular monto total
+            // Calcular monto total y validar stock según tipo de inventario
             $montoTotal = 0;
             foreach ($validated['libros'] as $libroData) {
                 $libro = Libro::find($libroData['libro_id']);
                 
-                // Verificar stock disponible
-                $stockDisponible = $libro->stock - $libro->stock_apartado;
-                if ($stockDisponible < $libroData['cantidad']) {
-                    throw new \Exception("Stock insuficiente para el libro: {$libro->nombre}. Disponible: {$stockDisponible}");
+                if ($tipoInventario === 'subinventario') {
+                    // Verificar que el libro esté en el subinventario
+                    $libroSubinventario = DB::table('subinventario_libro')
+                        ->where('subinventario_id', $validated['subinventario_id'])
+                        ->where('libro_id', $libroData['libro_id'])
+                        ->first();
+
+                    if (!$libroSubinventario) {
+                        throw new \Exception("El libro '{$libro->nombre}' no está en este subinventario");
+                    }
+
+                    // Verificar stock disponible en subinventario
+                    if ($libroSubinventario->cantidad < $libroData['cantidad']) {
+                        throw new \Exception("Cantidad insuficiente para '{$libro->nombre}'. Disponible: {$libroSubinventario->cantidad}");
+                    }
+                } else {
+                    // Verificar stock disponible en inventario general
+                    $stockDisponible = $libro->stock - $libro->stock_apartado - $libro->stock_subinventario;
+                    if ($stockDisponible < $libroData['cantidad']) {
+                        throw new \Exception("Stock insuficiente en inventario general para '{$libro->nombre}'. Disponible: {$stockDisponible}");
+                    }
                 }
 
                 $precio = $libroData['precio_unitario'];
@@ -175,6 +207,15 @@ class ApartadoController extends Controller
                 throw new \Exception('El enganche no puede ser mayor al monto total del apartado');
             }
 
+            // Preparar observaciones con información del origen
+            $observacionesBase = $validated['observaciones'] ?? '';
+            if ($tipoInventario === 'subinventario') {
+                $subinventario = \App\Models\SubInventario::find($validated['subinventario_id']);
+                $observacionesBase .= "\n--- DATOS DE SUBINVENTARIO ---\nSubinventario: {$subinventario->nombre_display}";
+            } else {
+                $observacionesBase .= "\n--- INVENTARIO GENERAL ---\nApartado desde inventario general";
+            }
+
             // Crear apartado
             $apartado = Apartado::create([
                 'folio' => $folio,
@@ -185,11 +226,13 @@ class ApartadoController extends Controller
                 'saldo_pendiente' => $montoTotal - $validated['enganche'],
                 'fecha_limite' => $validated['fecha_limite'] ?? null,
                 'estado' => 'activo',
-                'observaciones' => $validated['observaciones'] ?? null,
+                'observaciones' => $observacionesBase,
                 'usuario' => Auth::user()->name ?? 'Sistema',
+                'tipo_inventario' => $tipoInventario,
+                'subinventario_id' => $tipoInventario === 'subinventario' ? $validated['subinventario_id'] : null,
             ]);
 
-            // Crear detalles y actualizar stock_apartado
+            // Crear detalles y actualizar stock
             foreach ($validated['libros'] as $libroData) {
                 $libro = Libro::find($libroData['libro_id']);
                 
@@ -211,6 +254,16 @@ class ApartadoController extends Controller
 
                 // Incrementar stock_apartado
                 $libro->increment('stock_apartado', $libroData['cantidad']);
+
+                // Decrementar del inventario correspondiente
+                if ($tipoInventario === 'subinventario') {
+                    // Decrementar cantidad en subinventario
+                    DB::table('subinventario_libro')
+                        ->where('subinventario_id', $validated['subinventario_id'])
+                        ->where('libro_id', $libroData['libro_id'])
+                        ->decrement('cantidad', $libroData['cantidad']);
+                }
+                // Si es general, no hay que decrementar nada más (stock_apartado ya se incrementó)
             }
 
             // Si hubo enganche, crear el primer abono
@@ -449,9 +502,23 @@ class ApartadoController extends Controller
 
         DB::beginTransaction();
         try {
-            // Liberar stock_apartado
+            // Liberar stock según tipo de inventario
             foreach ($apartado->detalles as $detalle) {
+                // Decrementar stock_apartado
                 $detalle->libro->decrement('stock_apartado', $detalle->cantidad);
+
+                // Devolver al inventario correspondiente
+                if ($apartado->tipo_inventario === 'subinventario' && $apartado->subinventario_id) {
+                    // Devolver al subinventario
+                    DB::table('subinventario_libro')
+                        ->where('subinventario_id', $apartado->subinventario_id)
+                        ->where('libro_id', $detalle->libro_id)
+                        ->increment('cantidad', $detalle->cantidad);
+                } else {
+                    // Devolver al inventario general (no hace falta incrementar stock, 
+                    // solo decrementar stock_apartado libera el stock general automáticamente)
+                    // El stock disponible = stock - stock_apartado - stock_subinventario
+                }
             }
 
             // Cambiar estado
@@ -691,7 +758,8 @@ class ApartadoController extends Controller
         try {
             // Validar datos
             $validated = $request->validate([
-                'subinventario_id' => 'required|exists:subinventarios,id',
+                'tipo_inventario' => 'nullable|in:general,subinventario',
+                'subinventario_id' => 'nullable|exists:subinventarios,id',
                 'cod_congregante' => 'required|string',
                 'cliente_id' => 'required|exists:clientes,id',
                 'fecha_apartado' => 'required|date',
@@ -705,7 +773,7 @@ class ApartadoController extends Controller
                 'libros.*.precio_unitario' => 'required|numeric|min:0',
                 'libros.*.descuento' => 'nullable|numeric|min:0|max:100',
             ], [
-                'subinventario_id.required' => 'Debe especificar el punto de venta',
+                'tipo_inventario.in' => 'El tipo de inventario debe ser "general" o "subinventario"',
                 'cod_congregante.required' => 'Falta el token de usuario',
                 'cliente_id.required' => 'Debe seleccionar un cliente',
                 'fecha_apartado.required' => 'La fecha de apartado es obligatoria',
@@ -717,26 +785,41 @@ class ApartadoController extends Controller
                 'usuario.required' => 'Falta el nombre del usuario',
             ]);
 
-            // Validar acceso al subinventario
-            $tieneAcceso = DB::table('subinventario_user')
-                ->where('subinventario_id', $validated['subinventario_id'])
-                ->where('cod_congregante', $validated['cod_congregante'])
-                ->exists();
+            // Determinar tipo de inventario (por defecto subinventario para retrocompatibilidad)
+            $tipoInventario = $validated['tipo_inventario'] ?? 'subinventario';
+            
+            // Si es subinventario, validar que se proporcione subinventario_id
+            if ($tipoInventario === 'subinventario') {
+                if (empty($validated['subinventario_id'])) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Debe especificar el punto de venta (subinventario_id)'
+                    ], 422);
+                }
 
-            if (!$tieneAcceso) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No tienes acceso a este punto de venta (subinventario)'
-                ], 403);
-            }
+                // Validar acceso al subinventario
+                $tieneAcceso = DB::table('subinventario_user')
+                    ->where('subinventario_id', $validated['subinventario_id'])
+                    ->where('cod_congregante', $validated['cod_congregante'])
+                    ->exists();
 
-            // Validar que el subinventario esté activo
-            $subinventario = \App\Models\SubInventario::find($validated['subinventario_id']);
-            if ($subinventario->estado !== 'activo') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'El punto de venta no está activo'
-                ], 422);
+                if (!$tieneAcceso) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No tienes acceso a este punto de venta (subinventario)'
+                    ], 403);
+                }
+
+                // Validar que el subinventario esté activo
+                $subinventario = \App\Models\SubInventario::find($validated['subinventario_id']);
+                if ($subinventario->estado !== 'activo') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'El punto de venta no está activo'
+                    ], 422);
+                }
+            } else {
+                $subinventario = null;
             }
 
             DB::beginTransaction();
@@ -744,24 +827,32 @@ class ApartadoController extends Controller
             // Generar folio único
             $folio = $this->codeGenerator->generateCode('Apartado', 'AP');
 
-            // Calcular monto total y validar stock en subinventario
+            // Calcular monto total y validar stock según tipo de inventario
             $montoTotal = 0;
             foreach ($validated['libros'] as $libroData) {
                 $libro = Libro::find($libroData['libro_id']);
                 
-                // Verificar que el libro esté en el subinventario
-                $libroSubinventario = DB::table('subinventario_libro')
-                    ->where('subinventario_id', $validated['subinventario_id'])
-                    ->where('libro_id', $libroData['libro_id'])
-                    ->first();
+                if ($tipoInventario === 'subinventario') {
+                    // Verificar que el libro esté en el subinventario
+                    $libroSubinventario = DB::table('subinventario_libro')
+                        ->where('subinventario_id', $validated['subinventario_id'])
+                        ->where('libro_id', $libroData['libro_id'])
+                        ->first();
 
-                if (!$libroSubinventario) {
-                    throw new \Exception("El libro '{$libro->nombre}' no está en este subinventario");
-                }
+                    if (!$libroSubinventario) {
+                        throw new \Exception("El libro '{$libro->nombre}' no está en este subinventario");
+                    }
 
-                // Verificar stock disponible en subinventario
-                if ($libroSubinventario->cantidad < $libroData['cantidad']) {
-                    throw new \Exception("Cantidad insuficiente para '{$libro->nombre}'. Disponible: {$libroSubinventario->cantidad}");
+                    // Verificar stock disponible en subinventario
+                    if ($libroSubinventario->cantidad < $libroData['cantidad']) {
+                        throw new \Exception("Cantidad insuficiente para '{$libro->nombre}'. Disponible: {$libroSubinventario->cantidad}");
+                    }
+                } else {
+                    // Verificar stock disponible en inventario general
+                    $stockDisponible = $libro->stock - $libro->stock_apartado - $libro->stock_subinventario;
+                    if ($stockDisponible < $libroData['cantidad']) {
+                        throw new \Exception("Stock insuficiente en inventario general para '{$libro->nombre}'. Disponible: {$stockDisponible}");
+                    }
                 }
 
                 // Calcular subtotal con descuento
@@ -779,6 +870,14 @@ class ApartadoController extends Controller
                 throw new \Exception('El enganche no puede ser mayor al monto total del apartado');
             }
 
+            // Preparar observaciones con información del origen
+            $observacionesBase = $validated['observaciones'] ?? '';
+            if ($tipoInventario === 'subinventario') {
+                $observacionesBase .= "\n--- DATOS DE SUBINVENTARIO ---\nSubinventario ID: {$validated['subinventario_id']}\nDescripción: {$subinventario->nombre_display}";
+            } else {
+                $observacionesBase .= "\n--- INVENTARIO GENERAL ---\nApartado desde inventario general";
+            }
+
             // Crear apartado
             $apartado = Apartado::create([
                 'folio' => $folio,
@@ -789,11 +888,13 @@ class ApartadoController extends Controller
                 'saldo_pendiente' => $montoTotal - $validated['enganche'],
                 'fecha_limite' => $validated['fecha_limite'] ?? null,
                 'estado' => 'activo',
-                'observaciones' => ($validated['observaciones'] ?? '') . "\n--- DATOS DE SUBINVENTARIO ---\nSubinventario ID: {$validated['subinventario_id']}\nNombre: {$subinventario->nombre}",
+                'observaciones' => $observacionesBase,
                 'usuario' => $validated['usuario'],
+                'tipo_inventario' => $tipoInventario,
+                'subinventario_id' => $tipoInventario === 'subinventario' ? $validated['subinventario_id'] : null,
             ]);
 
-            // Crear detalles y actualizar stock_apartado
+            // Crear detalles y actualizar stock
             foreach ($validated['libros'] as $libroData) {
                 $libro = Libro::find($libroData['libro_id']);
                 
@@ -816,11 +917,17 @@ class ApartadoController extends Controller
                 // Incrementar stock_apartado del libro
                 $libro->increment('stock_apartado', $libroData['cantidad']);
 
-                // Decrementar cantidad en subinventario
-                DB::table('subinventario_libro')
-                    ->where('subinventario_id', $validated['subinventario_id'])
-                    ->where('libro_id', $libroData['libro_id'])
-                    ->decrement('cantidad', $libroData['cantidad']);
+                // Decrementar del inventario correspondiente
+                if ($tipoInventario === 'subinventario') {
+                    // Decrementar cantidad en subinventario
+                    DB::table('subinventario_libro')
+                        ->where('subinventario_id', $validated['subinventario_id'])
+                        ->where('libro_id', $libroData['libro_id'])
+                        ->decrement('cantidad', $libroData['cantidad']);
+                } else {
+                    // Decrementar del stock general (ya se incrementó stock_apartado, así que el disponible se reduce automáticamente)
+                    // No es necesario hacer nada más porque stock_disponible = stock - stock_apartado - stock_subinventario
+                }
             }
 
             // Si hubo enganche, crear el primer abono

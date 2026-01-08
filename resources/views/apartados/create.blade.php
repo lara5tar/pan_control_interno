@@ -19,6 +19,7 @@
             method="POST"
             :libros="$libros"
             :clientes="$clientes"
+            :subinventarios="$subinventarios"
             submitText="Guardar Apartado"
         />
     </x-card>

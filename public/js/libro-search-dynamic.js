@@ -225,6 +225,12 @@ class LibroSearchDynamic {
         // Dispatch change event
         this.hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
     }
+    
+    // Update libros data dynamically
+    updateLibrosData(newLibrosData) {
+        console.log('[Libro Search Dynamic] Updating libros data:', this.containerId);
+        this.libros = newLibrosData;
+    }
 }
 
 // Global initialization function

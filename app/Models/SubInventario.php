@@ -32,6 +32,20 @@ class SubInventario extends Model
     }
 
     /**
+     * Accessor para obtener el nombre de visualización del subinventario
+     * Si descripcion está vacía, usa la fecha formateada
+     */
+    public function getNombreDisplayAttribute()
+    {
+        if (!empty($this->descripcion)) {
+            return $this->descripcion;
+        }
+        
+        // Si no hay descripción, usar la fecha formateada
+        return 'Subinventario del ' . $this->fecha_subinventario->format('d/m/Y');
+    }
+
+    /**
      * Relación muchos a muchos con usuarios (pivot table)
      */
     public function users()

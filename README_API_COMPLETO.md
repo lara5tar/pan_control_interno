@@ -577,7 +577,7 @@ POST /api/v1/apartados
 
 ### Descripción
 
-Crea un apartado (reserva con anticipo). El cliente paga un **enganche** y puede hacer **abonos** hasta completar el total. Los libros quedan reservados (`stock_apartado`).
+Crea un apartado (reserva con anticipo). El cliente paga un **enganche** y puede hacer **abonos** hasta completar el total. Los libros quedan reservados (`stock_apartado`). Soporta apartados desde **inventario general** o **subinventarios**.
 
 ### ¿Qué es un Apartado?
 
@@ -586,12 +586,12 @@ Crea un apartado (reserva con anticipo). El cliente paga un **enganche** y puede
 - Puede hacer **abonos parciales**
 - Los libros quedan **separados** del inventario disponible
 - Al liquidar, se convierte en **venta automáticamente**
+- Al cancelar, el stock regresa al inventario de origen (general o subinventario)
 
 ### Parámetros Obligatorios
 
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
-| `subinventario_id` | integer | ID del punto de venta |
 | `cod_congregante` | string | Token del usuario |
 | `cliente_id` | integer | ID del cliente (obligatorio) |
 | `fecha_apartado` | date | Fecha del apartado (YYYY-MM-DD) |
@@ -606,14 +606,17 @@ Crea un apartado (reserva con anticipo). El cliente paga un **enganche** y puede
 
 | Campo | Tipo | Descripción | Default |
 |-------|------|-------------|---------|
+| `tipo_inventario` | string | `"general"` o `"subinventario"` | `"subinventario"` |
+| `subinventario_id` | integer | ID del punto de venta (requerido si tipo="subinventario") | null |
 | `fecha_limite` | date | Fecha límite para liquidar (debe ser futura) | null |
 | `observaciones` | string | Notas adicionales (máx 500 caracteres) | null |
 | `libros[].descuento` | decimal | Descuento individual (0-100%) | 0 |
 
-### Ejemplo Básico
+### Ejemplo Básico (Subinventario - Retrocompatible)
 
 ```json
 {
+  "tipo_inventario": "subinventario",
   "subinventario_id": 1,
   "cod_congregante": "14279",
   "cliente_id": 5,
@@ -635,10 +638,33 @@ Crea un apartado (reserva con anticipo). El cliente paga un **enganche** y puede
 - Enganche: **$500.00**
 - Saldo Pendiente: **$200.00**
 
+### Ejemplo Desde Inventario General
+
+```json
+{
+  "tipo_inventario": "general",
+  "cod_congregante": "14279",
+  "cliente_id": 5,
+  "fecha_apartado": "2026-01-08",
+  "enganche": 500.00,
+  "usuario": "Juan Pérez",
+  "libros": [
+    {
+      "libro_id": 12,
+      "cantidad": 2,
+      "precio_unitario": 350.00
+    }
+  ]
+}
+```
+
+> ⚠️ **Nota:** Si omites `tipo_inventario`, por defecto será `"subinventario"` (retrocompatibilidad).
+
 ### Ejemplo con Fecha Límite y Descuentos
 
 ```json
 {
+  "tipo_inventario": "subinventario",
   "subinventario_id": 1,
   "cod_congregante": "14279",
   "cliente_id": 8,
@@ -720,7 +746,18 @@ Crea un apartado (reserva con anticipo). El cliente paga un **enganche** y puede
 |--------|-------------|
 | **activo** | Apartado vigente, esperando abonos/liquidación |
 | **liquidado** | Pagado completamente, se convirtió en venta |
-| **cancelado** | Cancelado, inventario devuelto al subinventario |
+| **cancelado** | Cancelado, inventario devuelto al origen (general o subinventario) |
+
+### 🔄 Cancelación y Devolución de Stock
+
+Cuando un apartado se cancela:
+
+1. **El campo `stock_apartado`** de cada libro se decrementa
+2. **El stock regresa al inventario de origen:**
+   - Si `tipo_inventario = 'subinventario'`: incrementa cantidad en `subinventario_libro`
+   - Si `tipo_inventario = 'general'`: el stock queda disponible automáticamente (stock disponible = stock - stock_apartado - stock_subinventario)
+3. El apartado cambia su `estado` a `'cancelado'`
+4. **NO se puede reactivar** un apartado cancelado
 
 ### Errores Comunes
 
@@ -763,7 +800,8 @@ Crea un apartado (reserva con anticipo). El cliente paga un **enganche** y puede
 
 ```javascript
 async function crearApartado({
-  subinventarioId,
+  tipoInventario = 'subinventario', // 'general' o 'subinventario'
+  subinventarioId = null,
   clienteId,
   libros,
   enganche,
@@ -775,7 +813,7 @@ async function crearApartado({
     const username = await AsyncStorage.getItem('username');
     
     const body = {
-      subinventario_id: subinventarioId,
+      tipo_inventario: tipoInventario,
       cod_congregante: codCongregante,
       cliente_id: clienteId,
       fecha_apartado: new Date().toISOString().split('T')[0],
@@ -783,6 +821,11 @@ async function crearApartado({
       usuario: username,
       libros: libros,
     };
+    
+    // Si es subinventario, agregar el ID
+    if (tipoInventario === 'subinventario' && subinventarioId) {
+      body.subinventario_id = subinventarioId;
+    }
     
     if (fechaLimite) body.fecha_limite = fechaLimite;
     if (observaciones) body.observaciones = observaciones;
@@ -812,8 +855,9 @@ async function crearApartado({
   }
 }
 
-// Uso
-const resultado = await crearApartado({
+// Uso con subinventario
+const resultadoSubinv = await crearApartado({
+  tipoInventario: 'subinventario',
   subinventarioId: 1,
   clienteId: 5,
   enganche: 500.00,
@@ -825,7 +869,17 @@ const resultado = await crearApartado({
   observaciones: 'Cliente frecuente',
 });
 
-alert(`Apartado creado!\nFolio: ${resultado.folio}\nTotal: $${resultado.monto_total}\nEnganche: $${resultado.enganche}\nSaldo: $${resultado.saldo_pendiente}`);
+// Uso con inventario general
+const resultadoGeneral = await crearApartado({
+  tipoInventario: 'general',
+  clienteId: 5,
+  enganche: 500.00,
+  libros: [
+    { libro_id: 12, cantidad: 2, precio_unitario: 350.00 },
+  ],
+});
+
+alert(`Apartado creado!\nFolio: ${resultadoSubinv.folio}\nTotal: $${resultadoSubinv.monto_total}\nEnganche: $${resultadoSubinv.enganche}\nSaldo: $${resultadoSubinv.saldo_pendiente}`);
 ```
 
 ---
@@ -845,6 +899,8 @@ alert(`Apartado creado!\nFolio: ${resultado.folio}\nTotal: $${resultado.monto_to
 | **Abonos** | Solo si es a crédito | Siempre permite abonos |
 | **Fecha Límite** | No aplica | Opcional |
 | **Precio Unitario** | Se toma del sistema | Se especifica en request |
+| **Origen Stock** | General o subinventario (tipo_inventario) | General o subinventario (tipo_inventario) |
+| **Cancelación** | N/A | Devuelve stock al inventario de origen |
 
 *Obligatorio solo para ventas a crédito
 
