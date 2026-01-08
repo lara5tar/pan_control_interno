@@ -550,6 +550,59 @@ class SubInventarioController extends Controller
     }
 
     /**
+     * API - Obtener subinventarios asignados a un usuario específico
+     */
+    public function apiMisSubinventarios(Request $request, $codCongregante)
+    {
+        // Buscar subinventarios donde el usuario tiene acceso
+        $subinventariosIds = DB::table('subinventario_user')
+            ->where('cod_congregante', $codCongregante)
+            ->pluck('subinventario_id');
+        
+        if ($subinventariosIds->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes subinventarios asignados',
+                'data' => []
+            ], 404);
+        }
+        
+        // Obtener los subinventarios con sus libros
+        $subinventarios = SubInventario::with(['libros' => function($query) {
+                $query->select('libros.id', 'libros.nombre', 'libros.codigo_barras', 'libros.precio')
+                      ->where('subinventario_libro.cantidad', '>', 0); // Solo libros con stock
+            }])
+            ->whereIn('id', $subinventariosIds)
+            ->where('estado', 'activo') // Solo activos
+            ->get()
+            ->map(function($subinventario) {
+                return [
+                    'id' => $subinventario->id,
+                    'descripcion' => $subinventario->descripcion,
+                    'fecha_subinventario' => $subinventario->fecha_subinventario,
+                    'estado' => $subinventario->estado,
+                    'total_libros' => $subinventario->libros->count(),
+                    'total_unidades' => $subinventario->libros->sum('pivot.cantidad'),
+                    'libros' => $subinventario->libros->map(function($libro) {
+                        return [
+                            'id' => $libro->id,
+                            'nombre' => $libro->nombre,
+                            'codigo_barras' => $libro->codigo_barras,
+                            'precio' => $libro->precio,
+                            'cantidad_disponible' => $libro->pivot->cantidad
+                        ];
+                    })
+                ];
+            });
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Subinventarios encontrados',
+            'data' => $subinventarios
+        ], 200);
+    }
+
+    /**
      * Exportar sub-inventarios filtrados a Excel
      */
     public function exportExcel(Request $request)
