@@ -76,7 +76,7 @@ GET /api/v1/subinventarios/1/libros?cod_congregante=14279
 
 ---
 
-### Paso 3: Crear Venta
+### Paso 3a: Crear Venta (Pago Completo)
 ```bash
 POST /api/v1/ventas
 ```
@@ -98,6 +98,72 @@ POST /api/v1/ventas
   ]
 }
 ```
+
+**📄 Documentación completa:** [`API_VENTAS_APP_MOVIL.md`](API_VENTAS_APP_MOVIL.md)
+
+---
+
+### Paso 3b: Crear Apartado (Pago con Anticipo)
+```bash
+POST /api/v1/apartados
+```
+
+**Body:**
+```json
+{
+  "subinventario_id": 1,
+  "cod_congregante": "14279",
+  "cliente_id": 5,
+  "fecha_apartado": "2026-01-08",
+  "fecha_limite": "2026-01-15",
+  "enganche": 500.00,
+  "usuario": "Juan Pérez",
+  "libros": [
+    {
+      "libro_id": 12,
+      "cantidad": 2,
+      "precio_unitario": 350.00,
+      "descuento": 10
+    }
+  ]
+}
+```
+
+**Respuesta:**
+```json
+{
+  "success": true,
+  "message": "Apartado creado exitosamente",
+  "data": {
+    "apartado_id": 4,
+    "folio": "AP-2026-0002",
+    "monto_total": "700.00",
+    "enganche": "500.00",
+    "saldo_pendiente": "200.00",
+    "estado": "activo",
+    "fecha_apartado": "2026-01-08",
+    "fecha_limite": "2026-01-15"
+  }
+}
+```
+
+**📄 Documentación completa:** [`API_APARTADOS_APP_MOVIL.md`](API_APARTADOS_APP_MOVIL.md)
+
+---
+
+## 🆚 Comparación: Venta vs Apartado
+
+| Característica | Venta | Apartado |
+|----------------|-------|----------|
+| **Endpoint** | POST /api/v1/ventas | POST /api/v1/apartados |
+| **Pago** | Completo o crédito | Enganche + abonos |
+| **Cliente** | Opcional (obligatorio si crédito) | **Obligatorio** |
+| **Entrega** | Inmediata | Al liquidar |
+| **Stock** | Se reduce de inmediato | Se reserva (stock_apartado) |
+| **Folio** | VEN-YYYY-NNNN | AP-YYYY-NNNN |
+| **Abonos** | Solo si es a crédito | Siempre permite abonos |
+
+---
 
 ---
 
@@ -162,6 +228,30 @@ curl -X POST "https://inventario.sistemasdevida.com/api/v1/ventas" \
   }'
 ```
 
+### 4. Crear apartado
+```bash
+curl -X POST "https://inventario.sistemasdevida.com/api/v1/apartados" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{
+    "subinventario_id": 1,
+    "cod_congregante": "14279",
+    "cliente_id": 1,
+    "fecha_apartado": "2026-01-08",
+    "fecha_limite": "2026-01-15",
+    "enganche": 500.00,
+    "usuario": "Juan Pérez",
+    "libros": [
+      {
+        "libro_id": 12,
+        "cantidad": 2,
+        "precio_unitario": 350.00,
+        "descuento": 10
+      }
+    ]
+  }'
+```
+
 ---
 
 ## 🚀 Para Implementar en Producción
@@ -202,6 +292,7 @@ curl https://inventario.sistemasdevida.com/api/v1/subinventarios/1/libros
 | GET | `/api/v1/libros/buscar-codigo/{codigo}` | Buscar libro por código de barras |
 | GET | `/api/v1/clientes` | Lista de clientes |
 | POST | `/api/v1/ventas` | Crear nueva venta |
+| POST | `/api/v1/apartados` | Crear nuevo apartado |
 
 ---
 

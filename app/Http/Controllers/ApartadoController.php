@@ -682,5 +682,197 @@ class ApartadoController extends Controller
         
         return $filtros;
     }
+
+    /**
+     * API: Crear apartado desde app móvil
+     */
+    public function apiStore(Request $request)
+    {
+        try {
+            // Validar datos
+            $validated = $request->validate([
+                'subinventario_id' => 'required|exists:subinventarios,id',
+                'cod_congregante' => 'required|string',
+                'cliente_id' => 'required|exists:clientes,id',
+                'fecha_apartado' => 'required|date',
+                'enganche' => 'required|numeric|min:0',
+                'fecha_limite' => 'nullable|date|after:today',
+                'observaciones' => 'nullable|string|max:500',
+                'usuario' => 'required|string',
+                'libros' => 'required|array|min:1',
+                'libros.*.libro_id' => 'required|exists:libros,id',
+                'libros.*.cantidad' => 'required|integer|min:1',
+                'libros.*.precio_unitario' => 'required|numeric|min:0',
+                'libros.*.descuento' => 'nullable|numeric|min:0|max:100',
+            ], [
+                'subinventario_id.required' => 'Debe especificar el punto de venta',
+                'cod_congregante.required' => 'Falta el token de usuario',
+                'cliente_id.required' => 'Debe seleccionar un cliente',
+                'fecha_apartado.required' => 'La fecha de apartado es obligatoria',
+                'enganche.required' => 'El enganche es obligatorio',
+                'enganche.min' => 'El enganche debe ser mayor o igual a 0',
+                'libros.required' => 'Debe agregar al menos un libro',
+                'libros.min' => 'Debe agregar al menos un libro',
+                'fecha_limite.after' => 'La fecha límite debe ser posterior a hoy',
+                'usuario.required' => 'Falta el nombre del usuario',
+            ]);
+
+            // Validar acceso al subinventario
+            $tieneAcceso = DB::table('subinventario_user')
+                ->where('subinventario_id', $validated['subinventario_id'])
+                ->where('cod_congregante', $validated['cod_congregante'])
+                ->exists();
+
+            if (!$tieneAcceso) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No tienes acceso a este punto de venta (subinventario)'
+                ], 403);
+            }
+
+            // Validar que el subinventario esté activo
+            $subinventario = \App\Models\SubInventario::find($validated['subinventario_id']);
+            if ($subinventario->estado !== 'activo') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El punto de venta no está activo'
+                ], 422);
+            }
+
+            DB::beginTransaction();
+
+            // Generar folio único
+            $folio = $this->codeGenerator->generateCode('Apartado', 'AP');
+
+            // Calcular monto total y validar stock en subinventario
+            $montoTotal = 0;
+            foreach ($validated['libros'] as $libroData) {
+                $libro = Libro::find($libroData['libro_id']);
+                
+                // Verificar que el libro esté en el subinventario
+                $libroSubinventario = DB::table('subinventario_libro')
+                    ->where('subinventario_id', $validated['subinventario_id'])
+                    ->where('libro_id', $libroData['libro_id'])
+                    ->first();
+
+                if (!$libroSubinventario) {
+                    throw new \Exception("El libro '{$libro->nombre}' no está en este subinventario");
+                }
+
+                // Verificar stock disponible en subinventario
+                if ($libroSubinventario->cantidad < $libroData['cantidad']) {
+                    throw new \Exception("Cantidad insuficiente para '{$libro->nombre}'. Disponible: {$libroSubinventario->cantidad}");
+                }
+
+                // Calcular subtotal con descuento
+                $precio = $libroData['precio_unitario'];
+                $descuento = $libroData['descuento'] ?? 0;
+                if ($descuento > 0) {
+                    $precio -= ($precio * $descuento / 100);
+                }
+                $subtotal = $precio * $libroData['cantidad'];
+                $montoTotal += $subtotal;
+            }
+
+            // Validar que el enganche no sea mayor al total
+            if ($validated['enganche'] > $montoTotal) {
+                throw new \Exception('El enganche no puede ser mayor al monto total del apartado');
+            }
+
+            // Crear apartado
+            $apartado = Apartado::create([
+                'folio' => $folio,
+                'cliente_id' => $validated['cliente_id'],
+                'fecha_apartado' => $validated['fecha_apartado'],
+                'monto_total' => $montoTotal,
+                'enganche' => $validated['enganche'],
+                'saldo_pendiente' => $montoTotal - $validated['enganche'],
+                'fecha_limite' => $validated['fecha_limite'] ?? null,
+                'estado' => 'activo',
+                'observaciones' => ($validated['observaciones'] ?? '') . "\n--- DATOS DE SUBINVENTARIO ---\nSubinventario ID: {$validated['subinventario_id']}\nNombre: {$subinventario->nombre}",
+                'usuario' => $validated['usuario'],
+            ]);
+
+            // Crear detalles y actualizar stock_apartado
+            foreach ($validated['libros'] as $libroData) {
+                $libro = Libro::find($libroData['libro_id']);
+                
+                $precio = $libroData['precio_unitario'];
+                $descuento = $libroData['descuento'] ?? 0;
+                if ($descuento > 0) {
+                    $precio -= ($precio * $descuento / 100);
+                }
+                $subtotal = $precio * $libroData['cantidad'];
+
+                ApartadoDetalle::create([
+                    'apartado_id' => $apartado->id,
+                    'libro_id' => $libroData['libro_id'],
+                    'cantidad' => $libroData['cantidad'],
+                    'precio_unitario' => $libroData['precio_unitario'],
+                    'descuento' => $descuento,
+                    'subtotal' => $subtotal,
+                ]);
+
+                // Incrementar stock_apartado del libro
+                $libro->increment('stock_apartado', $libroData['cantidad']);
+
+                // Decrementar cantidad en subinventario
+                DB::table('subinventario_libro')
+                    ->where('subinventario_id', $validated['subinventario_id'])
+                    ->where('libro_id', $libroData['libro_id'])
+                    ->decrement('cantidad', $libroData['cantidad']);
+            }
+
+            // Si hubo enganche, crear el primer abono
+            if ($validated['enganche'] > 0) {
+                $apartado->abonos()->create([
+                    'fecha_abono' => $validated['fecha_apartado'],
+                    'monto' => $validated['enganche'],
+                    'saldo_anterior' => $montoTotal,
+                    'saldo_nuevo' => $montoTotal - $validated['enganche'],
+                    'metodo_pago' => 'efectivo',
+                    'observaciones' => 'Enganche inicial desde app móvil',
+                    'usuario' => $validated['usuario'],
+                ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Apartado creado exitosamente',
+                'data' => [
+                    'apartado_id' => $apartado->id,
+                    'folio' => $apartado->folio,
+                    'monto_total' => number_format($apartado->monto_total, 2),
+                    'enganche' => number_format($apartado->enganche, 2),
+                    'saldo_pendiente' => number_format($apartado->saldo_pendiente, 2),
+                    'estado' => $apartado->estado,
+                    'fecha_apartado' => $apartado->fecha_apartado->format('Y-m-d'),
+                    'fecha_limite' => $apartado->fecha_limite ? $apartado->fecha_limite->format('Y-m-d') : null,
+                ]
+            ], 201);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Datos inválidos',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            Log::error('Error al crear apartado desde API', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'data' => $request->except(['_token']),
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear el apartado: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
 

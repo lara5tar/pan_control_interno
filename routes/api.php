@@ -22,6 +22,9 @@ Route::prefix('v1')->group(function () {
     
     // Ventas
     Route::post('/ventas', [VentaController::class, 'apiStore']);
+    
+    // Apartados
+    Route::post('/apartados', [ApartadoController::class, 'apiStore']);
 });
 
 // API Routes sin versión (para uso interno)

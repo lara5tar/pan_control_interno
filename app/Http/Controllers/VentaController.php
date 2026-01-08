@@ -954,10 +954,16 @@ class VentaController extends Controller
     /**
      * API - Crear una nueva venta desde la app móvil
      */
+    /**
+     * API - Crear venta desde app móvil
+     * Soporta: ventas al contado, a crédito, con cliente, con envío
+     */
     public function apiStore(Request $request)
     {
         $validated = $request->validate([
+            // Datos básicos
             'subinventario_id' => 'required|exists:subinventarios,id',
+            'cod_congregante' => 'required|string', // Para validar acceso
             'cliente_id' => 'nullable|exists:clientes,id',
             'fecha_venta' => 'required|date',
             'tipo_pago' => 'required|in:contado,credito,mixto',
@@ -965,57 +971,105 @@ class VentaController extends Controller
             'observaciones' => 'nullable|string|max:500',
             'usuario' => 'required|string',
             
-            // Movimientos
+            // Envío (opcional)
+            'tiene_envio' => 'nullable|boolean',
+            'costo_envio' => 'nullable|numeric|min:0',
+            'direccion_envio' => 'nullable|string|max:500',
+            'telefono_envio' => 'nullable|string|max:20',
+            
+            // Libros
             'libros' => 'required|array|min:1',
             'libros.*.libro_id' => 'required|exists:libros,id',
             'libros.*.cantidad' => 'required|integer|min:1',
             'libros.*.descuento' => 'nullable|numeric|min:0|max:100',
+        ], [
+            'subinventario_id.required' => 'Debes seleccionar un punto de venta',
+            'cod_congregante.required' => 'Token de usuario requerido',
+            'libros.required' => 'Debes agregar al menos un libro',
+            'libros.min' => 'Debes agregar al menos un libro',
+            'tipo_pago.required' => 'Debes seleccionar un tipo de pago',
         ]);
 
         DB::beginTransaction();
         try {
-            // Validar que los libros estén en el subinventario
+            // 1. VALIDAR ACCESO AL SUBINVENTARIO
+            $tieneAcceso = DB::table('subinventario_user')
+                ->where('subinventario_id', $validated['subinventario_id'])
+                ->where('cod_congregante', $validated['cod_congregante'])
+                ->exists();
+            
+            if (!$tieneAcceso) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No tienes acceso a este punto de venta (subinventario)'
+                ], 403);
+            }
+
+            // 2. CARGAR SUBINVENTARIO Y VALIDAR ESTADO
             $subinventario = \App\Models\SubInventario::with('libros')->findOrFail($validated['subinventario_id']);
             
+            if ($subinventario->estado !== 'activo') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El subinventario no está activo'
+                ], 422);
+            }
+            
+            // 3. VALIDAR LIBROS Y STOCK
             foreach ($validated['libros'] as $item) {
                 $libroEnSub = $subinventario->libros->firstWhere('id', $item['libro_id']);
                 
                 if (!$libroEnSub) {
+                    $libro = Libro::find($item['libro_id']);
                     return response()->json([
                         'success' => false,
-                        'message' => "El libro ID {$item['libro_id']} no está en este subinventario"
+                        'message' => "El libro '{$libro->nombre}' no está en este subinventario"
                     ], 422);
                 }
                 
                 if ($libroEnSub->pivot->cantidad < $item['cantidad']) {
                     return response()->json([
                         'success' => false,
-                        'message' => "Cantidad insuficiente en subinventario para el libro ID {$item['libro_id']}"
+                        'message' => "Cantidad insuficiente para '{$libroEnSub->nombre}'. Disponible: {$libroEnSub->pivot->cantidad}"
                     ], 422);
                 }
             }
 
-            // Crear la venta
+            // 4. VALIDAR CLIENTE SI ES REQUERIDO
+            if ($validated['tipo_pago'] === 'credito' && empty($validated['cliente_id'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Las ventas a crédito requieren un cliente asignado'
+                ], 422);
+            }
+
+            // 5. VALIDAR ENVÍO
+            $tieneEnvio = isset($validated['tiene_envio']) && $validated['tiene_envio'];
+            $costoEnvio = $tieneEnvio ? ($validated['costo_envio'] ?? 0) : 0;
+
+            // 6. CREAR LA VENTA
             $venta = Venta::create([
-                'cliente_id' => $validated['cliente_id'],
+                'cliente_id' => $validated['cliente_id'] ?? null,
                 'fecha_venta' => $validated['fecha_venta'],
                 'tipo_pago' => $validated['tipo_pago'],
                 'descuento_global' => $validated['descuento_global'] ?? 0,
                 'estado' => 'completada',
-                'observaciones' => $validated['observaciones'],
+                'observaciones' => $validated['observaciones'] ?? 'Venta desde app móvil',
                 'usuario' => $validated['usuario'],
+                'tipo_inventario' => 'subinventario',
+                'subinventario_id' => $validated['subinventario_id'],
                 'es_a_plazos' => false,
-                'tiene_envio' => false,
-                'costo_envio' => 0,
-                'estado_pago' => 'completado',
+                'tiene_envio' => $tieneEnvio,
+                'costo_envio' => $costoEnvio,
+                'estado_pago' => $validated['tipo_pago'] === 'credito' ? 'pendiente' : 'completado',
                 'total_pagado' => 0,
             ]);
 
-            // Crear los movimientos y actualizar stock
+            // 7. CREAR MOVIMIENTOS Y ACTUALIZAR STOCK
             foreach ($validated['libros'] as $item) {
                 $libro = Libro::findOrFail($item['libro_id']);
 
-                // Crear movimiento
+                // Crear movimiento de salida
                 Movimiento::create([
                     'venta_id' => $venta->id,
                     'libro_id' => $libro->id,
@@ -1025,12 +1079,14 @@ class VentaController extends Controller
                     'precio_unitario' => $libro->precio,
                     'descuento' => $item['descuento'] ?? 0,
                     'fecha' => $validated['fecha_venta'],
-                    'observaciones' => "Venta #{$venta->id} - SubInv #{$validated['subinventario_id']}",
+                    'observaciones' => "Venta #{$venta->id} - App Móvil - SubInv #{$validated['subinventario_id']}",
                     'usuario' => $validated['usuario'],
                 ]);
 
-                // Reducir cantidad en subinventario
-                $cantidadActual = $subinventario->libros()->where('libro_id', $item['libro_id'])->first()->pivot->cantidad;
+                // Actualizar cantidad en subinventario
+                $cantidadActual = $subinventario->libros()
+                    ->where('libro_id', $item['libro_id'])
+                    ->first()->pivot->cantidad;
                 $nuevaCantidad = $cantidadActual - $item['cantidad'];
                 
                 if ($nuevaCantidad > 0) {
@@ -1042,29 +1098,60 @@ class VentaController extends Controller
                     $subinventario->libros()->detach($item['libro_id']);
                 }
 
-                // Actualizar stock del libro
+                // Actualizar stock general del libro
                 $libro->decrement('stock', $item['cantidad']);
                 $libro->decrement('stock_subinventario', $item['cantidad']);
             }
 
-            // Calcular totales de la venta
+            // 8. CALCULAR TOTALES
             $venta->actualizarTotales();
-            $venta->total_pagado = $venta->total;
+            
+            // Si es al contado, marcar como pagado
+            if ($validated['tipo_pago'] === 'contado') {
+                $venta->total_pagado = $venta->total;
+            }
+            
             $venta->save();
+
+            // 9. GUARDAR INFORMACIÓN DE ENVÍO EN OBSERVACIONES (simplificado)
+            // El sistema de envíos usa relación muchos-a-muchos que se gestiona aparte
+            if ($tieneEnvio && isset($validated['direccion_envio'])) {
+                $observacionesEnvio = "\n--- DATOS DE ENVÍO ---\n";
+                $observacionesEnvio .= "Dirección: " . $validated['direccion_envio'] . "\n";
+                $observacionesEnvio .= "Teléfono: " . ($validated['telefono_envio'] ?? 'N/A') . "\n";
+                $observacionesEnvio .= "Costo: $" . $costoEnvio;
+                
+                $venta->observaciones = ($venta->observaciones ?? '') . $observacionesEnvio;
+                $venta->save();
+            }
 
             DB::commit();
 
+            // 10. PREPARAR RESPUESTA
             return response()->json([
                 'success' => true,
                 'message' => 'Venta creada exitosamente',
                 'data' => [
                     'venta_id' => $venta->id,
+                    'subtotal' => $venta->subtotal,
+                    'descuento' => $venta->descuento,
+                    'costo_envio' => $venta->costo_envio,
                     'total' => $venta->total,
+                    'total_pagado' => $venta->total_pagado,
+                    'saldo_pendiente' => $venta->total - $venta->total_pagado,
+                    'estado_pago' => $venta->estado_pago,
+                    'tiene_envio' => $venta->tiene_envio,
                 ]
             ], 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error('Error al crear venta desde API móvil', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Error al crear la venta: ' . $e->getMessage()
