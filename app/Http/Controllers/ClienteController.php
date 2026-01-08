@@ -195,23 +195,67 @@ class ClienteController extends Controller
      */
     public function apiIndex(Request $request)
     {
-        $query = Cliente::query();
+        try {
+            $query = Cliente::query();
 
-        // Búsqueda por nombre o teléfono
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('nombre', 'like', "%{$search}%")
-                  ->orWhere('telefono', 'like', "%{$search}%");
-            });
+            // Búsqueda por nombre o teléfono
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->where('nombre', 'like', "%{$search}%")
+                      ->orWhere('telefono', 'like', "%{$search}%");
+                });
+            }
+
+            // Ordenar por nombre
+            $query->orderBy('nombre', 'asc');
+
+            // Determinar si usar paginación
+            if ($request->filled('sin_paginacion') && $request->sin_paginacion == '1') {
+                $clientes = $query->get();
+                
+                return response()->json([
+                    'success' => true,
+                    'data' => $clientes->map(function($cliente) {
+                        return [
+                            'id' => $cliente->id,
+                            'nombre' => $cliente->nombre,
+                            'telefono' => $cliente->telefono ?: null,
+                        ];
+                    }),
+                    'total' => $clientes->count(),
+                ]);
+            }
+
+            // Con paginación
+            $perPage = $request->get('per_page', 50);
+            $clientes = $query->paginate($perPage);
+
+            return response()->json([
+                'success' => true,
+                'data' => $clientes->map(function($cliente) {
+                    return [
+                        'id' => $cliente->id,
+                        'nombre' => $cliente->nombre,
+                        'telefono' => $cliente->telefono ?: null,
+                    ];
+                }),
+                'pagination' => [
+                    'current_page' => $clientes->currentPage(),
+                    'per_page' => $clientes->perPage(),
+                    'total' => $clientes->total(),
+                    'last_page' => $clientes->lastPage(),
+                    'from' => $clientes->firstItem(),
+                    'to' => $clientes->lastItem(),
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener clientes: ' . $e->getMessage()
+            ], 500);
         }
-
-        // Ordenar por nombre
-        $query->orderBy('nombre', 'asc');
-
-        $clientes = $query->paginate($request->get('per_page', 50));
-
-        return response()->json($clientes);
     }
 
     /**

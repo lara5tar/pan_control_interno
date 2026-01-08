@@ -900,15 +900,35 @@ GET /api/v1/clientes
 
 ### Descripción
 
-Lista todos los clientes registrados en el sistema. Usar para seleccionar cliente en ventas a crédito o apartados.
+Lista todos los clientes registrados en el sistema. Usar para seleccionar cliente en ventas a crédito o apartados. Soporta búsqueda y paginación.
 
-### Request
+### Parámetros Query (Opcionales)
+
+| Parámetro | Tipo | Descripción | Default |
+|-----------|------|-------------|---------|
+| `search` | string | Buscar por nombre o teléfono | - |
+| `sin_paginacion` | boolean | Si es `1`, devuelve todos sin paginar | false |
+| `per_page` | integer | Cantidad de resultados por página | 50 |
+
+### Request Básico
 
 ```bash
 GET /api/v1/clientes
 ```
 
-### Respuesta Exitosa (200)
+### Request con Búsqueda
+
+```bash
+GET /api/v1/clientes?search=maria
+```
+
+### Request Sin Paginación
+
+```bash
+GET /api/v1/clientes?sin_paginacion=1
+```
+
+### Respuesta Con Paginación (200)
 
 ```json
 {
@@ -917,32 +937,63 @@ GET /api/v1/clientes
     {
       "id": 1,
       "nombre": "María García López",
-      "telefono": "809-555-1234",
-      "email": "maria@ejemplo.com",
-      "direccion": "Calle Principal #123, Santo Domingo",
-      "limite_credito": 5000.00,
-      "saldo_pendiente": 1200.00
+      "telefono": "809-555-1234"
     },
     {
       "id": 2,
       "nombre": "Carlos Pérez Martínez",
-      "telefono": "809-555-5678",
-      "email": "carlos@ejemplo.com",
-      "direccion": "Avenida Central #456, Santiago",
-      "limite_credito": 3000.00,
-      "saldo_pendiente": 0.00
+      "telefono": "809-555-5678"
     }
-  ]
+  ],
+  "pagination": {
+    "current_page": 1,
+    "per_page": 50,
+    "total": 43,
+    "last_page": 1,
+    "from": 1,
+    "to": 43
+  }
 }
 ```
 
-### Ejemplo React Native
+### Respuesta Sin Paginación (200)
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "nombre": "María García López",
+      "telefono": "809-555-1234"
+    },
+    {
+      "id": 2,
+      "nombre": "Carlos Pérez Martínez",
+      "telefono": "809-555-5678"
+    }
+  ],
+  "total": 43
+}
+```
+
+### Campos de Respuesta
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `id` | integer | ID del cliente |
+| `nombre` | string | Nombre completo del cliente |
+| `telefono` | string\|null | Teléfono de contacto |
+
+### Ejemplos React Native
+
+#### Obtener Todos los Clientes (Sin Paginar)
 
 ```javascript
-async function obtenerClientes() {
+async function obtenerTodosLosClientes() {
   try {
     const response = await fetch(
-      'https://inventario.sistemasdevida.com/api/v1/clientes',
+      'https://inventario.sistemasdevida.com/api/v1/clientes?sin_paginacion=1',
       {
         headers: {
           'Accept': 'application/json',
@@ -953,7 +1004,7 @@ async function obtenerClientes() {
     const data = await response.json();
     
     if (data.success) {
-      return data.data;
+      return data.data; // Array de clientes
     } else {
       throw new Error('Error al cargar clientes');
     }
@@ -961,6 +1012,170 @@ async function obtenerClientes() {
     console.error('Error:', error);
     throw error;
   }
+}
+```
+
+#### Buscar Clientes
+
+```javascript
+async function buscarClientes(busqueda) {
+  try {
+    const response = await fetch(
+      `https://inventario.sistemasdevida.com/api/v1/clientes?search=${encodeURIComponent(busqueda)}`,
+      {
+        headers: {
+          'Accept': 'application/json',
+        },
+      }
+    );
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      return {
+        clientes: data.data,
+        pagination: data.pagination
+      };
+    } else {
+      throw new Error('Error al buscar clientes');
+    }
+  } catch (error) {
+    console.error('Error:', error);
+    throw error;
+  }
+}
+```
+
+#### Selector de Cliente en Pantalla
+
+```javascript
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, FlatList, TouchableOpacity } from 'react-native';
+
+export default function ClienteSelector({ onSelect }) {
+  const [clientes, setClientes] = useState([]);
+  const [busqueda, setBusqueda] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    cargarClientes();
+  }, []);
+
+  async function cargarClientes() {
+    try {
+      setLoading(true);
+      const response = await fetch(
+        'https://inventario.sistemasdevida.com/api/v1/clientes?sin_paginacion=1'
+      );
+      const data = await response.json();
+      if (data.success) {
+        setClientes(data.data);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const clientesFiltrados = clientes.filter(cliente =>
+    cliente.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+    (cliente.telefono && cliente.telefono.includes(busqueda))
+  );
+
+  return (
+    <View>
+      <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8 }}>
+        Seleccionar Cliente
+      </Text>
+      
+      <TextInput
+        style={{
+          borderWidth: 1,
+          borderColor: '#ccc',
+          borderRadius: 8,
+          padding: 12,
+          marginBottom: 8
+        }}
+        placeholder="Buscar cliente..."
+        value={busqueda}
+        onChangeText={setBusqueda}
+      />
+
+      <FlatList
+        data={clientesFiltrados}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={{
+              padding: 12,
+              borderBottomWidth: 1,
+              borderBottomColor: '#eee'
+            }}
+            onPress={() => onSelect(item)}
+          >
+            <Text style={{ fontSize: 16, fontWeight: '500' }}>
+              {item.nombre}
+            </Text>
+            {item.telefono && (
+              <Text style={{ fontSize: 14, color: '#666', marginTop: 4 }}>
+                📞 {item.telefono}
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
+        ListEmptyComponent={
+          <Text style={{ textAlign: 'center', padding: 20, color: '#999' }}>
+            {loading ? 'Cargando...' : 'No se encontraron clientes'}
+          </Text>
+        }
+      />
+    </View>
+  );
+}
+```
+
+### Uso en Venta o Apartado
+
+```javascript
+// En pantalla de venta/apartado
+const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
+
+// Al seleccionar cliente
+function handleClienteSelect(cliente) {
+  setClienteSeleccionado(cliente);
+  console.log('Cliente seleccionado:', cliente);
+  // Continuar con la venta/apartado usando cliente.id
+}
+
+// Al crear venta a crédito
+async function crearVentaCredito() {
+  if (!clienteSeleccionado) {
+    Alert.alert('Error', 'Debes seleccionar un cliente para ventas a crédito');
+    return;
+  }
+
+  const resultado = await ApiService.crearVenta({
+    subinventarioId: 1,
+    clienteId: clienteSeleccionado.id, // Usar el ID del cliente
+    tipoPago: 'credito',
+    libros: carrito,
+  });
+}
+
+// Al crear apartado
+async function crearApartado() {
+  if (!clienteSeleccionado) {
+    Alert.alert('Error', 'Debes seleccionar un cliente para el apartado');
+    return;
+  }
+
+  const resultado = await ApiService.crearApartado({
+    subinventarioId: 1,
+    clienteId: clienteSeleccionado.id, // Usar el ID del cliente
+    enganche: 500.00,
+    libros: carrito,
+  });
 }
 ```
 
