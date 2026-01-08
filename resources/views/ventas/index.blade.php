@@ -229,7 +229,7 @@
     <!-- Tabla de ventas -->
     <x-card>
         <x-data-table 
-            :headers="['ID', 'Fecha', 'Cliente', 'Total', 'Estado', 'Acciones']"
+            :headers="['ID', 'Fecha', 'Cliente', 'Total', 'Usuario', 'Estado', 'Acciones']"
             :rows="$ventas"
             emptyMessage="No se encontraron ventas"
             emptyIcon="fas fa-shopping-cart"
@@ -298,6 +298,20 @@
                             @if($venta->descuento_global > 0)
                                 <div class="text-xs text-yellow-600">
                                     <i class="fas fa-tag mr-1"></i>{{ $venta->descuento_global }}% desc.
+                                </div>
+                            @endif
+                        </div>
+                    </x-data-table-cell>
+
+                    <!-- Usuario -->
+                    <x-data-table-cell>
+                        <div class="text-sm">
+                            <div class="font-medium text-gray-700">
+                                <i class="fas fa-user text-gray-400 mr-1"></i>{{ $venta->usuario ?: 'Sistema' }}
+                            </div>
+                            @if($venta->tipo_inventario === 'subinventario' && $venta->subinventario)
+                                <div class="text-xs text-gray-500 mt-0.5">
+                                    <i class="fas fa-store text-gray-400 mr-1"></i>{{ $venta->subinventario->nombre }}
                                 </div>
                             @endif
                         </div>
