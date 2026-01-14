@@ -91,6 +91,11 @@ curl "http://127.0.0.1:8000/api/v1/libros?cod_congregante=14279&buscar=biblia"
             "cantidad_disponible_para_mi": 0
         }
     ],
+    "resumen": {
+        "total_puede_vender": 1,
+        "total_no_puede_vender": 1,
+        "total_libros_pagina": 2
+    },
     "pagination": {
         "total": 2,
         "per_page": 50,
@@ -144,6 +149,23 @@ curl "http://127.0.0.1:8000/api/v1/libros?cod_congregante=99999"
 |-------|------|-------------|
 | `puede_vender` | boolean | ¿Este vendedor puede vender este libro? |
 | `cantidad_disponible_para_mi` | integer | Cantidad en MIS subinventarios |
+
+### Objeto `resumen` (solo si se envía `cod_congregante`)
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `total_puede_vender` | integer | Cantidad de libros (en esta página) que SÍ puede vender |
+| `total_no_puede_vender` | integer | Cantidad de libros (en esta página) que NO puede vender |
+| `total_libros_pagina` | integer | Total de libros en esta página |
+
+### Objeto `pagination` (siempre presente)
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `total` | integer | **Total de libros en TODA la base de datos** (no solo esta página) |
+| `per_page` | integer | Libros por página |
+| `current_page` | integer | Página actual |
+| `last_page` | integer | Última página |
+| `from` | integer | Número del primer libro en esta página |
+| `to` | integer | Número del último libro en esta página |
 
 ---
 
@@ -303,18 +325,28 @@ class AppVentas {
 async function cargarCatalogoCompleto() {
     const codCongregante = obtenerCodUsuarioLogueado();
     const response = await fetch(`/api/v1/libros?cod_congregante=${codCongregante}&per_page=100`);
-    const { data, pagination } = await response.json();
+    const { data, pagination, resumen } = await response.json();
+    
+    // Mostrar resumen de esta página
+    console.log(`En esta página (${pagination.current_page}):`);
+    console.log(`- Puedo vender: ${resumen.total_puede_vender}`);
+    console.log(`- No puedo vender: ${resumen.total_no_puede_vender}`);
+    console.log(`\nTotal en sistema: ${pagination.total} libros`);
     
     // Separar por disponibilidad
     const misLibros = data.filter(l => l.puede_vender);
     const otrosLibros = data.filter(l => !l.puede_vender);
     
-    console.log(`Puedo vender: ${misLibros.length}`);
-    console.log(`No puedo vender: ${otrosLibros.length}`);
-    
     // Mostrar en tabs separados
     mostrarTab('disponibles', misLibros);
     mostrarTab('no-disponibles', otrosLibros);
+    
+    // Mostrar info de paginación
+    mostrarInfoPaginacion({
+        actual: pagination.current_page,
+        total: pagination.last_page,
+        totalLibros: pagination.total
+    });
 }
 ```
 
@@ -372,6 +404,29 @@ async function verDisponibilidadDetallada(libroId) {
 3. **Ideal para búsqueda**: El usuario busca cualquier libro y ve si puede venderlo o no.
 4. **Combinar con API de disponibilidad**: Si `puede_vender: false`, usa `/libros/{id}/disponibilidad` para ver dónde SÍ hay stock.
 5. **Paginación**: Soporta páginas para catálogos grandes.
+6. **Resumen por página**: El campo `resumen` muestra estadísticas de los libros en la página actual, NO del total. Usa `pagination.total` para saber cuántos libros hay en total en el sistema.
+
+### 📊 Ejemplo de uso del resumen:
+```javascript
+const response = await fetch('/api/v1/libros?cod_congregante=14279&per_page=10');
+const { data, resumen, pagination } = await response.json();
+
+console.log(`📄 Página ${pagination.current_page} de ${pagination.last_page}`);
+console.log(`📚 Total libros en sistema: ${pagination.total}`);
+console.log(`\n🔍 En esta página:`);
+console.log(`   ✅ Puedo vender: ${resumen.total_puede_vender}`);
+console.log(`   ❌ No puedo vender: ${resumen.total_no_puede_vender}`);
+console.log(`   📦 Total en página: ${resumen.total_libros_pagina}`);
+
+// Resultado ejemplo:
+// 📄 Página 1 de 19
+// 📚 Total libros en sistema: 183
+//
+// 🔍 En esta página:
+//    ✅ Puedo vender: 1
+//    ❌ No puedo vender: 9
+//    📦 Total en página: 10
+```
 
 ---
 

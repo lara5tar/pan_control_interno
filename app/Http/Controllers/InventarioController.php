@@ -423,7 +423,25 @@ class InventarioController extends Controller
             return $resultado;
         });
 
-        return response()->json([
+        // Calcular resumen de vendibilidad si se proporciona cod_congregante
+        $resumen = null;
+        if ($codCongregante) {
+            $totalPuedeVender = $librosFormateados->filter(function($libro) {
+                return $libro['puede_vender'] === true;
+            })->count();
+
+            $totalNoPuedeVender = $librosFormateados->filter(function($libro) {
+                return $libro['puede_vender'] === false;
+            })->count();
+
+            $resumen = [
+                'total_puede_vender' => $totalPuedeVender,
+                'total_no_puede_vender' => $totalNoPuedeVender,
+                'total_libros_pagina' => $librosFormateados->count(),
+            ];
+        }
+
+        $response = [
             'success' => true,
             'data' => $librosFormateados,
             'pagination' => [
@@ -434,7 +452,13 @@ class InventarioController extends Controller
                 'from' => $libros->firstItem(),
                 'to' => $libros->lastItem(),
             ]
-        ]);
+        ];
+
+        if ($resumen) {
+            $response['resumen'] = $resumen;
+        }
+
+        return response()->json($response);
     }
 
     /**
