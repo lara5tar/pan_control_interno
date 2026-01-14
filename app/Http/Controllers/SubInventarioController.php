@@ -662,6 +662,142 @@ class SubInventarioController extends Controller
     }
 
     /**
+     * API - Obtener todos los libros disponibles para vender de un vendedor
+     * Incluye libros de todos sus subinventarios activos con filtros y búsqueda
+     */
+    public function apiMisLibrosDisponibles(Request $request, $codCongregante)
+    {
+        // 1. Obtener IDs de subinventarios del vendedor
+        $subinventariosIds = DB::table('subinventario_user')
+            ->where('cod_congregante', $codCongregante)
+            ->pluck('subinventario_id');
+        
+        if ($subinventariosIds->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes subinventarios asignados. No puedes vender libros.',
+                'data' => []
+            ], 404);
+        }
+
+        // 2. Construir query base - libros en subinventarios activos del vendedor
+        $query = DB::table('libros')
+            ->join('subinventario_libro', 'libros.id', '=', 'subinventario_libro.libro_id')
+            ->join('subinventarios', 'subinventario_libro.subinventario_id', '=', 'subinventarios.id')
+            ->whereIn('subinventarios.id', $subinventariosIds)
+            ->where('subinventarios.estado', 'activo')
+            ->where('subinventario_libro.cantidad', '>', 0);
+
+        // 3. Aplicar filtros opcionales
+        
+        // Filtro: Buscar por nombre
+        if ($request->filled('buscar')) {
+            $query->where('libros.nombre', 'like', '%' . $request->buscar . '%');
+        }
+
+        // Filtro: Precio mínimo
+        if ($request->filled('precio_min')) {
+            $query->where('libros.precio', '>=', $request->precio_min);
+        }
+
+        // Filtro: Precio máximo
+        if ($request->filled('precio_max')) {
+            $query->where('libros.precio', '<=', $request->precio_max);
+        }
+
+        // Filtro: Subinventario específico
+        if ($request->filled('subinventario_id')) {
+            $query->where('subinventarios.id', $request->subinventario_id);
+        }
+
+        // 4. Agrupar por libro y sumar cantidades de todos los subinventarios
+        $query->select(
+            'libros.id',
+            'libros.nombre',
+            'libros.codigo_barras',
+            'libros.precio',
+            DB::raw('SUM(subinventario_libro.cantidad) as cantidad_total_disponible'),
+            DB::raw('GROUP_CONCAT(DISTINCT CONCAT(subinventarios.id, ":", subinventario_libro.cantidad) SEPARATOR "|") as subinventarios_detalle')
+        )
+        ->groupBy('libros.id', 'libros.nombre', 'libros.codigo_barras', 'libros.precio');
+
+        // 5. Ordenamiento
+        $orderBy = $request->get('ordenar', 'nombre');
+        $orderDirection = $request->get('direccion', 'asc');
+        
+        $allowedOrderBy = ['nombre', 'precio', 'cantidad_total_disponible'];
+        if (in_array($orderBy, $allowedOrderBy)) {
+            if ($orderBy === 'cantidad_total_disponible') {
+                $query->orderByRaw('cantidad_total_disponible ' . $orderDirection);
+            } else {
+                $query->orderBy('libros.' . $orderBy, $orderDirection);
+            }
+        }
+
+        // 6. Ejecutar query y obtener resultados
+        $libros = $query->get();
+
+        // 7. Formatear resultados con detalle de subinventarios
+        $librosFormateados = $libros->map(function($libro) use ($subinventariosIds) {
+            // Parsear detalle de subinventarios
+            $subinventariosDetalle = [];
+            if ($libro->subinventarios_detalle) {
+                $detalles = explode('|', $libro->subinventarios_detalle);
+                foreach ($detalles as $detalle) {
+                    list($subId, $cantidad) = explode(':', $detalle);
+                    $subinventariosDetalle[] = [
+                        'subinventario_id' => (int)$subId,
+                        'cantidad' => (int)$cantidad
+                    ];
+                }
+            }
+
+            return [
+                'id' => $libro->id,
+                'nombre' => $libro->nombre,
+                'codigo_barras' => $libro->codigo_barras,
+                'precio' => $libro->precio,
+                'cantidad_total_disponible' => (int)$libro->cantidad_total_disponible,
+                'subinventarios' => $subinventariosDetalle,
+                'puede_vender' => true // Este vendedor SÍ puede vender este libro
+            ];
+        });
+
+        // 8. Información adicional del vendedor
+        $totalLibrosUnicos = $librosFormateados->count();
+        $totalUnidades = $librosFormateados->sum('cantidad_total_disponible');
+        
+        // Obtener nombres de subinventarios
+        $subinventariosInfo = SubInventario::whereIn('id', $subinventariosIds)
+            ->where('estado', 'activo')
+            ->get(['id', 'descripcion', 'fecha_subinventario'])
+            ->map(function($sub) {
+                return [
+                    'id' => $sub->id,
+                    'descripcion' => $sub->descripcion ?? 'Sin descripción',
+                    'fecha' => $sub->fecha_subinventario->format('Y-m-d')
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Libros disponibles para vender',
+            'data' => [
+                'vendedor' => [
+                    'cod_congregante' => $codCongregante,
+                    'total_subinventarios' => $subinventariosInfo->count(),
+                    'subinventarios' => $subinventariosInfo
+                ],
+                'resumen' => [
+                    'total_libros_unicos' => $totalLibrosUnicos,
+                    'total_unidades' => $totalUnidades
+                ],
+                'libros' => $librosFormateados->values()
+            ]
+        ], 200);
+    }
+
+    /**
      * Exportar sub-inventarios filtrados a Excel
      */
     public function exportExcel(Request $request)

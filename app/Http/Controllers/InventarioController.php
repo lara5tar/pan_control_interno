@@ -335,6 +335,7 @@ class InventarioController extends Controller
     /**
      * API - Listar todos los libros
      * Incluye filtros opcionales y paginación
+     * Si se proporciona cod_congregante, marca qué libros puede vender
      */
     public function apiListarLibros(Request $request)
     {
@@ -375,19 +376,56 @@ class InventarioController extends Controller
 
         $libros = $query->paginate($perPage);
 
+        // Si se proporciona cod_congregante, obtener sus subinventarios
+        $misSubinventariosIds = [];
+        $codCongregante = $request->get('cod_congregante');
+        
+        if ($codCongregante) {
+            $misSubinventariosIds = \DB::table('subinventario_user')
+                ->where('cod_congregante', $codCongregante)
+                ->pluck('subinventario_id')
+                ->toArray();
+        }
+
+        // Formatear libros con información de disponibilidad para el vendedor
+        $librosFormateados = $libros->map(function($libro) use ($misSubinventariosIds, $codCongregante) {
+            $resultado = [
+                'id' => $libro->id,
+                'nombre' => $libro->nombre,
+                'codigo_barras' => $libro->codigo_barras,
+                'precio' => $libro->precio,
+                'stock' => $libro->stock,
+                'stock_subinventario' => $libro->stock_subinventario,
+                'stock_apartado' => $libro->stock_apartado,
+            ];
+
+            // Si hay cod_congregante, agregar info de vendibilidad
+            if ($codCongregante) {
+                // Verificar si el libro está en algún subinventario del vendedor
+                if (!empty($misSubinventariosIds)) {
+                    $cantidadDisponible = \DB::table('subinventario_libro')
+                        ->join('subinventarios', 'subinventario_libro.subinventario_id', '=', 'subinventarios.id')
+                        ->where('subinventario_libro.libro_id', $libro->id)
+                        ->whereIn('subinventario_libro.subinventario_id', $misSubinventariosIds)
+                        ->where('subinventarios.estado', 'activo')
+                        ->where('subinventario_libro.cantidad', '>', 0)
+                        ->sum('subinventario_libro.cantidad');
+
+                    $resultado['puede_vender'] = $cantidadDisponible > 0;
+                    $resultado['cantidad_disponible_para_mi'] = (int)$cantidadDisponible;
+                } else {
+                    // No tiene subinventarios asignados
+                    $resultado['puede_vender'] = false;
+                    $resultado['cantidad_disponible_para_mi'] = 0;
+                }
+            }
+
+            return $resultado;
+        });
+
         return response()->json([
             'success' => true,
-            'data' => $libros->map(function($libro) {
-                return [
-                    'id' => $libro->id,
-                    'nombre' => $libro->nombre,
-                    'codigo_barras' => $libro->codigo_barras,
-                    'precio' => $libro->precio,
-                    'stock' => $libro->stock,
-                    'stock_subinventario' => $libro->stock_subinventario,
-                    'stock_apartado' => $libro->stock_apartado,
-                ];
-            }),
+            'data' => $librosFormateados,
             'pagination' => [
                 'total' => $libros->total(),
                 'per_page' => $libros->perPage(),
