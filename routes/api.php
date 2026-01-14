@@ -15,6 +15,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/subinventarios/{id}/libros', [SubInventarioController::class, 'apiLibrosSubinventario']);
     
     // Búsqueda de libros
+    Route::get('/libros', [InventarioController::class, 'apiListarLibros']);
     Route::get('/libros/buscar-codigo/{codigo}', [InventarioController::class, 'apiBuscarPorCodigo']);
     Route::get('/libros/{id}/disponibilidad', [InventarioController::class, 'apiDisponibilidadLibro']);
     

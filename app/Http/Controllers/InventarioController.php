@@ -333,6 +333,73 @@ class InventarioController extends Controller
     }
 
     /**
+     * API - Listar todos los libros
+     * Incluye filtros opcionales y paginación
+     */
+    public function apiListarLibros(Request $request)
+    {
+        $query = Libro::query();
+
+        // Filtro: Solo libros con stock
+        if ($request->has('con_stock') && $request->con_stock == 'true') {
+            $query->where('stock', '>', 0);
+        }
+
+        // Filtro: Buscar por nombre
+        if ($request->filled('buscar')) {
+            $query->where('nombre', 'like', '%' . $request->buscar . '%');
+        }
+
+        // Filtro: Precio mínimo
+        if ($request->filled('precio_min')) {
+            $query->where('precio', '>=', $request->precio_min);
+        }
+
+        // Filtro: Precio máximo
+        if ($request->filled('precio_max')) {
+            $query->where('precio', '<=', $request->precio_max);
+        }
+
+        // Ordenamiento
+        $orderBy = $request->get('ordenar', 'nombre');
+        $orderDirection = $request->get('direccion', 'asc');
+        
+        $allowedOrderBy = ['nombre', 'precio', 'stock', 'created_at'];
+        if (in_array($orderBy, $allowedOrderBy)) {
+            $query->orderBy($orderBy, $orderDirection);
+        }
+
+        // Paginación
+        $perPage = $request->get('per_page', 50);
+        $perPage = min($perPage, 100); // Máximo 100 por página
+
+        $libros = $query->paginate($perPage);
+
+        return response()->json([
+            'success' => true,
+            'data' => $libros->map(function($libro) {
+                return [
+                    'id' => $libro->id,
+                    'nombre' => $libro->nombre,
+                    'codigo_barras' => $libro->codigo_barras,
+                    'precio' => $libro->precio,
+                    'stock' => $libro->stock,
+                    'stock_subinventario' => $libro->stock_subinventario,
+                    'stock_apartado' => $libro->stock_apartado,
+                ];
+            }),
+            'pagination' => [
+                'total' => $libros->total(),
+                'per_page' => $libros->perPage(),
+                'current_page' => $libros->currentPage(),
+                'last_page' => $libros->lastPage(),
+                'from' => $libros->firstItem(),
+                'to' => $libros->lastItem(),
+            ]
+        ]);
+    }
+
+    /**
      * API - Verificar disponibilidad de un libro en inventarios
      * Retorna si el libro está en inventario general y/o en qué subinventarios
      */
