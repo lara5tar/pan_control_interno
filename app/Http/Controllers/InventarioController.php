@@ -331,5 +331,57 @@ class InventarioController extends Controller
             ]
         ]);
     }
+
+    /**
+     * API - Verificar disponibilidad de un libro en inventarios
+     * Retorna si el libro está en inventario general y/o en qué subinventarios
+     */
+    public function apiDisponibilidadLibro($id)
+    {
+        $libro = Libro::with(['subinventarios' => function($query) {
+            $query->where('estado', 'activo')
+                  ->wherePivot('cantidad', '>', 0);
+        }])->find($id);
+
+        if (!$libro) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Libro no encontrado'
+            ], 404);
+        }
+
+        // Información del inventario general
+        $inventarioGeneral = [
+            'disponible' => $libro->stock > 0,
+            'cantidad' => $libro->stock
+        ];
+
+        // Información de subinventarios
+        $subinventarios = $libro->subinventarios->map(function($sub) {
+            return [
+                'subinventario_id' => $sub->id,
+                'descripcion' => $sub->descripcion ?? 'Sin descripción',
+                'fecha_subinventario' => $sub->fecha_subinventario->format('Y-m-d'),
+                'cantidad_disponible' => $sub->pivot->cantidad
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'libro' => [
+                    'id' => $libro->id,
+                    'nombre' => $libro->nombre,
+                    'codigo_barras' => $libro->codigo_barras,
+                    'precio' => $libro->precio
+                ],
+                'inventario_general' => $inventarioGeneral,
+                'subinventarios' => $subinventarios,
+                'total_disponible' => $libro->stock + $subinventarios->sum('cantidad_disponible'),
+                'tiene_stock' => ($libro->stock > 0 || $subinventarios->count() > 0)
+            ]
+        ]);
+    }
 }
+
 

@@ -16,6 +16,7 @@ Route::prefix('v1')->group(function () {
     
     // Búsqueda de libros
     Route::get('/libros/buscar-codigo/{codigo}', [InventarioController::class, 'apiBuscarPorCodigo']);
+    Route::get('/libros/{id}/disponibilidad', [InventarioController::class, 'apiDisponibilidadLibro']);
     
     // Clientes
     Route::get('/clientes', [ClienteController::class, 'apiIndex']);

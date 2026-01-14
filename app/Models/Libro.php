@@ -34,7 +34,7 @@ class Libro extends Model
      */
     public function subinventarios()
     {
-        return $this->belongsToMany(SubInventario::class, 'subinventario_libro')
+        return $this->belongsToMany(SubInventario::class, 'subinventario_libro', 'libro_id', 'subinventario_id')
                     ->withPivot('cantidad')
                     ->withTimestamps();
     }
