@@ -1062,5 +1062,151 @@ class SubInventarioController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * API TESTEO - Listar TODOS los libros con información de vendibilidad
+     * Indica si cada libro puede ser vendido según el subinventario seleccionado
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function apiTestListarTodosLibros(Request $request)
+    {
+        // Validar parámetros
+        $validated = $request->validate([
+            'cod_congregante' => 'nullable|string|max:50',
+            'subinventario_id' => 'nullable|integer|exists:subinventarios,id',
+            'buscar' => 'nullable|string|max:255',
+            'con_stock' => 'nullable|boolean',
+            'precio_min' => 'nullable|numeric|min:0',
+            'precio_max' => 'nullable|numeric|min:0',
+            'ordenar' => 'nullable|string|in:nombre,precio,stock,created_at',
+            'direccion' => 'nullable|string|in:asc,desc',
+            'per_page' => 'nullable|integer|min:1|max:100'
+        ]);
+
+        // Si se proporciona cod_congregante, validar que el subinventario le pertenezca
+        if ($request->filled('cod_congregante') && $request->filled('subinventario_id')) {
+            $tieneAcceso = DB::table('subinventario_user')
+                ->where('cod_congregante', $validated['cod_congregante'])
+                ->where('subinventario_id', $validated['subinventario_id'])
+                ->exists();
+            
+            if (!$tieneAcceso) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El subinventario seleccionado no está asignado a este usuario',
+                    'error' => 'unauthorized_subinventario'
+                ], 403);
+            }
+        }
+
+        // Query base para obtener todos los libros
+        $query = Libro::query();
+
+        // Aplicar filtros de búsqueda
+        if ($request->filled('buscar')) {
+            $query->where('nombre', 'like', '%' . $validated['buscar'] . '%');
+        }
+
+        if ($request->filled('con_stock')) {
+            if ($validated['con_stock']) {
+                $query->where('stock', '>', 0);
+            }
+        }
+
+        if ($request->filled('precio_min')) {
+            $query->where('precio', '>=', $validated['precio_min']);
+        }
+
+        if ($request->filled('precio_max')) {
+            $query->where('precio', '<=', $validated['precio_max']);
+        }
+
+        // Ordenamiento
+        $orderBy = $validated['ordenar'] ?? 'nombre';
+        $orderDirection = $validated['direccion'] ?? 'asc';
+        $query->orderBy($orderBy, $orderDirection);
+
+        // Paginación
+        $perPage = $validated['per_page'] ?? 50;
+        $libros = $query->paginate($perPage);
+
+        // Si se proporciona subinventario_id, agregar información de vendibilidad
+        $responseData = $libros->map(function($libro) use ($validated) {
+            $data = [
+                'id' => $libro->id,
+                'nombre' => $libro->nombre,
+                'codigo_barras' => $libro->codigo_barras,
+                'precio' => $libro->precio,
+                'stock' => $libro->stock,
+                'stock_subinventario' => $libro->stock_subinventario,
+            ];
+
+            // Agregar información de vendibilidad si se proporciona subinventario
+            if (isset($validated['subinventario_id'])) {
+                // Buscar cantidad disponible en el subinventario específico
+                $cantidadEnSubinv = DB::table('subinventario_libro')
+                    ->where('subinventario_id', $validated['subinventario_id'])
+                    ->where('libro_id', $libro->id)
+                    ->where('cantidad', '>', 0)
+                    ->value('cantidad');
+
+                $data['puede_vender'] = $cantidadEnSubinv > 0;
+                $data['cantidad_disponible_para_mi'] = (int)($cantidadEnSubinv ?? 0);
+            }
+
+            return $data;
+        });
+
+        // Preparar respuesta
+        $response = [
+            'success' => true,
+            'data' => $responseData->values(),
+            'pagination' => [
+                'total' => $libros->total(),
+                'per_page' => $libros->perPage(),
+                'current_page' => $libros->currentPage(),
+                'last_page' => $libros->lastPage(),
+                'from' => $libros->firstItem(),
+                'to' => $libros->lastItem(),
+            ]
+        ];
+
+        // Si se proporcionó subinventario, agregar resumen
+        if (isset($validated['subinventario_id'])) {
+            $totalPuedeVender = $responseData->where('puede_vender', true)->count();
+            $totalNoPuedeVender = $responseData->where('puede_vender', false)->count();
+
+            // Contar total de libros en el subinventario (sin filtros aplicados)
+            $totalLibrosEnSubinventario = DB::table('subinventario_libro')
+                ->where('subinventario_id', $validated['subinventario_id'])
+                ->where('cantidad', '>', 0)
+                ->count();
+
+            // Contar total de libros en el sistema (sin filtros)
+            $totalLibrosSistema = Libro::count();
+
+            $response['resumen'] = [
+                'total_puede_vender' => $totalPuedeVender,
+                'total_no_puede_vender' => $totalNoPuedeVender,
+                'total_libros_pagina' => $responseData->count(),
+                'total_libros_en_subinventario' => $totalLibrosEnSubinventario,
+                'total_libros_sistema' => $totalLibrosSistema
+            ];
+
+            // Información del subinventario
+            $subinventario = SubInventario::find($validated['subinventario_id']);
+            if ($subinventario) {
+                $response['subinventario_actual'] = [
+                    'id' => $subinventario->id,
+                    'descripcion' => $subinventario->descripcion,
+                    'estado' => $subinventario->estado
+                ];
+            }
+        }
+
+        return response()->json($response, 200);
+    }
 }
 

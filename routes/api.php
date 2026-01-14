@@ -30,6 +30,12 @@ Route::prefix('v1')->group(function () {
     Route::post('/apartados', [ApartadoController::class, 'apiStore']);
 });
 
+// API Routes de TESTEO
+Route::prefix('v1/test')->group(function () {
+    // Listar todos los libros con información de vendibilidad
+    Route::get('/todos-los-libros', [SubInventarioController::class, 'apiTestListarTodosLibros']);
+});
+
 // API Routes sin versión (para uso interno)
 Route::get('/apartados/buscar', [ApartadoController::class, 'apiBuscar']);
 Route::get('/clientes/buscar', [ClienteController::class, 'apiBuscar']);
