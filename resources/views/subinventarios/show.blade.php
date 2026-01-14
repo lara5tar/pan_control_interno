@@ -42,13 +42,38 @@
 
     <!-- Libros en Sub-Inventario -->
     <x-card class="mb-6">
-        <div class="mb-4">
-            <h3 class="text-lg font-semibold text-gray-900">
-                <i class="fas fa-book mr-2 text-blue-600"></i>Libros en Sub-Inventario
-            </h3>
-            <p class="text-sm text-gray-600 mt-1">
-                Total: {{ $subinventario->getTotalLibros() }} libros - {{ $subinventario->getTotalUnidades() }} unidades
-            </p>
+        <div class="mb-4 flex justify-between items-center">
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900">
+                    <i class="fas fa-book mr-2 text-blue-600"></i>Libros en Sub-Inventario
+                </h3>
+                <p class="text-sm text-gray-600 mt-1">
+                    Total: {{ $subinventario->getTotalLibros() }} libros - {{ $subinventario->getTotalUnidades() }} unidades
+                </p>
+            </div>
+            
+            <!-- Botones de exportación -->
+            @if($subinventario->libros->count() > 0)
+                <div class="flex gap-3">
+                    <x-button 
+                        type="button" 
+                        variant="success" 
+                        icon="fas fa-file-excel"
+                        onclick="window.location='{{ route('subinventarios.libros.export.excel', $subinventario) }}'"
+                    >
+                        Exportar Excel
+                    </x-button>
+                    
+                    <x-button 
+                        type="button" 
+                        variant="danger" 
+                        icon="fas fa-file-pdf"
+                        onclick="window.location='{{ route('subinventarios.libros.export.pdf', $subinventario) }}'"
+                    >
+                        Exportar PDF
+                    </x-button>
+                </div>
+            @endif
         </div>
 
         @if($subinventario->libros->count() > 0)

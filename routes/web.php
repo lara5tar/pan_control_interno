@@ -88,6 +88,10 @@ Route::middleware('checkauth')->group(function () {
     Route::get('/subinventarios-export/excel', [SubInventarioController::class, 'exportExcel'])->name('subinventarios.export.excel');
     Route::get('/subinventarios-export/pdf', [SubInventarioController::class, 'exportPdf'])->name('subinventarios.export.pdf');
     
+    // Rutas para exportar libros de un subinventario específico
+    Route::get('/subinventarios/{subinventario}/libros-export/excel', [SubInventarioController::class, 'exportLibrosExcel'])->name('subinventarios.libros.export.excel');
+    Route::get('/subinventarios/{subinventario}/libros-export/pdf', [SubInventarioController::class, 'exportLibrosPdf'])->name('subinventarios.libros.export.pdf');
+    
     Route::resource('subinventarios', SubInventarioController::class);
     Route::post('/subinventarios/{subinventario}/completar', [SubInventarioController::class, 'completar'])->name('subinventarios.completar');
     Route::post('/subinventarios/{subinventario}/cancelar', [SubInventarioController::class, 'cancelar'])->name('subinventarios.cancelar');

@@ -1208,5 +1208,85 @@ class SubInventarioController extends Controller
 
         return response()->json($response, 200);
     }
+
+    /**
+     * Exportar libros de un subinventario específico a Excel
+     */
+    public function exportLibrosExcel(SubInventario $subinventario)
+    {
+        $libros = $subinventario->libros;
+        
+        // Crear spreadsheet usando el servicio
+        $spreadsheet = $this->excelReportService->createSpreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        // Título
+        $row = $this->excelReportService->setTitle($sheet, 'REPORTE DE LIBROS EN SUB-INVENTARIO', 'E', 1);
+        $row++; // Espacio
+        
+        // Información del subinventario
+        $infoSubinventario = [
+            'ID Sub-Inventario: ' . $subinventario->id,
+            'Descripción: ' . ($subinventario->descripcion ?: 'Sub-Inventario #' . $subinventario->id),
+            'Fecha: ' . $subinventario->fecha_subinventario->format('d/m/Y'),
+            'Estado: ' . $this->getEstadoLabel($subinventario->estado),
+            'Usuario: ' . $subinventario->usuario,
+        ];
+        $row = $this->excelReportService->setFilters($sheet, $infoSubinventario, $row);
+        
+        // Encabezados de tabla
+        $headers = ['ID', 'Nombre', 'Código de Barras', 'Precio', 'Cantidad en Sub-Inventario'];
+        $row = $this->excelReportService->setTableHeaders($sheet, $headers, $row);
+        
+        // Datos
+        $data = [];
+        foreach ($libros as $libro) {
+            $data[] = [
+                $libro->id,
+                $libro->nombre,
+                $libro->codigo_barras ?? 'Sin código',
+                '$' . number_format($libro->precio, 2),
+                $libro->pivot->cantidad,
+            ];
+        }
+        
+        $lastRow = $this->excelReportService->fillData($sheet, $data, $row);
+        
+        // Resumen al final
+        $sheet->setCellValue('D' . ($lastRow + 2), 'Total de libros:');
+        $sheet->setCellValue('E' . ($lastRow + 2), $libros->count());
+        $sheet->getStyle('D' . ($lastRow + 2) . ':E' . ($lastRow + 2))->getFont()->setBold(true);
+        
+        $sheet->setCellValue('D' . ($lastRow + 3), 'Total de unidades:');
+        $sheet->setCellValue('E' . ($lastRow + 3), $libros->sum('pivot.cantidad'));
+        $sheet->getStyle('D' . ($lastRow + 3) . ':E' . ($lastRow + 3))->getFont()->setBold(true);
+        
+        // Auto ajustar columnas
+        $this->excelReportService->autoSizeColumns($sheet, ['A', 'B', 'C', 'D', 'E']);
+        
+        // Descargar
+        $filename = $this->excelReportService->generateFilename('libros_subinventario_' . $subinventario->id);
+        $this->excelReportService->download($spreadsheet, $filename);
+    }
+
+    /**
+     * Exportar libros de un subinventario específico a PDF
+     */
+    public function exportLibrosPdf(SubInventario $subinventario)
+    {
+        $libros = $subinventario->libros;
+        
+        // Obtener estilos base del servicio
+        $styles = $this->pdfReportService->getBaseStyles();
+        
+        // Generar PDF usando el servicio
+        $filename = $this->pdfReportService->generateFilename('libros_subinventario_' . $subinventario->id);
+        
+        return $this->pdfReportService->generate(
+            'subinventarios.libros-pdf-report',
+            compact('subinventario', 'libros', 'styles'),
+            $filename
+        );
+    }
 }
 
