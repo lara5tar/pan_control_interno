@@ -1,6 +1,12 @@
 // JavaScript Puro para Control Interno
 // Sin frameworks, solo Vanilla JS
 
+// Importar librería de escaneo de código de barras
+import { Html5Qrcode } from 'html5-qrcode';
+
+// Hacer disponible globalmente para los componentes Blade
+window.Html5Qrcode = Html5Qrcode;
+
 /**
  * Confirmación de eliminación
  */

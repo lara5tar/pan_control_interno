@@ -65,6 +65,16 @@
                 </div>
                 <x-button 
                     type="button"
+                    onclick="openBarcodeScanner()"
+                    variant="primary"
+                    icon="fas fa-camera"
+                    class="whitespace-nowrap"
+                    title="Escanear código de barras o QR"
+                >
+                    Escanear
+                </x-button>
+                <x-button 
+                    type="button"
                     id="generateBarcodeBtn"
                     variant="secondary"
                     icon="fas fa-sync-alt"
@@ -75,7 +85,8 @@
                 </x-button>
             </div>
             <p class="mt-1 text-sm text-gray-500">
-                <i class="fas fa-info-circle"></i> Código único del libro (ISBN o código de barras). Usa el botón "Generar" para crear uno aleatorio.
+                <i class="fas fa-camera mr-1"></i> Escanea código de barras o QR con la cámara, 
+                <i class="fas fa-sync-alt ml-2 mr-1"></i> genera uno aleatorio, o escríbelo manualmente.
             </p>
             @error('codigo_barras')
                 <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
@@ -149,6 +160,9 @@
         </div>
     </div>
 </form>
+
+<!-- Incluir el componente del escáner de código de barras -->
+<x-barcode-scanner inputId="codigo_barras" />
 
 @push('scripts')
 <script>
