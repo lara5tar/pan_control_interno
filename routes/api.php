@@ -39,3 +39,33 @@ Route::prefix('v1/test')->group(function () {
 // API Routes sin versión (para uso interno)
 Route::get('/apartados/buscar', [ApartadoController::class, 'apiBuscar']);
 Route::get('/clientes/buscar', [ClienteController::class, 'apiBuscar']);
+
+// Ruta para ejecutar migraciones (SOLO PARA DESARROLLO/HOSTING SIN TERMINAL)
+Route::get('/run-migrations/{secret_key}', function ($secret_key) {
+    // Clave secreta para seguridad - cámbiala por algo único
+    if ($secret_key !== 'pan_de_vida_2026_migrations') {
+        return response()->json([
+            'success' => false,
+            'message' => 'Acceso no autorizado'
+        ], 403);
+    }
+    
+    try {
+        // Ejecutar migraciones
+        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        
+        $output = \Illuminate\Support\Facades\Artisan::output();
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Migraciones ejecutadas correctamente',
+            'output' => $output
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al ejecutar migraciones',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});
