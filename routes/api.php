@@ -69,3 +69,46 @@ Route::get('/run-migrations/{secret_key}', function ($secret_key) {
         ], 500);
     }
 });
+
+// Ruta para agregar columnas directamente (EMERGENCIA)
+Route::get('/fix-envios-table/{secret_key}', function ($secret_key) {
+    if ($secret_key !== 'pan_de_vida_2026_migrations') {
+        return response()->json([
+            'success' => false,
+            'message' => 'Acceso no autorizado'
+        ], 403);
+    }
+    
+    try {
+        // Verificar si las columnas ya existen
+        $hasColumns = \Illuminate\Support\Facades\Schema::hasColumns('envios', [
+            'tipo_generacion', 'periodo_inicio', 'periodo_fin'
+        ]);
+        
+        if ($hasColumns) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Las columnas ya existen en la tabla envios'
+            ]);
+        }
+        
+        // Agregar columnas directamente
+        \Illuminate\Support\Facades\DB::statement("
+            ALTER TABLE envios 
+            ADD COLUMN tipo_generacion ENUM('manual', 'automatico') DEFAULT 'manual' AFTER estado_pago,
+            ADD COLUMN periodo_inicio DATE NULL AFTER tipo_generacion,
+            ADD COLUMN periodo_fin DATE NULL AFTER periodo_inicio
+        ");
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Columnas agregadas exitosamente a la tabla envios'
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al modificar la tabla',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});
