@@ -342,7 +342,7 @@ class EnvioController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
         
         // Título
-        $row = $this->excelReportService->setTitle($sheet, 'REPORTE DE ENVÍOS', 'H', 1);
+        $row = $this->excelReportService->setTitle($sheet, 'REPORTE DE ENVÍOS A FEDEX', 'K', 1);
         $row++; // Espacio
         
         // Filtros aplicados
@@ -352,35 +352,70 @@ class EnvioController extends Controller
         // Estadísticas
         if ($envios->count() > 0) {
             $totalMonto = $envios->sum('monto_a_pagar');
+            $totalVentas = $envios->sum(function($e) { return $e->ventas->count(); });
+            $totalCostosEnvio = $envios->sum(function($e) { return $e->ventas->sum('costo_envio'); });
             
-            $sheet->setCellValue('A' . $row, 'RESUMEN:');
+            $sheet->setCellValue('A' . $row, 'RESUMEN EJECUTIVO:');
+            $sheet->getStyle('A' . $row)->getFont()->setBold(true)->setSize(14);
+            $sheet->getStyle('A' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                  ->getStartColor()->setARGB('FF3B82F6');
+            $sheet->getStyle('A' . $row)->getFont()->getColor()->setARGB('FFFFFFFF');
+            $row++;
+            
+            $sheet->setCellValue('A' . $row, 'Total de envíos:');
+            $sheet->setCellValue('B' . $row, $envios->count());
             $sheet->getStyle('A' . $row)->getFont()->setBold(true);
             $row++;
             
-            $sheet->setCellValue('A' . $row, 'Total de envíos: ' . $envios->count());
+            $sheet->setCellValue('A' . $row, 'Total de ventas incluidas:');
+            $sheet->setCellValue('B' . $row, $totalVentas);
+            $sheet->getStyle('A' . $row)->getFont()->setBold(true);
             $row++;
-            $sheet->setCellValue('A' . $row, 'Monto total a pagar: $' . number_format($totalMonto, 2));
+            
+            $sheet->setCellValue('A' . $row, 'Total costos de envío:');
+            $sheet->setCellValue('B' . $row, '$' . number_format($totalCostosEnvio, 2));
+            $sheet->getStyle('A' . $row . ':B' . $row)->getFont()->setBold(true);
+            $sheet->getStyle('B' . $row)->getFont()->getColor()->setARGB('FF1E40AF');
             $row++;
-            $sheet->setCellValue('A' . $row, 'Pendientes: ' . $envios->where('estado', 'pendiente')->count());
+            
+            $sheet->setCellValue('A' . $row, 'MONTO TOTAL A PAGAR FEDEX:');
+            $sheet->setCellValue('B' . $row, '$' . number_format($totalMonto, 2));
+            $sheet->getStyle('A' . $row . ':B' . $row)->getFont()->setBold(true)->setSize(14);
+            $sheet->getStyle('A' . $row . ':B' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                  ->getStartColor()->setARGB('FFDBEAFE');
+            $sheet->getStyle('B' . $row)->getFont()->getColor()->setARGB('FF1E40AF');
             $row++;
-            $sheet->setCellValue('A' . $row, 'En tránsito: ' . $envios->where('estado', 'en_transito')->count());
+            
+            $sheet->setCellValue('A' . $row, 'Envíos pendientes de pago:');
+            $sheet->setCellValue('B' . $row, $envios->where('estado_pago', 'pendiente')->count());
             $row++;
-            $sheet->setCellValue('A' . $row, 'Entregados: ' . $envios->where('estado', 'entregado')->count());
+            
+            $sheet->setCellValue('A' . $row, 'Envíos pagados:');
+            $sheet->setCellValue('B' . $row, $envios->where('estado_pago', 'pagado')->count());
             $row += 2; // Espacio
         }
         
-        // Encabezados de tabla
-        $headers = ['ID', 'Guía', 'Fecha', 'Ventas', 'Monto a Pagar', 'Estado', 'Notas'];
+        // Encabezados de tabla principal
+        $headers = ['ID', 'Guía', 'Tipo', 'Fecha Envío', 'Periodo', 'Ventas', 'Total Ventas', 'Costos Envío', 'Monto FedEx', 'Estado Pago', 'Notas'];
         $row = $this->excelReportService->setTableHeaders($sheet, $headers, $row);
         
-        // Datos
+        // Datos principales
         $data = [];
         foreach ($envios as $envio) {
+            $tipo = $envio->tipo_generacion === 'automatico' ? 'AUTOMÁTICO' : 'MANUAL';
+            $periodo = ($envio->periodo_inicio && $envio->periodo_fin) 
+                ? $envio->periodo_inicio->format('d/m/Y') . ' - ' . $envio->periodo_fin->format('d/m/Y')
+                : '-';
+                
             $data[] = [
                 $envio->id,
                 $envio->guia ?: 'Sin guía',
+                $tipo,
                 $envio->fecha_envio->format('d/m/Y'),
-                $envio->ventas->count() . ' ventas',
+                $periodo,
+                $envio->ventas->count(),
+                '$' . number_format($envio->calcularTotalVentas(), 2),
+                '$' . number_format($envio->ventas->sum('costo_envio'), 2),
                 '$' . number_format($envio->monto_a_pagar, 2),
                 $envio->getEstadoLabel(),
                 $envio->notas ?: '-',
@@ -389,11 +424,62 @@ class EnvioController extends Controller
         
         $lastRow = $this->excelReportService->fillData($sheet, $data, $row);
         
+        // Agregar detalle de ventas en cada envío
+        $row = $lastRow + 3;
+        $sheet->setCellValue('A' . $row, 'DETALLE DE VENTAS POR ENVÍO');
+        $sheet->getStyle('A' . $row)->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle('A' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+              ->getStartColor()->setARGB('FF3B82F6');
+        $sheet->getStyle('A' . $row)->getFont()->getColor()->setARGB('FFFFFFFF');
+        $row += 2;
+        
+        foreach ($envios as $envio) {
+            // Header del envío
+            $sheet->setCellValue('A' . $row, 'Envío #' . $envio->id . ($envio->guia ? ' - ' . $envio->guia : ''));
+            $sheet->getStyle('A' . $row)->getFont()->setBold(true);
+            $sheet->getStyle('A' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                  ->getStartColor()->setARGB('FFEFF6FF');
+            $row++;
+            
+            // Headers de ventas
+            $ventaHeaders = ['ID Venta', 'Fecha', 'Cliente', 'Libros', 'Total Venta', 'Costo Envío'];
+            $col = 'A';
+            foreach ($ventaHeaders as $header) {
+                $sheet->setCellValue($col . $row, $header);
+                $sheet->getStyle($col . $row)->getFont()->setBold(true);
+                $sheet->getStyle($col . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                      ->getStartColor()->setARGB('FFE5E7EB');
+                $col++;
+            }
+            $row++;
+            
+            // Datos de ventas
+            foreach ($envio->ventas as $venta) {
+                $sheet->setCellValue('A' . $row, '#' . $venta->id);
+                $sheet->setCellValue('B' . $row, $venta->fecha_venta->format('d/m/Y'));
+                $sheet->setCellValue('C' . $row, $venta->cliente?->nombre ?? 'Sin cliente');
+                $sheet->setCellValue('D' . $row, $venta->movimientos->sum('cantidad'));
+                $sheet->setCellValue('E' . $row, '$' . number_format($venta->total, 2));
+                $sheet->setCellValue('F' . $row, '$' . number_format($venta->costo_envio, 2));
+                $sheet->getStyle('F' . $row)->getFont()->setBold(true)->getColor()->setARGB('FF3B82F6');
+                $row++;
+            }
+            
+            // Subtotales
+            $sheet->setCellValue('D' . $row, 'SUBTOTAL:');
+            $sheet->setCellValue('E' . $row, '$' . number_format($envio->ventas->sum('total'), 2));
+            $sheet->setCellValue('F' . $row, '$' . number_format($envio->ventas->sum('costo_envio'), 2));
+            $sheet->getStyle('D' . $row . ':F' . $row)->getFont()->setBold(true);
+            $sheet->getStyle('D' . $row . ':F' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                  ->getStartColor()->setARGB('FFF3F4F6');
+            $row += 2;
+        }
+        
         // Auto ajustar columnas
-        $this->excelReportService->autoSizeColumns($sheet, ['A', 'B', 'C', 'D', 'E', 'F', 'G']);
+        $this->excelReportService->autoSizeColumns($sheet, ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']);
         
         // Descargar
-        $filename = $this->excelReportService->generateFilename('reporte_envios');
+        $filename = $this->excelReportService->generateFilename('reporte_envios_detallado');
         $this->excelReportService->download($spreadsheet, $filename);
     }
 
@@ -413,10 +499,10 @@ class EnvioController extends Controller
         $estadisticas = [
             'total' => $envios->count(),
             'monto_total' => $envios->sum('monto_a_pagar'),
-            'pendientes' => $envios->where('estado', 'pendiente')->count(),
-            'en_transito' => $envios->where('estado', 'en_transito')->count(),
-            'entregados' => $envios->where('estado', 'entregado')->count(),
-            'cancelados' => $envios->where('estado', 'cancelado')->count(),
+            'total_ventas' => $envios->sum(function($e) { return $e->ventas->count(); }),
+            'total_costos_envio' => $envios->sum(function($e) { return $e->ventas->sum('costo_envio'); }),
+            'pendientes' => $envios->where('estado_pago', 'pendiente')->count(),
+            'pagados' => $envios->where('estado_pago', 'pagado')->count(),
         ];
         
         // Obtener estilos base
@@ -868,5 +954,226 @@ class EnvioController extends Controller
                 'message' => 'Error al generar envíos históricos: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Exportar un envío individual a Excel
+     */
+    public function exportIndividualExcel(Envio $envio)
+    {
+        // Cargar relaciones necesarias
+        $envio->load(['ventas.cliente', 'ventas.movimientos.libro']);
+        
+        // Crear spreadsheet
+        $spreadsheet = $this->excelReportService->createSpreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        // Título principal
+        $row = 1;
+        $sheet->setCellValue('A' . $row, 'REPORTE DE ENVÍO #' . $envio->id);
+        $sheet->mergeCells('A' . $row . ':F' . $row);
+        $sheet->getStyle('A' . $row)->getFont()->setBold(true)->setSize(18);
+        $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('A' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+              ->getStartColor()->setARGB('FF1E40AF');
+        $sheet->getStyle('A' . $row)->getFont()->getColor()->setARGB('FFFFFFFF');
+        $row += 2;
+        
+        // Información del envío
+        $sheet->setCellValue('A' . $row, 'INFORMACIÓN DEL ENVÍO');
+        $sheet->getStyle('A' . $row)->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle('A' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+              ->getStartColor()->setARGB('FFE5E7EB');
+        $row++;
+        
+        $infoData = [
+            ['ID de Envío:', '#' . $envio->id],
+            ['Guía / Referencia:', $envio->guia ?: 'Sin guía'],
+            ['Tipo:', $envio->tipo_generacion === 'automatico' ? 'AUTOMÁTICO' : 'MANUAL'],
+            ['Fecha de Envío:', $envio->fecha_envio->format('d/m/Y')],
+            ['Estado de Pago:', $envio->getEstadoLabel()],
+        ];
+        
+        if ($envio->periodo_inicio && $envio->periodo_fin) {
+            $infoData[] = ['Periodo:', $envio->periodo_inicio->format('d/m/Y') . ' - ' . $envio->periodo_fin->format('d/m/Y')];
+        }
+        
+        if ($envio->fecha_pago) {
+            $infoData[] = ['Fecha de Pago:', $envio->fecha_pago->format('d/m/Y')];
+        }
+        
+        if ($envio->referencia_pago) {
+            $infoData[] = ['Referencia de Pago:', $envio->referencia_pago];
+        }
+        
+        if ($envio->usuario) {
+            $infoData[] = ['Registrado por:', $envio->usuario];
+        }
+        
+        foreach ($infoData as $info) {
+            $sheet->setCellValue('A' . $row, $info[0]);
+            $sheet->setCellValue('B' . $row, $info[1]);
+            $sheet->getStyle('A' . $row)->getFont()->setBold(true);
+            $row++;
+        }
+        
+        $row += 2;
+        
+        // Resumen financiero
+        $sheet->setCellValue('A' . $row, 'RESUMEN FINANCIERO');
+        $sheet->getStyle('A' . $row)->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle('A' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+              ->getStartColor()->setARGB('FFDBEAFE');
+        $row++;
+        
+        $totalVentas = $envio->calcularTotalVentas();
+        $totalCostosEnvio = $envio->ventas->sum('costo_envio');
+        
+        $resumenData = [
+            ['Cantidad de Ventas:', $envio->ventas->count()],
+            ['Total de Libros:', $envio->total_libros],
+            ['Total Ventas (Productos):', '$' . number_format($totalVentas, 2)],
+            ['Total Costos de Envío:', '$' . number_format($totalCostosEnvio, 2)],
+            ['MONTO A PAGAR FEDEX:', '$' . number_format($envio->monto_a_pagar, 2)],
+        ];
+        
+        foreach ($resumenData as $index => $resumen) {
+            $sheet->setCellValue('A' . $row, $resumen[0]);
+            $sheet->setCellValue('B' . $row, $resumen[1]);
+            $sheet->getStyle('A' . $row)->getFont()->setBold(true);
+            
+            // Destacar el monto a pagar
+            if ($index === count($resumenData) - 1) {
+                $sheet->getStyle('A' . $row . ':B' . $row)->getFont()->setBold(true)->setSize(14);
+                $sheet->getStyle('A' . $row . ':B' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                      ->getStartColor()->setARGB('FFE0F2FE');
+                $sheet->getStyle('B' . $row)->getFont()->getColor()->setARGB('FF1E40AF');
+            }
+            $row++;
+        }
+        
+        $row += 2;
+        
+        // Detalle de ventas
+        $sheet->setCellValue('A' . $row, 'DETALLE DE VENTAS');
+        $sheet->getStyle('A' . $row)->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle('A' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+              ->getStartColor()->setARGB('FF3B82F6');
+        $sheet->getStyle('A' . $row)->getFont()->getColor()->setARGB('FFFFFFFF');
+        $row++;
+        
+        // Headers de tabla de ventas
+        $headers = ['ID Venta', 'Fecha', 'Cliente', 'Libros', 'Total Venta', 'Costo Envío'];
+        $col = 'A';
+        foreach ($headers as $header) {
+            $sheet->setCellValue($col . $row, $header);
+            $sheet->getStyle($col . $row)->getFont()->setBold(true);
+            $sheet->getStyle($col . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                  ->getStartColor()->setARGB('FFE5E7EB');
+            $col++;
+        }
+        $row++;
+        
+        // Datos de ventas
+        foreach ($envio->ventas as $venta) {
+            $sheet->setCellValue('A' . $row, '#' . $venta->id);
+            $sheet->setCellValue('B' . $row, $venta->fecha_venta->format('d/m/Y'));
+            $sheet->setCellValue('C' . $row, $venta->cliente?->nombre ?? 'Sin cliente');
+            $sheet->setCellValue('D' . $row, $venta->movimientos->sum('cantidad'));
+            $sheet->setCellValue('E' . $row, '$' . number_format($venta->total, 2));
+            $sheet->setCellValue('F' . $row, '$' . number_format($venta->costo_envio, 2));
+            $sheet->getStyle('F' . $row)->getFont()->setBold(true)->getColor()->setARGB('FF3B82F6');
+            $row++;
+        }
+        
+        // Totales
+        $sheet->setCellValue('D' . $row, 'TOTALES:');
+        $sheet->setCellValue('E' . $row, '$' . number_format($envio->ventas->sum('total'), 2));
+        $sheet->setCellValue('F' . $row, '$' . number_format($totalCostosEnvio, 2));
+        $sheet->getStyle('D' . $row . ':F' . $row)->getFont()->setBold(true);
+        $sheet->getStyle('D' . $row . ':F' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+              ->getStartColor()->setARGB('FFF3F4F6');
+        $row += 2;
+        
+        // Detalle de libros por venta
+        if ($envio->ventas->count() > 0) {
+            $sheet->setCellValue('A' . $row, 'DETALLE DE LIBROS POR VENTA');
+            $sheet->getStyle('A' . $row)->getFont()->setBold(true)->setSize(14);
+            $sheet->getStyle('A' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                  ->getStartColor()->setARGB('FF3B82F6');
+            $sheet->getStyle('A' . $row)->getFont()->getColor()->setARGB('FFFFFFFF');
+            $row += 2;
+            
+            foreach ($envio->ventas as $venta) {
+                $sheet->setCellValue('A' . $row, 'Venta #' . $venta->id . ' - ' . ($venta->cliente?->nombre ?? 'Sin cliente'));
+                $sheet->getStyle('A' . $row)->getFont()->setBold(true);
+                $sheet->getStyle('A' . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                      ->getStartColor()->setARGB('FFEFF6FF');
+                $row++;
+                
+                // Headers
+                $libroHeaders = ['Código', 'Título', 'Cantidad', 'Precio Unit.', 'Subtotal'];
+                $col = 'A';
+                foreach ($libroHeaders as $header) {
+                    $sheet->setCellValue($col . $row, $header);
+                    $sheet->getStyle($col . $row)->getFont()->setBold(true);
+                    $sheet->getStyle($col . $row)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                          ->getStartColor()->setARGB('FFE5E7EB');
+                    $col++;
+                }
+                $row++;
+                
+                // Libros
+                foreach ($venta->movimientos as $movimiento) {
+                    $sheet->setCellValue('A' . $row, $movimiento->libro->codigo_barras ?? 'N/A');
+                    $sheet->setCellValue('B' . $row, $movimiento->libro->titulo ?? 'N/A');
+                    $sheet->setCellValue('C' . $row, $movimiento->cantidad);
+                    $sheet->setCellValue('D' . $row, '$' . number_format($movimiento->precio_unitario, 2));
+                    $sheet->setCellValue('E' . $row, '$' . number_format($movimiento->precio_unitario * $movimiento->cantidad, 2));
+                    $row++;
+                }
+                $row++;
+            }
+        }
+        
+        // Notas
+        if ($envio->notas) {
+            $row++;
+            $sheet->setCellValue('A' . $row, 'NOTAS:');
+            $sheet->getStyle('A' . $row)->getFont()->setBold(true);
+            $row++;
+            $sheet->setCellValue('A' . $row, $envio->notas);
+            $sheet->getStyle('A' . $row)->getAlignment()->setWrapText(true);
+            $row++;
+        }
+        
+        // Auto ajustar columnas
+        $this->excelReportService->autoSizeColumns($sheet, ['A', 'B', 'C', 'D', 'E', 'F']);
+        
+        // Descargar
+        $filename = 'envio_' . $envio->id . '_' . date('Y-m-d') . '.xlsx';
+        $this->excelReportService->download($spreadsheet, $filename);
+    }
+
+    /**
+     * Exportar un envío individual a PDF
+     */
+    public function exportIndividualPdf(Envio $envio)
+    {
+        // Cargar relaciones necesarias
+        $envio->load(['ventas.cliente', 'ventas.movimientos.libro']);
+        
+        // Obtener estilos base
+        $styles = $this->pdfReportService->getBaseStyles();
+        
+        // Generar PDF
+        $filename = 'envio_' . $envio->id . '_' . date('Y-m-d') . '.pdf';
+        
+        return $this->pdfReportService->generate(
+            'envios.pdf-individual',
+            compact('envio', 'styles'),
+            $filename,
+            ['orientation' => 'portrait']
+        );
     }
 }

@@ -228,7 +228,10 @@
                                             Estado
                                         </th>
                                         <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Total
+                                            Costo Envío
+                                        </th>
+                                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Total Venta
                                         </th>
                                     </tr>
                                 </thead>
@@ -245,6 +248,7 @@
                                                     value="{{ $venta->id }}"
                                                     id="venta_{{ $venta->id }}"
                                                     class="venta-checkbox rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                                    data-costo-envio="{{ $venta->costo_envio ?? 0 }}"
                                                     onchange="updateVentasCount()"
                                                     {{ in_array($venta->id, $ventasSeleccionadas) ? 'checked' : '' }}
                                                 >
@@ -254,8 +258,10 @@
                                             </td>
                                             <td class="px-6 py-4">
                                                 <div class="text-sm">
-                                                    <div class="font-medium text-gray-900">{{ $venta->cliente->nombre }}</div>
-                                                    <div class="text-gray-500">{{ $venta->cliente->telefono }}</div>
+                                                    <div class="font-medium text-gray-900">{{ $venta->cliente?->nombre ?: 'Sin cliente' }}</div>
+                                                    @if($venta->cliente?->telefono)
+                                                        <div class="text-gray-500">{{ $venta->cliente->telefono }}</div>
+                                                    @endif
                                                 </div>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
@@ -266,6 +272,11 @@
                                             <td class="px-6 py-4 whitespace-nowrap">
                                                 <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full {{ $venta->estado_badge }}">
                                                     {{ ucfirst($venta->estado) }}
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-right">
+                                                <span class="text-sm font-semibold text-blue-600">
+                                                    ${{ number_format($venta->costo_envio ?? 0, 2) }}
                                                 </span>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-right">
@@ -280,8 +291,34 @@
 
                     <p class="mt-3 text-sm text-gray-500">
                         <i class="fas fa-info-circle"></i>
-                        Solo se muestran ventas <strong>marcadas con "Requiere Envío"</strong> que aún no han sido asignadas a ningún envío.
+                        Se muestran las ventas del envío actual y ventas disponibles <strong>marcadas con "Requiere Envío"</strong>.
                     </p>
+
+                    <!-- Resumen de Costos de Envío -->
+                    <div class="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-600 mb-1">
+                                    <i class="fas fa-shipping-fast text-blue-600 mr-2"></i>
+                                    Total de Costos de Envío
+                                </h4>
+                                <p class="text-xs text-gray-500">
+                                    Suma de los costos de envío de las ventas seleccionadas
+                                </p>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-4xl font-bold text-blue-600" id="totalCostoEnvioDisplay">
+                                    $0.00
+                                </div>
+                                <div class="text-xs text-gray-500 mt-1">
+                                    <span id="ventasEnTotalDisplay">0</span> ventas
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Campo hidden para enviar el monto -->
+                    <input type="hidden" name="monto_a_pagar" id="monto_a_pagar" value="{{ old('monto_a_pagar', $envio->monto_a_pagar) }}">
                 @else
                     <div class="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
                         <div class="flex flex-col items-center">
@@ -301,7 +338,6 @@
                             </a>
                         </div>
                     </div>
-                @endif
                 @endif
             </div>
 
@@ -328,10 +364,34 @@
 </x-page-layout>
 
 <script>
-    // Actualizar contador de ventas seleccionadas
+    // Actualizar contador de ventas seleccionadas y calcular total de costos de envío
     function updateVentasCount() {
-        const checked = document.querySelectorAll('.venta-checkbox:checked').length;
-        document.getElementById('ventasSeleccionadas').textContent = checked;
+        const checkboxes = document.querySelectorAll('.venta-checkbox:checked');
+        const count = checkboxes.length;
+        
+        // Actualizar contador de ventas
+        document.getElementById('ventasSeleccionadas').textContent = count;
+        if (document.getElementById('ventasEnTotalDisplay')) {
+            document.getElementById('ventasEnTotalDisplay').textContent = count;
+        }
+        
+        // Calcular total de costos de envío
+        let totalCostoEnvio = 0;
+        checkboxes.forEach(checkbox => {
+            const costoEnvio = parseFloat(checkbox.getAttribute('data-costo-envio')) || 0;
+            totalCostoEnvio += costoEnvio;
+        });
+        
+        // Actualizar display del total
+        if (document.getElementById('totalCostoEnvioDisplay')) {
+            document.getElementById('totalCostoEnvioDisplay').textContent = 
+                '$' + totalCostoEnvio.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+        
+        // Actualizar campo hidden monto_a_pagar
+        if (document.getElementById('monto_a_pagar')) {
+            document.getElementById('monto_a_pagar').value = totalCostoEnvio.toFixed(2);
+        }
     }
 
     // Toggle individual venta
@@ -350,7 +410,7 @@
         updateVentasCount();
     }
 
-    // Inicializar contador al cargar
+    // Inicializar contador y cálculos al cargar
     document.addEventListener('DOMContentLoaded', function() {
         updateVentasCount();
     });

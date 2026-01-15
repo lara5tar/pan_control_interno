@@ -348,15 +348,25 @@
         @endif
     </x-card>
 
-    <!-- Botones de acción -->
-    <x-card>
-        <div class="flex flex-wrap justify-between gap-4">
-            <div class="flex gap-3">
-                <x-button 
-                    variant="warning" 
-                    icon="fas fa-edit"
-                    onclick="window.location='{{ route('envios.edit', $envio) }}'"
-                >
+    <!-- Grid de Acciones y Reportes -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        <!-- Reportes -->
+        <x-card title="Reportes">
+            <div class="space-y-3">
+                <x-button variant="success" icon="fas fa-file-excel" onclick="window.location='{{ route('envios.export-individual.excel', $envio) }}'" class="w-full justify-center">
+                    Descargar Excel
+                </x-button>
+                
+                <x-button variant="danger" icon="fas fa-file-pdf" onclick="window.location='{{ route('envios.export-individual.pdf', $envio) }}'" class="w-full justify-center">
+                    Descargar PDF
+                </x-button>
+            </div>
+        </x-card>
+
+        <!-- Acciones -->
+        <x-card title="Acciones">
+            <div class="space-y-3">
+                <x-button variant="primary" icon="fas fa-edit" onclick="window.location='{{ route('envios.edit', $envio) }}'" class="w-full justify-center">
                     Editar Envío
                 </x-button>
 
@@ -365,6 +375,7 @@
                         variant="success" 
                         icon="fas fa-money-bill-wave"
                         onclick="window.location='{{ route('envios.mostrar-pago', $envio) }}'"
+                        class="w-full justify-center"
                     >
                         Marcar como Pagado
                     </x-button>
@@ -372,33 +383,25 @@
                     <form action="{{ route('envios.marcar-pendiente', $envio) }}" method="POST" 
                           onsubmit="return confirm('¿Deseas marcar este envío como pendiente de pago?');">
                         @csrf
-                        <x-button type="submit" variant="warning" icon="fas fa-clock">
+                        <x-button type="submit" variant="warning" icon="fas fa-clock" class="w-full justify-center">
                             Marcar como Pendiente
                         </x-button>
                     </form>
                 @endif
-            </div>
-
-            <div class="flex gap-3">
-                <x-button 
-                    variant="secondary" 
-                    icon="fas fa-arrow-left"
-                    onclick="window.location='{{ route('envios.index') }}'"
-                    class="w-full justify-center"
-                >
+                
+                <x-button variant="secondary" icon="fas fa-arrow-left" onclick="window.location='{{ route('envios.index') }}'" class="w-full justify-center">
                     Volver al Listado
                 </x-button>
-
-                <form action="{{ route('envios.destroy', $envio) }}" method="POST" 
-                      onsubmit="return confirm('¿Estás seguro de eliminar este envío?');">
+                
+                <form action="{{ route('envios.destroy', $envio) }}" method="POST">
                     @csrf
                     @method('DELETE')
-                    <x-button type="submit" variant="danger" icon="fas fa-trash">
-                        Eliminar
+                    <x-button type="submit" variant="danger" icon="fas fa-trash" onclick="return confirm('¿Estás seguro de eliminar este envío?')" class="w-full justify-center">
+                        Eliminar Envío
                     </x-button>
                 </form>
             </div>
-        </div>
-    </x-card>
+        </x-card>
+    </div>
 </x-page-layout>
 @endsection

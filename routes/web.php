@@ -78,6 +78,10 @@ Route::middleware('checkauth')->group(function () {
     Route::post('/envios-automaticos/store', [EnvioController::class, 'storeAutomatico'])->name('envios.store-automatico');
     Route::post('/envios-automaticos/generar-historicos', [EnvioController::class, 'generarHistoricos'])->name('envios.generar-historicos');
     
+    // Rutas para exportar envío individual
+    Route::get('/envios/{envio}/export/excel', [EnvioController::class, 'exportIndividualExcel'])->name('envios.export-individual.excel');
+    Route::get('/envios/{envio}/export/pdf', [EnvioController::class, 'exportIndividualPdf'])->name('envios.export-individual.pdf');
+    
     // Rutas para marcar estado de pago en envíos
     Route::get('/envios/{envio}/marcar-pago', [EnvioController::class, 'mostrarFormularioPago'])->name('envios.mostrar-pago');
     Route::post('/envios/{envio}/marcar-pagado', [EnvioController::class, 'marcarPagado'])->name('envios.marcar-pagado');
