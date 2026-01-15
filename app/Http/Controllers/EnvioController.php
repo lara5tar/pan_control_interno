@@ -9,6 +9,7 @@ use App\Services\PdfReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 
 class EnvioController extends Controller
 {
@@ -572,6 +573,300 @@ class EnvioController extends Controller
             return redirect()
                 ->back()
                 ->with('error', 'Error al actualizar el estado de pago: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Mostrar formulario para crear envío automático por periodo
+     */
+    public function crearAutomatico()
+    {
+        // Determinar el periodo actual
+        $fechaActual = Carbon::now();
+        $dia = $fechaActual->day;
+        
+        if ($dia <= 15) {
+            // Primera quincena
+            $periodoInicio = $fechaActual->copy()->startOfMonth();
+            $periodoFin = $fechaActual->copy()->day(15)->endOfDay();
+            $periodoNombre = 'Primera Quincena';
+        } else {
+            // Segunda quincena
+            $periodoInicio = $fechaActual->copy()->day(16)->startOfDay();
+            $periodoFin = $fechaActual->copy()->endOfMonth();
+            $periodoNombre = 'Segunda Quincena';
+        }
+        
+        // Buscar ventas con envío del periodo que NO estén en ningún envío
+        $ventas = Venta::where('tiene_envio', true)
+            ->where('estado', '!=', 'cancelada')
+            ->whereBetween('fecha_venta', [$periodoInicio, $periodoFin])
+            ->whereDoesntHave('envios')
+            ->with(['cliente', 'movimientos'])
+            ->orderBy('fecha_venta', 'asc')
+            ->get();
+        
+        // Verificar si ya existe un envío automático para este periodo
+        $envioExistente = Envio::where('tipo_generacion', 'automatico')
+            ->where('periodo_inicio', $periodoInicio)
+            ->where('periodo_fin', $periodoFin)
+            ->first();
+        
+        $montoTotal = $ventas->sum('costo_envio');
+        
+        return view('envios.crear-automatico', compact(
+            'ventas', 
+            'periodoNombre', 
+            'periodoInicio', 
+            'periodoFin', 
+            'montoTotal',
+            'envioExistente'
+        ));
+    }
+
+    /**
+     * Guardar envío automático por periodo
+     */
+    public function storeAutomatico(Request $request)
+    {
+        $validated = $request->validate([
+            'periodo_inicio' => 'required|date',
+            'periodo_fin' => 'required|date|after_or_equal:periodo_inicio',
+            'fecha_envio' => 'required|date',
+            'monto_a_pagar' => 'required|numeric|min:0',
+            'notas' => 'nullable|string|max:1000',
+            'comprobante' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $periodoInicio = Carbon::parse($validated['periodo_inicio']);
+            $periodoFin = Carbon::parse($validated['periodo_fin']);
+            
+            // Verificar si ya existe un envío automático para este periodo
+            $envioExistente = Envio::where('tipo_generacion', 'automatico')
+                ->where('periodo_inicio', $periodoInicio)
+                ->where('periodo_fin', $periodoFin)
+                ->first();
+            
+            if ($envioExistente) {
+                return back()->withErrors([
+                    'error' => 'Ya existe un envío automático para este periodo (ID: ' . $envioExistente->id . ')'
+                ])->withInput();
+            }
+            
+            // Obtener ventas del periodo que NO estén en ningún envío
+            $ventas = Venta::where('tiene_envio', true)
+                ->where('estado', '!=', 'cancelada')
+                ->whereBetween('fecha_venta', [$periodoInicio, $periodoFin])
+                ->whereDoesntHave('envios')
+                ->get();
+            
+            if ($ventas->isEmpty()) {
+                return back()->withErrors([
+                    'error' => 'No hay ventas con envío pendientes en este periodo'
+                ])->withInput();
+            }
+            
+            // Subir comprobante si existe
+            $comprobantePath = null;
+            if ($request->hasFile('comprobante')) {
+                $comprobantePath = $request->file('comprobante')->store('comprobantes/envios', 'public');
+            }
+            
+            // Generar guía automática
+            $guia = $this->generarGuiaAutomatica($periodoInicio, $periodoFin);
+            
+            // Crear el envío automático
+            $envio = Envio::create([
+                'guia' => $guia,
+                'fecha_envio' => $validated['fecha_envio'],
+                'monto_a_pagar' => $validated['monto_a_pagar'],
+                'comprobante' => $comprobantePath,
+                'notas' => $validated['notas'],
+                'estado_pago' => 'pendiente',
+                'tipo_generacion' => 'automatico',
+                'periodo_inicio' => $periodoInicio,
+                'periodo_fin' => $periodoFin,
+                'usuario' => 'Admin', // Cambiar por auth()->user()->name
+            ]);
+            
+            // Asociar las ventas al envío
+            $envio->ventas()->attach($ventas->pluck('id'));
+            
+            DB::commit();
+
+            return redirect()->route('envios.show', $envio)
+                ->with('success', 'Envío automático creado exitosamente con ' . $ventas->count() . ' ventas');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            if (isset($comprobantePath) && $comprobantePath) {
+                Storage::disk('public')->delete($comprobantePath);
+            }
+            
+            return back()->withErrors(['error' => 'Error al crear el envío: ' . $e->getMessage()])
+                ->withInput();
+        }
+    }
+
+    /**
+     * Generar código de guía automático
+     */
+    private function generarGuiaAutomatica(Carbon $periodoInicio, Carbon $periodoFin): string
+    {
+        $dia = $periodoInicio->day;
+        $quincena = $dia <= 15 ? 'Q1' : 'Q2';
+        $mes = $periodoInicio->format('m');
+        $anio = $periodoInicio->format('Y');
+        
+        // Formato: ENV-YYYYMM-Q1/Q2-001
+        $prefijo = "ENV-{$anio}{$mes}-{$quincena}";
+        
+        // Buscar el último envío con este prefijo
+        $ultimoEnvio = Envio::where('guia', 'like', "{$prefijo}-%")
+            ->orderBy('guia', 'desc')
+            ->first();
+        
+        if ($ultimoEnvio) {
+            // Extraer el número y sumar 1
+            $partes = explode('-', $ultimoEnvio->guia);
+            $numero = intval(end($partes)) + 1;
+        } else {
+            $numero = 1;
+        }
+        
+        return $prefijo . '-' . str_pad($numero, 3, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Generar envíos históricos para todos los periodos pendientes
+     */
+    public function generarHistoricos(Request $request)
+    {
+        try {
+            DB::beginTransaction();
+
+            // Obtener la primera venta con envío para determinar desde cuándo empezar
+            $primeraVenta = Venta::where('tiene_envio', true)
+                ->where('estado', '!=', 'cancelada')
+                ->orderBy('fecha_venta', 'asc')
+                ->first();
+
+            if (!$primeraVenta) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No hay ventas con envío en el sistema'
+                ]);
+            }
+
+            $fechaInicio = $primeraVenta->fecha_venta->copy()->startOfMonth();
+            $fechaActual = Carbon::now();
+            
+            $enviosGenerados = 0;
+            $periodosProcessados = 0;
+            $periodos = [];
+
+            // Generar todos los periodos desde la primera venta hasta hoy
+            $fecha = $fechaInicio->copy();
+            
+            while ($fecha <= $fechaActual) {
+                // Primera quincena (1-15)
+                $periodo1Inicio = $fecha->copy()->day(1)->startOfDay();
+                $periodo1Fin = $fecha->copy()->day(15)->endOfDay();
+                
+                // Solo procesar si el periodo ya terminó
+                if ($periodo1Fin <= $fechaActual) {
+                    $periodos[] = [
+                        'inicio' => $periodo1Inicio,
+                        'fin' => $periodo1Fin,
+                        'nombre' => 'Primera Quincena de ' . $fecha->format('F Y')
+                    ];
+                }
+
+                // Segunda quincena (16-fin)
+                $periodo2Inicio = $fecha->copy()->day(16)->startOfDay();
+                $periodo2Fin = $fecha->copy()->endOfMonth();
+                
+                // Solo procesar si el periodo ya terminó
+                if ($periodo2Fin <= $fechaActual) {
+                    $periodos[] = [
+                        'inicio' => $periodo2Inicio,
+                        'fin' => $periodo2Fin,
+                        'nombre' => 'Segunda Quincena de ' . $fecha->format('F Y')
+                    ];
+                }
+
+                // Avanzar al siguiente mes
+                $fecha->addMonth();
+            }
+
+            // Procesar cada periodo
+            foreach ($periodos as $periodo) {
+                $periodosProcessados++;
+                
+                // Verificar si ya existe un envío automático para este periodo
+                $envioExistente = Envio::where('tipo_generacion', 'automatico')
+                    ->where('periodo_inicio', $periodo['inicio'])
+                    ->where('periodo_fin', $periodo['fin'])
+                    ->first();
+
+                if ($envioExistente) {
+                    continue; // Ya existe, saltar al siguiente
+                }
+
+                // Buscar ventas del periodo que NO estén en ningún envío
+                $ventas = Venta::where('tiene_envio', true)
+                    ->where('estado', '!=', 'cancelada')
+                    ->whereBetween('fecha_venta', [$periodo['inicio'], $periodo['fin']])
+                    ->whereDoesntHave('envios')
+                    ->get();
+
+                if ($ventas->isEmpty()) {
+                    continue; // No hay ventas, saltar al siguiente
+                }
+
+                // Calcular monto total
+                $montoTotal = $ventas->sum('costo_envio');
+
+                // Generar guía automática
+                $guia = $this->generarGuiaAutomatica($periodo['inicio'], $periodo['fin']);
+
+                // Crear el envío
+                $envio = Envio::create([
+                    'guia' => $guia,
+                    'fecha_envio' => Carbon::now(),
+                    'monto_a_pagar' => $montoTotal,
+                    'estado_pago' => 'pendiente',
+                    'tipo_generacion' => 'automatico',
+                    'periodo_inicio' => $periodo['inicio'],
+                    'periodo_fin' => $periodo['fin'],
+                    'notas' => "Envío histórico generado automáticamente para {$periodo['nombre']} ({$periodo['inicio']->format('d/m/Y')} - {$periodo['fin']->format('d/m/Y')})",
+                    'usuario' => 'Sistema (Automático Histórico)',
+                ]);
+
+                // Asociar las ventas
+                $envio->ventas()->attach($ventas->pluck('id'));
+
+                $enviosGenerados++;
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Envíos históricos generados exitosamente',
+                'envios_generados' => $enviosGenerados,
+                'periodos_procesados' => $periodosProcessados,
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al generar envíos históricos: ' . $e->getMessage()
+            ], 500);
         }
     }
 }

@@ -19,12 +19,17 @@ class Envio extends Model
         'fecha_pago',
         'notas',
         'estado_pago',
+        'tipo_generacion',
+        'periodo_inicio',
+        'periodo_fin',
         'usuario',
     ];
 
     protected $casts = [
         'fecha_envio' => 'date',
         'fecha_pago' => 'date',
+        'periodo_inicio' => 'date',
+        'periodo_fin' => 'date',
         'monto_a_pagar' => 'decimal:2',
     ];
 
@@ -173,5 +178,65 @@ class Envio extends Model
             'pendiente' => 'Pendiente',
             default => 'Desconocido',
         };
+    }
+
+    /**
+     * Scope para filtrar por tipo de generación
+     */
+    public function scopeTipoGeneracion($query, $tipo)
+    {
+        return $query->where('tipo_generacion', $tipo);
+    }
+
+    /**
+     * Scope para filtrar envíos automáticos
+     */
+    public function scopeAutomaticos($query)
+    {
+        return $query->where('tipo_generacion', 'automatico');
+    }
+
+    /**
+     * Scope para filtrar envíos manuales
+     */
+    public function scopeManuales($query)
+    {
+        return $query->where('tipo_generacion', 'manual');
+    }
+
+    /**
+     * Scope para filtrar por periodo específico
+     */
+    public function scopePorPeriodo($query, $inicio, $fin)
+    {
+        return $query->where('periodo_inicio', $inicio)
+                     ->where('periodo_fin', $fin);
+    }
+
+    /**
+     * Verificar si es un envío automático
+     */
+    public function esAutomatico()
+    {
+        return $this->tipo_generacion === 'automatico';
+    }
+
+    /**
+     * Obtener el nombre del periodo
+     */
+    public function getNombrePeriodoAttribute()
+    {
+        if (!$this->periodo_inicio || !$this->periodo_fin) {
+            return 'N/A';
+        }
+
+        $inicio = $this->periodo_inicio;
+        $fin = $this->periodo_fin;
+
+        if ($inicio->day <= 15) {
+            return 'Primera Quincena de ' . $inicio->format('F Y');
+        } else {
+            return 'Segunda Quincena de ' . $inicio->format('F Y');
+        }
     }
 }

@@ -100,12 +100,29 @@
                             </span>
                         </div>
 
+                        <div class="flex justify-between items-center py-3 border-b border-gray-100">
+                            <span class="text-gray-600 font-medium">Total Costos Envío:</span>
+                            <span class="text-gray-800 font-semibold text-lg">
+                                ${{ number_format($envio->ventas->sum('costo_envio'), 2) }}
+                            </span>
+                        </div>
+
                         <div class="flex justify-between items-center py-3 bg-primary-50 rounded-lg px-3">
                             <span class="text-gray-800 font-bold">Monto a Pagar FedEx:</span>
                             <span class="text-primary-600 font-bold text-2xl">
                                 ${{ number_format($envio->monto_a_pagar, 2) }}
                             </span>
                         </div>
+
+                        @if($envio->ventas->sum('costo_envio') != $envio->monto_a_pagar)
+                            <div class="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                <p class="text-xs text-yellow-700">
+                                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                                    <strong>Nota:</strong> El monto registrado ({{ number_format($envio->monto_a_pagar, 2) }}) 
+                                    difiere de la suma de costos de envío ({{ number_format($envio->ventas->sum('costo_envio'), 2) }})
+                                </p>
+                            </div>
+                        @endif
                     </div>
 
                     @if($envio->comprobante)
@@ -180,8 +197,11 @@
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Libros
                             </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Total
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Total Venta
+                            </th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Costo Envío
                             </th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Acciones
@@ -208,8 +228,13 @@
                                         </span>
                                     </div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
                                     ${{ number_format($venta->total, 2) }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
+                                    <span class="font-bold text-primary-600">
+                                        ${{ number_format($venta->costo_envio, 2) }}
+                                    </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     <x-button 
@@ -227,10 +252,13 @@
                     <tfoot class="bg-gray-50">
                         <tr>
                             <td colspan="4" class="px-6 py-4 text-right text-sm font-bold text-gray-700">
-                                Total del Envío:
+                                Total Ventas:
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-primary-600">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-gray-700">
                                 ${{ number_format($envio->calcularTotalVentas(), 2) }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-primary-600">
+                                ${{ number_format($envio->ventas->sum('costo_envio'), 2) }}
                             </td>
                             <td></td>
                         </tr>
@@ -248,11 +276,11 @@
     <!-- Detalles de Libros -->
     <x-card title="Detalle de Libros en el Envío">
         @php
-            $librosAgrupados = collect();
+            $librosAgrupados = [];
             foreach($envio->ventas as $venta) {
                 foreach($venta->movimientos as $movimiento) {
                     $libroId = $movimiento->libro_id;
-                    if ($librosAgrupados->has($libroId)) {
+                    if (isset($librosAgrupados[$libroId])) {
                         $librosAgrupados[$libroId]['cantidad'] += $movimiento->cantidad;
                     } else {
                         $librosAgrupados[$libroId] = [
@@ -262,6 +290,7 @@
                     }
                 }
             }
+            $librosAgrupados = collect($librosAgrupados);
         @endphp
 
         @if($librosAgrupados->count() > 0)

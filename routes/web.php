@@ -73,6 +73,11 @@ Route::middleware('checkauth')->group(function () {
     // Rutas de envíos
     Route::resource('envios', EnvioController::class);
     
+    // Rutas para envíos automáticos
+    Route::get('/envios-automaticos/crear', [EnvioController::class, 'crearAutomatico'])->name('envios.crear-automatico');
+    Route::post('/envios-automaticos/store', [EnvioController::class, 'storeAutomatico'])->name('envios.store-automatico');
+    Route::post('/envios-automaticos/generar-historicos', [EnvioController::class, 'generarHistoricos'])->name('envios.generar-historicos');
+    
     // Rutas para marcar estado de pago en envíos
     Route::get('/envios/{envio}/marcar-pago', [EnvioController::class, 'mostrarFormularioPago'])->name('envios.mostrar-pago');
     Route::post('/envios/{envio}/marcar-pagado', [EnvioController::class, 'marcarPagado'])->name('envios.marcar-pagado');

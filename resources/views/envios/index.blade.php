@@ -11,13 +11,24 @@
     description="Total: {{ $envios->total() }} envíos"
 >
     <x-slot name="header">
-        <x-button 
-            variant="primary" 
-            icon="fas fa-plus"
-            onclick="window.location='{{ route('envios.create') }}'"
-        >
-            Nuevo Envío
-        </x-button>
+        <div class="flex gap-3">
+            <x-button 
+                variant="primary" 
+                icon="fas fa-plus"
+                onclick="window.location='{{ route('envios.create') }}'"
+            >
+                Nuevo Envío
+            </x-button>
+            
+            <x-button 
+                variant="info" 
+                icon="fas fa-magic"
+                onclick="generarEnviosHistoricos()"
+                title="Generar envíos automáticos de todos los periodos anteriores que no tienen envío"
+            >
+                Generar Envíos Históricos
+            </x-button>
+        </div>
     </x-slot>
 
     <!-- Estadísticas de envíos filtrados -->
@@ -213,7 +224,7 @@
     <!-- Tabla de envíos -->
     <x-card>
         <x-data-table 
-            :headers="['ID', 'Guía', 'Fecha', 'Ventas', 'Monto a Pagar', 'Estado', 'Acciones']"
+            :headers="['ID', 'Guía', 'Fecha', 'Ventas', 'Monto Envíos (FedEx)', 'Estado', 'Acciones']"
             :rows="$envios"
             emptyMessage="No se encontraron envíos"
             emptyIcon="fas fa-shipping-fast"
@@ -253,9 +264,16 @@
                         </div>
                     </td>
 
-                    <!-- Monto a Pagar -->
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                        ${{ number_format($envio->monto_a_pagar, 2) }}
+                    <!-- Monto a Pagar (Suma de Costos de Envío) -->
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <div class="flex flex-col">
+                            <span class="font-bold text-primary-600">
+                                ${{ number_format($envio->monto_a_pagar, 2) }}
+                            </span>
+                            <span class="text-xs text-gray-500">
+                                ({{ $envio->ventas->count() }} ventas)
+                            </span>
+                        </div>
                     </td>
 
                     <!-- Estado -->
@@ -298,4 +316,43 @@
         @endif
     </x-card>
 </x-page-layout>
+
+<script>
+function generarEnviosHistoricos() {
+    if (!confirm('¿Estás seguro de que deseas generar envíos automáticos para todos los periodos históricos?\n\nEsto creará un envío por cada quincena (del 1-15 y del 16-fin de mes) que tenga ventas con envío pendientes.')) {
+        return;
+    }
+
+    // Mostrar loading
+    const btnOriginal = event.target.closest('button');
+    const btnContent = btnOriginal.innerHTML;
+    btnOriginal.disabled = true;
+    btnOriginal.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Generando...';
+
+    // Hacer la petición
+    fetch('{{ route("envios.generar-historicos") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`✅ ${data.message}\n\nEnvíos generados: ${data.envios_generados}\nTotal periodos procesados: ${data.periodos_procesados}`);
+            window.location.reload();
+        } else {
+            alert('❌ Error: ' + (data.message || 'No se pudo completar la operación'));
+            btnOriginal.disabled = false;
+            btnOriginal.innerHTML = btnContent;
+        }
+    })
+    .catch(error => {
+        alert('❌ Error al generar los envíos: ' + error.message);
+        btnOriginal.disabled = false;
+        btnOriginal.innerHTML = btnContent;
+    });
+}
+</script>
 @endsection
