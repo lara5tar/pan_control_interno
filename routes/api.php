@@ -6,6 +6,7 @@ use App\Http\Controllers\VentaController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\InventarioController;
 use App\Http\Controllers\ApartadoController;
+use App\Http\Controllers\AbonoMovilController;
 
 // API Routes
 Route::prefix('v1')->group(function () {
@@ -28,6 +29,21 @@ Route::prefix('v1')->group(function () {
     
     // Apartados
     Route::post('/apartados', [ApartadoController::class, 'apiStore']);
+    
+    // Abonos Móvil - Buscar apartados
+    Route::prefix('movil')->group(function () {
+        // Buscar apartado por folio
+        Route::get('/apartados/buscar-folio/{folio}', [AbonoMovilController::class, 'buscarPorFolio']);
+        
+        // Buscar apartados por cliente
+        Route::get('/apartados/buscar-cliente', [AbonoMovilController::class, 'buscarPorCliente']);
+        
+        // Registrar abono
+        Route::post('/abonos', [AbonoMovilController::class, 'registrarAbono']);
+        
+        // Historial de abonos
+        Route::get('/apartados/{apartado_id}/abonos', [AbonoMovilController::class, 'historialAbonos']);
+    });
 });
 
 // API Routes de TESTEO
