@@ -32,6 +32,9 @@ Route::prefix('v1')->group(function () {
     
     // Abonos Móvil - Buscar apartados
     Route::prefix('movil')->group(function () {
+        // Listar todos los apartados
+        Route::get('/apartados', [AbonoMovilController::class, 'listarApartados']);
+        
         // Buscar apartado por folio
         Route::get('/apartados/buscar-folio/{folio}', [AbonoMovilController::class, 'buscarPorFolio']);
         

@@ -11,7 +11,106 @@ http://tu-dominio.com/api/v1/movil
 
 ## Endpoints Disponibles
 
-### 1. Buscar Apartado por Folio
+### 1. Listar Todos los Apartados
+
+Lista todos los apartados activos y vencidos (los que pueden recibir abonos). Útil para mostrar una lista completa sin necesidad de buscar.
+
+**Endpoint:** `GET /apartados`
+
+**Parámetros de Query (opcionales):**
+- `estado` (string, opcional): Filtrar por estado
+  - `activo`: Solo apartados activos
+  - `vencido`: Solo apartados vencidos
+  - `liquidado`: Solo apartados liquidados
+  - `todos`: Todos los apartados (activos, vencidos y liquidados)
+  - Sin especificar: Devuelve activos y vencidos (por defecto)
+- `limite` (integer, opcional): Número máximo de resultados (por defecto: 50)
+
+**Ejemplo de Request:**
+```http
+GET /api/v1/movil/apartados
+GET /api/v1/movil/apartados?estado=activo
+GET /api/v1/movil/apartados?estado=todos&limite=100
+```
+
+**Respuesta Exitosa (200):**
+```json
+{
+  "success": true,
+  "total": 25,
+  "data": [
+    {
+      "id": 1,
+      "folio": "APT-2025-001",
+      "cliente": {
+        "id": 5,
+        "nombre": "Juan Pérez",
+        "telefono": "5551234567"
+      },
+      "fecha_apartado": "2025-01-10",
+      "fecha_limite": "2025-02-10",
+      "monto_total": 500.00,
+      "enganche": 100.00,
+      "saldo_pendiente": 250.00,
+      "total_pagado": 250.00,
+      "porcentaje_pagado": 50.00,
+      "estado": "activo",
+      "observaciones": null,
+      "libros": [
+        {
+          "codigo": "LIB001",
+          "titulo": "Libro de Ejemplo",
+          "precio_unitario": 250.00,
+          "cantidad": 2,
+          "subtotal": 500.00
+        }
+      ],
+      "total_abonos": 1,
+      "ultimo_abono": {
+        "fecha": "2025-01-12",
+        "monto": 150.00
+      }
+    },
+    {
+      "id": 3,
+      "folio": "APT-2025-003",
+      "cliente": {
+        "id": 8,
+        "nombre": "María García",
+        "telefono": "5559876543"
+      },
+      "fecha_apartado": "2025-01-12",
+      "fecha_limite": "2025-02-12",
+      "monto_total": 300.00,
+      "enganche": 80.00,
+      "saldo_pendiente": 220.00,
+      "total_pagado": 80.00,
+      "porcentaje_pagado": 26.67,
+      "estado": "activo",
+      "observaciones": null,
+      "libros": [
+        {
+          "codigo": "LIB002",
+          "titulo": "Otro Libro",
+          "precio_unitario": 150.00,
+          "cantidad": 2,
+          "subtotal": 300.00
+        }
+      ],
+      "total_abonos": 0,
+      "ultimo_abono": null
+    }
+  ]
+}
+```
+
+**Respuestas de Error:**
+- `404`: No se encontraron apartados
+- `500`: Error del servidor
+
+---
+
+### 2. Buscar Apartado por Folio
 
 Busca un apartado específico utilizando su número de folio.
 
@@ -71,7 +170,7 @@ GET /api/v1/movil/apartados/buscar-folio/APT-2025-001
 
 ---
 
-### 2. Buscar Apartados por Cliente
+### 3. Buscar Apartados por Cliente
 
 Busca todos los apartados activos de clientes cuyo nombre coincida con la búsqueda.
 
@@ -176,7 +275,7 @@ GET /api/v1/movil/apartados/buscar-cliente?nombre=Juan
 
 ---
 
-### 3. Registrar Abono
+### 4. Registrar Abono
 
 Registra un nuevo abono a un apartado.
 
@@ -314,7 +413,7 @@ Content-Type: application/json
 
 ---
 
-### 4. Historial de Abonos
+### 5. Historial de Abonos
 
 Obtiene el historial completo de abonos de un apartado específico.
 
@@ -379,7 +478,27 @@ GET /api/v1/movil/apartados/1/abonos
 
 ## Flujos de Uso
 
-### Flujo 1: Buscar por Folio y Abonar
+### Flujo 1: Listar Apartados y Abonar
+
+1. **Listar apartados** disponibles:
+   ```
+   GET /api/v1/movil/apartados
+   ```
+   
+2. El usuario **selecciona un apartado** de la lista
+
+3. **Registrar abono** con el `apartado_id` seleccionado:
+   ```
+   POST /api/v1/movil/abonos
+   {
+     "apartado_id": 1,
+     "monto": 150.00,
+     "metodo_pago": "efectivo",
+     "usuario": "nombre_usuario"
+   }
+   ```
+
+### Flujo 2: Buscar por Folio y Abonar
 
 1. **Buscar apartado** por folio:
    ```
@@ -402,7 +521,7 @@ GET /api/v1/movil/apartados/1/abonos
    GET /api/v1/movil/apartados/1/abonos
    ```
 
-### Flujo 2: Buscar por Cliente y Abonar
+### Flujo 3: Buscar por Cliente y Abonar
 
 1. **Buscar apartados** del cliente:
    ```
@@ -468,6 +587,20 @@ GET /api/v1/movil/apartados/1/abonos
 ### JavaScript/Fetch API
 
 ```javascript
+// Listar todos los apartados
+async function listarApartados(estado = null, limite = 50) {
+  let url = 'http://tu-dominio.com/api/v1/movil/apartados';
+  const params = new URLSearchParams();
+  if (estado) params.append('estado', estado);
+  if (limite) params.append('limite', limite);
+  
+  if (params.toString()) url += '?' + params.toString();
+  
+  const response = await fetch(url);
+  const data = await response.json();
+  return data;
+}
+
 // Buscar apartado por folio
 async function buscarPorFolio(folio) {
   const response = await fetch(
@@ -504,6 +637,21 @@ async function registrarAbono(apartadoId, monto, metodoPago, usuario) {
 ```dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+
+// Listar todos los apartados
+Future<Map<String, dynamic>> listarApartados({
+  String? estado,
+  int limite = 50,
+}) async {
+  var url = 'http://tu-dominio.com/api/v1/movil/apartados';
+  final params = <String, String>{};
+  if (estado != null) params['estado'] = estado;
+  params['limite'] = limite.toString();
+  
+  final uri = Uri.parse(url).replace(queryParameters: params);
+  final response = await http.get(uri);
+  return json.decode(response.body);
+}
 
 // Buscar apartado por folio
 Future<Map<String, dynamic>> buscarPorFolio(String folio) async {

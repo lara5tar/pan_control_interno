@@ -12,6 +12,57 @@ use Illuminate\Support\Facades\Validator;
 class AbonoMovilController extends Controller
 {
     /**
+     * Listar todos los apartados activos/vencidos
+     * GET /api/v1/movil/apartados
+     */
+    public function listarApartados(Request $request)
+    {
+        try {
+            // Parámetros opcionales para filtrar
+            $estado = $request->query('estado'); // activo, vencido, todos
+            $limite = $request->query('limite', 50); // Por defecto 50 apartados
+            
+            $query = Apartado::with(['cliente', 'detalles.libro', 'abonos']);
+            
+            // Filtrar por estado
+            if ($estado === 'todos') {
+                $query->whereIn('estado', ['activo', 'vencido', 'liquidado']);
+            } elseif ($estado === 'liquidado') {
+                $query->where('estado', 'liquidado');
+            } else {
+                // Por defecto solo activos y vencidos (los que pueden recibir abonos)
+                $query->whereIn('estado', ['activo', 'vencido']);
+            }
+            
+            // Ordenar por fecha de apartado descendente
+            $apartados = $query->orderBy('fecha_apartado', 'desc')
+                ->limit($limite)
+                ->get();
+            
+            if ($apartados->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontraron apartados'
+                ], 404);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'total' => $apartados->count(),
+                'data' => $apartados->map(function ($apartado) {
+                    return $this->formatearApartado($apartado);
+                })
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al listar apartados',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Buscar apartados por folio
      * GET /api/v1/movil/apartados/buscar-folio/{folio}
      */
@@ -306,8 +357,8 @@ class AbonoMovilController extends Controller
                 'nombre' => $apartado->cliente->nombre,
                 'telefono' => $apartado->cliente->telefono
             ],
-            'fecha_apartado' => $apartado->fecha_apartado->format('Y-m-d'),
-            'fecha_limite' => $apartado->fecha_limite->format('Y-m-d'),
+            'fecha_apartado' => $apartado->fecha_apartado ? $apartado->fecha_apartado->format('Y-m-d') : null,
+            'fecha_limite' => $apartado->fecha_limite ? $apartado->fecha_limite->format('Y-m-d') : null,
             'monto_total' => $apartado->monto_total,
             'enganche' => $apartado->enganche,
             'saldo_pendiente' => $apartado->saldo_pendiente,
@@ -317,8 +368,8 @@ class AbonoMovilController extends Controller
             'observaciones' => $apartado->observaciones,
             'libros' => $apartado->detalles->map(function ($detalle) {
                 return [
-                    'codigo' => $detalle->libro->codigo,
-                    'titulo' => $detalle->libro->titulo,
+                    'codigo' => $detalle->libro->codigo ?? 'N/A',
+                    'titulo' => $detalle->libro->titulo ?? 'Sin título',
                     'precio_unitario' => $detalle->precio_unitario,
                     'cantidad' => $detalle->cantidad,
                     'subtotal' => $detalle->subtotal
