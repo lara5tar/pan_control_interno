@@ -32,6 +32,10 @@ Route::prefix('v1')->group(function () {
     
     // Abonos Móvil - Buscar apartados
     Route::prefix('movil')->group(function () {
+        // Admin Librería - Puntos de venta y ventas
+        Route::get('/admin/puntos-venta', [VentaController::class, 'apiAdminPuntosVenta']);
+        Route::post('/admin/ventas', [VentaController::class, 'apiStoreAdmin']);
+
         // Clientes
         Route::get('/clientes', [AbonoMovilController::class, 'listarClientes']);
         Route::post('/clientes', [AbonoMovilController::class, 'crearCliente']);

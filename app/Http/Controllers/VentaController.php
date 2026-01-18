@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Venta;
 use App\Models\Libro;
 use App\Models\Movimiento;
+use App\Models\SubInventario;
 use App\Services\CodeGeneratorService;
 use App\Services\ExcelReportService;
 use App\Services\PdfReportService;
@@ -1160,6 +1161,256 @@ class VentaController extends Controller
     }
 
     /**
+     * API - Listar todos los puntos de venta (Admin Librería)
+     * Devuelve inventario general y todos los subinventarios activos
+     */
+    public function apiAdminPuntosVenta(Request $request)
+    {
+        if (!$this->isAdmin() && !$this->isAdminFromRequest($request)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Acceso denegado. Se requiere rol Admin Librería.'
+            ], 403);
+        }
+
+        $inventarioGeneral = [
+            'tipo' => 'general',
+            'nombre' => 'Inventario General',
+            'descripcion' => 'Inventario principal'
+        ];
+
+        $subinventarios = SubInventario::where('estado', 'activo')
+            ->get(['id', 'descripcion', 'fecha_subinventario', 'estado', 'observaciones'])
+            ->map(function ($subinventario) {
+                $stats = DB::table('subinventario_libro')
+                    ->where('subinventario_id', $subinventario->id)
+                    ->where('cantidad', '>', 0)
+                    ->selectRaw('COUNT(DISTINCT libro_id) as total_libros, SUM(cantidad) as total_unidades')
+                    ->first();
+
+                return [
+                    'id' => $subinventario->id,
+                    'descripcion' => $subinventario->descripcion,
+                    'fecha_subinventario' => $subinventario->fecha_subinventario,
+                    'estado' => $subinventario->estado,
+                    'observaciones' => $subinventario->observaciones,
+                    'total_libros' => $stats->total_libros ?? 0,
+                    'total_unidades' => $stats->total_unidades ?? 0
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'inventario_general' => $inventarioGeneral,
+                'subinventarios' => $subinventarios,
+                'total_subinventarios' => $subinventarios->count()
+            ]
+        ], 200);
+    }
+
+    /**
+     * API - Crear venta desde app móvil (Admin Librería)
+     * Permite vender desde inventario general o cualquier subinventario
+     */
+    public function apiStoreAdmin(Request $request)
+    {
+        if (!$this->isAdmin() && !$this->isAdminFromRequest($request)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Acceso denegado. Se requiere rol Admin Librería.'
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'tipo_inventario' => 'required|in:general,subinventario',
+            'subinventario_id' => 'nullable|required_if:tipo_inventario,subinventario|exists:subinventarios,id',
+            'cliente_id' => 'nullable|exists:clientes,id',
+            'fecha_venta' => 'required|date',
+            'tipo_pago' => 'required|in:contado,credito,mixto',
+            'descuento_global' => 'nullable|numeric|min:0|max:100',
+            'observaciones' => 'nullable|string|max:500',
+            'usuario' => 'required|string',
+
+            'tiene_envio' => 'nullable|boolean',
+            'costo_envio' => 'nullable|numeric|min:0',
+            'direccion_envio' => 'nullable|string|max:500',
+            'telefono_envio' => 'nullable|string|max:20',
+
+            'libros' => 'required|array|min:1',
+            'libros.*.libro_id' => 'required|exists:libros,id',
+            'libros.*.cantidad' => 'required|integer|min:1',
+            'libros.*.descuento' => 'nullable|numeric|min:0|max:100',
+        ], [
+            'tipo_inventario.required' => 'Debes seleccionar el tipo de inventario',
+            'subinventario_id.required_if' => 'Debes seleccionar un subinventario',
+            'libros.required' => 'Debes agregar al menos un libro',
+            'libros.min' => 'Debes agregar al menos un libro',
+            'tipo_pago.required' => 'Debes seleccionar un tipo de pago',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            if ($validated['tipo_pago'] === 'credito' && empty($validated['cliente_id'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Las ventas a crédito requieren un cliente asignado'
+                ], 422);
+            }
+
+            $tieneEnvio = isset($validated['tiene_envio']) && $validated['tiene_envio'];
+            $costoEnvio = $tieneEnvio ? ($validated['costo_envio'] ?? 0) : 0;
+
+            $tipoInventario = $validated['tipo_inventario'];
+            $subinventario = null;
+
+            if ($tipoInventario === 'subinventario') {
+                $subinventario = SubInventario::with('libros')->findOrFail($validated['subinventario_id']);
+
+                if ($subinventario->estado !== 'activo') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'El subinventario no está activo'
+                    ], 422);
+                }
+
+                foreach ($validated['libros'] as $item) {
+                    $libroEnSub = $subinventario->libros->firstWhere('id', $item['libro_id']);
+
+                    if (!$libroEnSub) {
+                        $libro = Libro::find($item['libro_id']);
+                        return response()->json([
+                            'success' => false,
+                            'message' => "El libro '{$libro->nombre}' no está en este subinventario"
+                        ], 422);
+                    }
+
+                    if ($libroEnSub->pivot->cantidad < $item['cantidad']) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => "Cantidad insuficiente para '{$libroEnSub->nombre}'. Disponible: {$libroEnSub->pivot->cantidad}"
+                        ], 422);
+                    }
+                }
+            } else {
+                foreach ($validated['libros'] as $item) {
+                    $libro = Libro::findOrFail($item['libro_id']);
+
+                    if ($libro->stock < $item['cantidad']) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => "Stock insuficiente para '{$libro->nombre}'. Disponible: {$libro->stock}"
+                        ], 422);
+                    }
+                }
+            }
+
+            $venta = Venta::create([
+                'cliente_id' => $validated['cliente_id'] ?? null,
+                'fecha_venta' => $validated['fecha_venta'],
+                'tipo_pago' => $validated['tipo_pago'],
+                'descuento_global' => $validated['descuento_global'] ?? 0,
+                'estado' => 'completada',
+                'observaciones' => $validated['observaciones'] ?? 'Venta desde app móvil (Admin)',
+                'usuario' => $validated['usuario'],
+                'tipo_inventario' => $tipoInventario,
+                'subinventario_id' => $tipoInventario === 'subinventario' ? $validated['subinventario_id'] : null,
+                'es_a_plazos' => false,
+                'tiene_envio' => $tieneEnvio,
+                'costo_envio' => $costoEnvio,
+                'estado_pago' => $validated['tipo_pago'] === 'credito' ? 'pendiente' : 'completado',
+                'total_pagado' => 0,
+            ]);
+
+            foreach ($validated['libros'] as $item) {
+                $libro = Libro::findOrFail($item['libro_id']);
+
+                Movimiento::create([
+                    'venta_id' => $venta->id,
+                    'libro_id' => $libro->id,
+                    'tipo_movimiento' => 'salida',
+                    'tipo_salida' => 'venta',
+                    'cantidad' => $item['cantidad'],
+                    'precio_unitario' => $libro->precio,
+                    'descuento' => $item['descuento'] ?? 0,
+                    'fecha' => $validated['fecha_venta'],
+                    'observaciones' => "Venta #{$venta->id} - App Móvil - " . ($tipoInventario === 'subinventario' ? "SubInv #{$validated['subinventario_id']}" : 'Inventario General'),
+                    'usuario' => $validated['usuario'],
+                ]);
+
+                if ($tipoInventario === 'subinventario') {
+                    $cantidadActual = $subinventario->libros()
+                        ->where('libro_id', $item['libro_id'])
+                        ->first()->pivot->cantidad;
+                    $nuevaCantidad = $cantidadActual - $item['cantidad'];
+
+                    if ($nuevaCantidad > 0) {
+                        $subinventario->libros()->updateExistingPivot($item['libro_id'], [
+                            'cantidad' => $nuevaCantidad
+                        ]);
+                    } else {
+                        $subinventario->libros()->detach($item['libro_id']);
+                    }
+
+                    $libro->decrement('stock', $item['cantidad']);
+                    $libro->decrement('stock_subinventario', $item['cantidad']);
+                } else {
+                    $libro->decrement('stock', $item['cantidad']);
+                }
+            }
+
+            $venta->actualizarTotales();
+
+            if ($validated['tipo_pago'] === 'contado') {
+                $venta->total_pagado = $venta->total;
+            }
+
+            if ($tieneEnvio && isset($validated['direccion_envio'])) {
+                $observacionesEnvio = "\n--- DATOS DE ENVÍO ---\n";
+                $observacionesEnvio .= "Dirección: " . $validated['direccion_envio'] . "\n";
+                $observacionesEnvio .= "Teléfono: " . ($validated['telefono_envio'] ?? 'N/A') . "\n";
+                $observacionesEnvio .= "Costo: $" . $costoEnvio;
+
+                $venta->observaciones = ($venta->observaciones ?? '') . $observacionesEnvio;
+            }
+
+            $venta->save();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Venta creada exitosamente',
+                'data' => [
+                    'venta_id' => $venta->id,
+                    'subtotal' => $venta->subtotal,
+                    'descuento' => $venta->descuento,
+                    'costo_envio' => $venta->costo_envio,
+                    'total' => $venta->total,
+                    'total_pagado' => $venta->total_pagado,
+                    'saldo_pendiente' => $venta->total - $venta->total_pagado,
+                    'estado_pago' => $venta->estado_pago,
+                    'tiene_envio' => $venta->tiene_envio,
+                ]
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error al crear venta desde API admin', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear la venta: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Verifica si el usuario actual es administrador
      */
     private function isAdmin()
@@ -1177,6 +1428,43 @@ class VentaController extends Controller
             }
         }
         
+        return false;
+    }
+
+    /**
+     * Verifica rol admin desde la petición (para API sin sesión)
+     */
+    private function isAdminFromRequest(Request $request): bool
+    {
+        $roles = $request->input('roles', null);
+
+        if (is_string($roles)) {
+            $roles = json_decode($roles, true);
+        }
+
+        if (!is_array($roles)) {
+            $headerRoles = $request->header('X-Roles');
+            if (is_string($headerRoles)) {
+                $roles = json_decode($headerRoles, true);
+            }
+        }
+
+        if (!is_array($roles)) {
+            return false;
+        }
+
+        foreach ($roles as $rol) {
+            if (is_array($rol)) {
+                $rolNombre = strtoupper(trim($rol['ROL'] ?? $rol['rol'] ?? ''));
+            } else {
+                $rolNombre = strtoupper(trim((string) $rol));
+            }
+
+            if ($rolNombre === 'ADMIN LIBRERIA' || $rolNombre === 'ADMIN LIBRERÍA') {
+                return true;
+            }
+        }
+
         return false;
     }
 }
