@@ -405,6 +405,142 @@ class AbonoMovilController extends Controller
     }
 
     /**
+     * Crear un nuevo cliente desde la app móvil
+     * POST /api/v1/movil/clientes
+     */
+    public function crearCliente(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'nombre' => 'required|string|max:255',
+            'telefono' => 'nullable|string|max:20'
+        ], [
+            'nombre.required' => 'El nombre del cliente es requerido',
+            'nombre.string' => 'El nombre debe ser un texto válido',
+            'nombre.max' => 'El nombre no puede exceder 255 caracteres',
+            'telefono.string' => 'El teléfono debe ser un texto válido',
+            'telefono.max' => 'El teléfono no puede exceder 20 caracteres'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Errores de validación',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            // Verificar si ya existe un cliente con el mismo nombre y teléfono
+            $clienteExistente = null;
+            
+            if (!empty($request->telefono)) {
+                // Si hay teléfono, buscar por nombre Y teléfono
+                $clienteExistente = Cliente::where('nombre', $request->nombre)
+                    ->where('telefono', $request->telefono)
+                    ->first();
+            } else {
+                // Si no hay teléfono, buscar solo por nombre
+                $clienteExistente = Cliente::where('nombre', $request->nombre)
+                    ->whereNull('telefono')
+                    ->first();
+            }
+
+            if ($clienteExistente) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'El cliente ya existe',
+                    'data' => [
+                        'id' => $clienteExistente->id,
+                        'nombre' => $clienteExistente->nombre,
+                        'telefono' => $clienteExistente->telefono,
+                        'created_at' => $clienteExistente->created_at->format('Y-m-d H:i:s'),
+                        'es_nuevo' => false
+                    ]
+                ], 200);
+            }
+
+            // Crear el nuevo cliente
+            $cliente = Cliente::create([
+                'nombre' => $request->nombre,
+                'telefono' => $request->telefono
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cliente creado exitosamente',
+                'data' => [
+                    'id' => $cliente->id,
+                    'nombre' => $cliente->nombre,
+                    'telefono' => $cliente->telefono,
+                    'created_at' => $cliente->created_at->format('Y-m-d H:i:s'),
+                    'es_nuevo' => true
+                ]
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear el cliente',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Listar todos los clientes
+     * GET /api/v1/movil/clientes
+     */
+    public function listarClientes(Request $request)
+    {
+        try {
+            $busqueda = $request->query('busqueda');
+            $limite = $request->query('limite', 100);
+            
+            $query = Cliente::query();
+            
+            // Si hay búsqueda, filtrar por nombre o teléfono
+            if (!empty($busqueda)) {
+                $query->where(function($q) use ($busqueda) {
+                    $q->where('nombre', 'like', '%' . $busqueda . '%')
+                      ->orWhere('telefono', 'like', '%' . $busqueda . '%');
+                });
+            }
+            
+            $clientes = $query->orderBy('nombre', 'asc')
+                ->limit($limite)
+                ->get();
+            
+            if ($clientes->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontraron clientes'
+                ], 404);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'total' => $clientes->count(),
+                'data' => $clientes->map(function ($cliente) {
+                    return [
+                        'id' => $cliente->id,
+                        'nombre' => $cliente->nombre,
+                        'telefono' => $cliente->telefono,
+                        'total_apartados' => $cliente->apartados()->count(),
+                        'apartados_activos' => $cliente->apartados()
+                            ->whereIn('estado', ['activo', 'vencido'])
+                            ->count()
+                    ];
+                })
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al listar clientes',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Formatear datos del apartado para la respuesta
      */
     private function formatearApartado($apartado)

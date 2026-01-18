@@ -32,20 +32,18 @@ Route::prefix('v1')->group(function () {
     
     // Abonos Móvil - Buscar apartados
     Route::prefix('movil')->group(function () {
-        // Listar todos los apartados
+        // Clientes
+        Route::get('/clientes', [AbonoMovilController::class, 'listarClientes']);
+        Route::post('/clientes', [AbonoMovilController::class, 'crearCliente']);
+        
+        // Apartados
         Route::get('/apartados', [AbonoMovilController::class, 'listarApartados']);
-        
-        // Buscar apartado por folio (folio opcional - sin folio lista todos)
         Route::get('/apartados/buscar-folio/{folio?}', [AbonoMovilController::class, 'buscarPorFolio']);
-        
-        // Buscar apartados por cliente (nombre opcional - sin nombre lista todos los clientes con apartados)
         Route::get('/apartados/buscar-cliente', [AbonoMovilController::class, 'buscarPorCliente']);
-        
-        // Registrar abono
-        Route::post('/abonos', [AbonoMovilController::class, 'registrarAbono']);
-        
-        // Historial de abonos
         Route::get('/apartados/{apartado_id}/abonos', [AbonoMovilController::class, 'historialAbonos']);
+        
+        // Abonos
+        Route::post('/abonos', [AbonoMovilController::class, 'registrarAbono']);
     });
 });
 
