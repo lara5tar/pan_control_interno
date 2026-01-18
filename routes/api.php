@@ -35,10 +35,10 @@ Route::prefix('v1')->group(function () {
         // Listar todos los apartados
         Route::get('/apartados', [AbonoMovilController::class, 'listarApartados']);
         
-        // Buscar apartado por folio
-        Route::get('/apartados/buscar-folio/{folio}', [AbonoMovilController::class, 'buscarPorFolio']);
+        // Buscar apartado por folio (folio opcional - sin folio lista todos)
+        Route::get('/apartados/buscar-folio/{folio?}', [AbonoMovilController::class, 'buscarPorFolio']);
         
-        // Buscar apartados por cliente
+        // Buscar apartados por cliente (nombre opcional - sin nombre lista todos los clientes con apartados)
         Route::get('/apartados/buscar-cliente', [AbonoMovilController::class, 'buscarPorCliente']);
         
         // Registrar abono

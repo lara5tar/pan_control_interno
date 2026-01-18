@@ -64,11 +64,36 @@ class AbonoMovilController extends Controller
 
     /**
      * Buscar apartados por folio
-     * GET /api/v1/movil/apartados/buscar-folio/{folio}
+     * GET /api/v1/movil/apartados/buscar-folio/{folio?}
+     * Si no se proporciona folio, devuelve todos los apartados
      */
-    public function buscarPorFolio($folio)
+    public function buscarPorFolio($folio = null)
     {
         try {
+            // Si no se proporciona folio, listar todos los apartados
+            if (empty($folio)) {
+                $apartados = Apartado::with(['cliente', 'detalles.libro', 'abonos'])
+                    ->whereIn('estado', ['activo', 'vencido'])
+                    ->orderBy('fecha_apartado', 'desc')
+                    ->get();
+
+                if ($apartados->isEmpty()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No se encontraron apartados'
+                    ], 404);
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'total' => $apartados->count(),
+                    'data' => $apartados->map(function ($apartado) {
+                        return $this->formatearApartado($apartado);
+                    })
+                ]);
+            }
+
+            // Si se proporciona folio, buscar específicamente
             $apartado = Apartado::with(['cliente', 'detalles.libro', 'abonos'])
                 ->where('folio', $folio)
                 ->first();
@@ -111,20 +136,54 @@ class AbonoMovilController extends Controller
     /**
      * Buscar apartados por nombre de cliente
      * GET /api/v1/movil/apartados/buscar-cliente?nombre={nombre}
+     * Si no se proporciona nombre, devuelve todos los clientes con apartados
      */
     public function buscarPorCliente(Request $request)
     {
         try {
             $nombre = $request->query('nombre');
 
+            // Si no se proporciona nombre, listar todos los clientes con apartados
             if (empty($nombre)) {
+                $clientes = Cliente::with(['apartados' => function ($query) {
+                        $query->whereIn('estado', ['activo', 'vencido'])
+                            ->with(['detalles.libro', 'abonos'])
+                            ->orderBy('fecha_apartado', 'desc');
+                    }])
+                    ->get();
+
+                // Filtrar clientes que tengan apartados activos
+                $clientesConApartados = $clientes->filter(function ($cliente) {
+                    return $cliente->apartados->isNotEmpty();
+                })->values();
+
+                if ($clientesConApartados->isEmpty()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No se encontraron clientes con apartados activos'
+                    ], 404);
+                }
+
+                // Formatear respuesta
+                $resultado = $clientesConApartados->map(function ($cliente) {
+                    return [
+                        'cliente_id' => $cliente->id,
+                        'nombre_cliente' => $cliente->nombre,
+                        'telefono_cliente' => $cliente->telefono,
+                        'apartados' => $cliente->apartados->map(function ($apartado) {
+                            return $this->formatearApartado($apartado);
+                        })
+                    ];
+                });
+
                 return response()->json([
-                    'success' => false,
-                    'message' => 'Debe proporcionar el nombre del cliente'
-                ], 400);
+                    'success' => true,
+                    'total_clientes' => $clientesConApartados->count(),
+                    'data' => $resultado
+                ]);
             }
 
-            // Buscar clientes que coincidan con el nombre
+            // Si se proporciona nombre, buscar específicamente
             $clientes = Cliente::where('nombre', 'like', '%' . $nombre . '%')
                 ->with(['apartados' => function ($query) {
                     $query->whereIn('estado', ['activo', 'vencido'])
@@ -166,6 +225,7 @@ class AbonoMovilController extends Controller
 
             return response()->json([
                 'success' => true,
+                'total_clientes' => $clientesConApartados->count(),
                 'data' => $resultado
             ]);
         } catch (\Exception $e) {
