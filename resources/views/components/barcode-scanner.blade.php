@@ -126,9 +126,10 @@
             updateStatus('Iniciando cámara...', 'info');
 
             // Usar la clase Html5Qrcode del window
-            const Html5QrcodeScanner = window.Html5Qrcode;
+            let Html5QrcodeScanner = window.Html5Qrcode;
             if (!Html5QrcodeScanner) {
-                throw new Error('La librería de escaneo no está cargada');
+                updateStatus('Cargando librería de escaneo...', 'info');
+                Html5QrcodeScanner = await loadHtml5QrcodeLib();
             }
 
             html5QrCode = new Html5QrcodeScanner("barcode-reader");
@@ -181,6 +182,50 @@
                 }
             }
         }
+    }
+
+    async function loadHtml5QrcodeLib() {
+        if (window.Html5Qrcode) return window.Html5Qrcode;
+
+        const existingScript = document.querySelector('script[data-html5-qrcode]');
+        if (existingScript) {
+            await waitForHtml5Qrcode();
+            if (window.Html5Qrcode) return window.Html5Qrcode;
+            throw new Error('La librería de escaneo no está cargada');
+        }
+
+        await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/html5-qrcode@2.3.10/minified/html5-qrcode.min.js';
+            script.async = true;
+            script.defer = true;
+            script.dataset.html5Qrcode = 'true';
+            script.onload = resolve;
+            script.onerror = () => reject(new Error('No se pudo cargar la librería de escaneo'));
+            document.head.appendChild(script);
+        });
+
+        await waitForHtml5Qrcode();
+        if (window.Html5Qrcode) return window.Html5Qrcode;
+
+        throw new Error('La librería de escaneo no está cargada');
+    }
+
+    function waitForHtml5Qrcode(timeoutMs = 8000) {
+        return new Promise((resolve, reject) => {
+            const start = Date.now();
+            const timer = setInterval(() => {
+                if (window.Html5Qrcode) {
+                    clearInterval(timer);
+                    resolve();
+                    return;
+                }
+                if (Date.now() - start > timeoutMs) {
+                    clearInterval(timer);
+                    reject(new Error('Tiempo de espera agotado al cargar la librería'));
+                }
+            }, 100);
+        });
     }
 
     async function stopScanner() {
