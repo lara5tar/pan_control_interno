@@ -194,21 +194,33 @@
             throw new Error('La librería de escaneo no está cargada');
         }
 
-        await new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = 'https://unpkg.com/html5-qrcode@2.3.10/minified/html5-qrcode.min.js';
-            script.async = true;
-            script.defer = true;
-            script.dataset.html5Qrcode = 'true';
-            script.onload = resolve;
-            script.onerror = () => reject(new Error('No se pudo cargar la librería de escaneo'));
-            document.head.appendChild(script);
-        });
+        const sources = [
+            '/vendor/html5-qrcode.min.js',
+            'https://unpkg.com/html5-qrcode@2.3.10/minified/html5-qrcode.min.js'
+        ];
 
-        await waitForHtml5Qrcode();
-        if (window.Html5Qrcode) return window.Html5Qrcode;
+        let lastError = null;
+        for (const src of sources) {
+            try {
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = src;
+                    script.async = true;
+                    script.defer = true;
+                    script.dataset.html5Qrcode = 'true';
+                    script.onload = resolve;
+                    script.onerror = () => reject(new Error(`No se pudo cargar la librería desde ${src}`));
+                    document.head.appendChild(script);
+                });
 
-        throw new Error('La librería de escaneo no está cargada');
+                await waitForHtml5Qrcode();
+                if (window.Html5Qrcode) return window.Html5Qrcode;
+            } catch (error) {
+                lastError = error;
+            }
+        }
+
+        throw lastError || new Error('La librería de escaneo no está cargada');
     }
 
     function waitForHtml5Qrcode(timeoutMs = 8000) {
