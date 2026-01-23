@@ -90,7 +90,7 @@
 
             <!-- Roles No Gestionables -->
             @php
-                $rolesNoGestionables = collect($rolesActuales)->whereNotIn('CODROL', ['18', '19']);
+                $rolesNoGestionables = collect($rolesActuales)->whereNotIn('CODROL', ['18', '19', '20']);
             @endphp
 
             @if($rolesNoGestionables->count() > 0)

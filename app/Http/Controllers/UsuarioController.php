@@ -164,6 +164,7 @@ class UsuarioController extends Controller
                     $rolesDisponibles = [
                         ['CODROL' => '18', 'ROL' => 'VENDEDOR', 'DESCRIPCION_ROL' => 'Vendedor de la librería'],
                         ['CODROL' => '19', 'ROL' => 'ADMIN LIBRERÍA', 'DESCRIPCION_ROL' => 'Administrador de la librería'],
+                        ['CODROL' => '20', 'ROL' => 'SUPERVISOR', 'DESCRIPCION_ROL' => 'Supervisor de la librería'],
                     ];
                     
                     return view('usuarios.edit', compact('congregante', 'rolesActuales', 'rolesDisponibles'));
@@ -197,7 +198,7 @@ class UsuarioController extends Controller
         
         $request->validate([
             'roles' => 'array',
-            'roles.*' => 'in:18,19', // Solo vendedor (18) y admin librería (19)
+            'roles.*' => 'in:18,19,20', // Vendedor (18), admin librería (19), supervisor (20)
         ]);
 
         try {
@@ -213,7 +214,7 @@ class UsuarioController extends Controller
 
             $data = $response->json();
             $rolesActuales = collect($data['roles'] ?? [])
-                ->whereIn('CODROL', ['18', '19'])
+                ->whereIn('CODROL', ['18', '19', '20'])
                 ->pluck('CODROL')
                 ->toArray();
 
@@ -222,6 +223,8 @@ class UsuarioController extends Controller
             // Determinar roles a agregar y remover
             $rolesAgregar = array_diff($rolesNuevos, $rolesActuales);
             $rolesRemover = array_diff($rolesActuales, $rolesNuevos);
+
+            $erroresRoles = [];
 
             // Agregar roles nuevos
             foreach ($rolesAgregar as $rol) {
@@ -239,20 +242,33 @@ class UsuarioController extends Controller
                         'status' => $rolResponse->status(),
                         'body' => $rolResponse->body()
                     ]);
+                    $erroresRoles[] = 'No se pudo asignar el rol ' . $rol . '.';
                 }
             }
 
-            // Remover roles (si existe endpoint para remover)
+            // Remover roles
             foreach ($rolesRemover as $rol) {
-                // Nota: Aquí deberías usar el endpoint correcto para remover roles
-                // Por ahora lo dejo como placeholder
-                Log::info('Rol a remover', ['idCon' => $id, 'rol' => $rol]);
-                
-                // Ejemplo (ajustar según tu API):
-                // Http::post('https://sistemasdevida.com/pan/bajaRol.php', [
-                //     'idCon' => $id,
-                //     'rol' => $rol
-                // ]);
+                $rolResponse = Http::post('https://www.sistemasdevida.com/pan/rest2/index.php/rol/baja', [
+                    'codCongregante' => $codCongregante,
+                    'idCongregante' => $id,
+                    'rol' => $rol
+                ]);
+
+                if (!$rolResponse->successful() || ($rolResponse->json()['error'] ?? true)) {
+                    Log::error('Error al remover rol', [
+                        'codCongregante' => $codCongregante,
+                        'idCongregante' => $id,
+                        'rol' => $rol,
+                        'status' => $rolResponse->status(),
+                        'body' => $rolResponse->body()
+                    ]);
+                    $erroresRoles[] = 'No se pudo remover el rol ' . $rol . '.';
+                }
+            }
+
+            if (!empty($erroresRoles)) {
+                return redirect()->route('usuarios.show', $id)
+                    ->with('warning', 'Roles actualizados con errores: ' . implode(' ', $erroresRoles));
             }
 
             return redirect()->route('usuarios.show', $id)

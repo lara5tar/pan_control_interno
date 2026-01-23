@@ -937,7 +937,13 @@ public function apiLogin(Request $request)
     
     // Verificar rol
     $tieneRolAdminLibreria = collect($data['roles'])->contains(function ($rol) {
-        return strtoupper(trim($rol['ROL'])) === 'ADMIN LIBRERIA';
+        $rolNombre = strtoupper(trim($rol['ROL'] ?? $rol['rol'] ?? ''));
+        $rolId = $rol['ID'] ?? $rol['id'] ?? $rol['ROL_ID'] ?? $rol['rol_id'] ?? null;
+
+        return $rolNombre === 'ADMIN LIBRERIA' ||
+               $rolNombre === 'ADMIN LIBRERÍA' ||
+               $rolNombre === 'SUPERVISOR' ||
+               (string) $rolId === '20';
     });
     
     if (!$tieneRolAdminLibreria) {

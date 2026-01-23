@@ -18,8 +18,15 @@ class AuthHelper
         }
         
         foreach ($roles as $rol) {
-            $rolNombre = strtoupper(trim($rol['ROL'] ?? ''));
-            if ($rolNombre === 'ADMIN LIBRERIA' || $rolNombre === 'ADMIN LIBRERÍA') {
+            $rolNombre = strtoupper(trim($rol['ROL'] ?? $rol['rol'] ?? ''));
+            $rolId = $rol['ID'] ?? $rol['id'] ?? $rol['ROL_ID'] ?? $rol['rol_id'] ?? null;
+
+            if (
+                $rolNombre === 'ADMIN LIBRERIA' ||
+                $rolNombre === 'ADMIN LIBRERÍA' ||
+                $rolNombre === 'SUPERVISOR' ||
+                (string) $rolId === '20'
+            ) {
                 return true;
             }
         }

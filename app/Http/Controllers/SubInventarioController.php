@@ -554,6 +554,34 @@ class SubInventarioController extends Controller
      */
     public function apiMisSubinventarios(Request $request, $codCongregante)
     {
+        if ($this->hasAdminAccess($request)) {
+            $subinventarios = SubInventario::where('estado', 'activo')
+                ->get(['id', 'descripcion', 'fecha_subinventario', 'estado', 'observaciones'])
+                ->map(function($subinventario) {
+                    $stats = DB::table('subinventario_libro')
+                        ->where('subinventario_id', $subinventario->id)
+                        ->where('cantidad', '>', 0)
+                        ->selectRaw('COUNT(DISTINCT libro_id) as total_libros, SUM(cantidad) as total_unidades')
+                        ->first();
+
+                    return [
+                        'id' => $subinventario->id,
+                        'descripcion' => $subinventario->descripcion,
+                        'fecha_subinventario' => $subinventario->fecha_subinventario,
+                        'estado' => $subinventario->estado,
+                        'observaciones' => $subinventario->observaciones,
+                        'total_libros' => $stats->total_libros ?? 0,
+                        'total_unidades' => $stats->total_unidades ?? 0
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Subinventarios encontrados',
+                'data' => $subinventarios
+            ], 200);
+        }
+
         // Buscar subinventarios donde el usuario tiene acceso
         $subinventariosIds = DB::table('subinventario_user')
             ->where('cod_congregante', $codCongregante)
@@ -615,7 +643,7 @@ class SubInventarioController extends Controller
         }
         
         // Validar acceso del usuario (opcional, si envían cod_congregante)
-        if ($request->filled('cod_congregante')) {
+        if ($request->filled('cod_congregante') && !$this->hasAdminAccess($request)) {
             $tieneAcceso = DB::table('subinventario_user')
                 ->where('subinventario_id', $id)
                 ->where('cod_congregante', $request->cod_congregante)
@@ -668,16 +696,24 @@ class SubInventarioController extends Controller
     public function apiMisLibrosDisponibles(Request $request, $codCongregante)
     {
         // 1. Obtener IDs de subinventarios del vendedor
-        $subinventariosIds = DB::table('subinventario_user')
-            ->where('cod_congregante', $codCongregante)
-            ->pluck('subinventario_id');
-        
+        if ($this->hasAdminAccess($request)) {
+            $subinventariosIds = SubInventario::where('estado', 'activo')->pluck('id');
+        } else {
+            $subinventariosIds = DB::table('subinventario_user')
+                ->where('cod_congregante', $codCongregante)
+                ->pluck('subinventario_id');
+        }
+
         if ($subinventariosIds->isEmpty()) {
+            $status = $this->hasAdminAccess($request) ? 200 : 404;
+
             return response()->json([
-                'success' => false,
-                'message' => 'No tienes subinventarios asignados. No puedes vender libros.',
+                'success' => $status === 200,
+                'message' => $status === 200
+                    ? 'No hay subinventarios activos para consultar.'
+                    : 'No tienes subinventarios asignados. No puedes vender libros.',
                 'data' => []
-            ], 404);
+            ], $status);
         }
 
         // 2. Construir query base - libros en subinventarios activos del vendedor
@@ -795,6 +831,73 @@ class SubInventarioController extends Controller
                 'libros' => $librosFormateados->values()
             ]
         ], 200);
+    }
+
+    /**
+     * Determina si el request tiene acceso admin/supervisor
+     */
+    private function hasAdminAccess(Request $request): bool
+    {
+        $rolesSesion = session('roles', []);
+
+        if ($this->hasAdminRole($rolesSesion)) {
+            return true;
+        }
+
+        $rolesRequest = $this->getRolesFromRequest($request);
+
+        return $this->hasAdminRole($rolesRequest);
+    }
+
+    /**
+     * Extrae roles desde request body o header
+     */
+    private function getRolesFromRequest(Request $request): array
+    {
+        $roles = $request->input('roles', null);
+
+        if (is_string($roles)) {
+            $roles = json_decode($roles, true);
+        }
+
+        if (!is_array($roles)) {
+            $headerRoles = $request->header('X-Roles');
+            if (is_string($headerRoles)) {
+                $roles = json_decode($headerRoles, true);
+            }
+        }
+
+        return is_array($roles) ? $roles : [];
+    }
+
+    /**
+     * Valida rol admin/supervisor dentro de un arreglo de roles
+     */
+    private function hasAdminRole(array $roles): bool
+    {
+        foreach ($roles as $rol) {
+            $rolNombre = '';
+            $rolId = null;
+
+            if (is_array($rol)) {
+                $rolNombre = strtoupper(trim($rol['ROL'] ?? $rol['rol'] ?? ''));
+                $rolId = $rol['ID'] ?? $rol['id'] ?? $rol['ROL_ID'] ?? $rol['rol_id'] ?? null;
+            } else {
+                $rolNombre = strtoupper(trim((string) $rol));
+            }
+
+            if (
+                $rolNombre === 'ADMIN LIBRERIA' ||
+                $rolNombre === 'ADMIN LIBRERÍA' ||
+                $rolNombre === 'SUPERVISOR' ||
+                (string) $rolId === '20' ||
+                $rolNombre === '20'
+            ) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

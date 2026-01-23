@@ -119,6 +119,8 @@
                         >
                             <option value="">Selecciona un rol</option>
                             <option value="18" selected>Vendedor</option>
+                            <option value="20">Supervisor</option>
+                            <option value="19">Admin Librería</option>
                         </select>
                     </div>
                     <p class="mt-1 text-sm text-gray-500">

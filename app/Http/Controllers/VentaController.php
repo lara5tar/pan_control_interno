@@ -1169,7 +1169,7 @@ class VentaController extends Controller
         if (!$this->isAdmin() && !$this->isAdminFromRequest($request)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Acceso denegado. Se requiere rol Admin Librería.'
+                'message' => 'Acceso denegado. Se requiere rol Admin Librería o Supervisor.'
             ], 403);
         }
 
@@ -1218,7 +1218,7 @@ class VentaController extends Controller
         if (!$this->isAdmin() && !$this->isAdminFromRequest($request)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Acceso denegado. Se requiere rol Admin Librería.'
+                'message' => 'Acceso denegado. Se requiere rol Admin Librería o Supervisor.'
             ], 403);
         }
 
@@ -1422,8 +1422,15 @@ class VentaController extends Controller
         }
         
         foreach ($roles as $rol) {
-            $rolNombre = strtoupper(trim($rol['ROL'] ?? ''));
-            if ($rolNombre === 'ADMIN LIBRERIA' || $rolNombre === 'ADMIN LIBRERÍA') {
+            $rolNombre = strtoupper(trim($rol['ROL'] ?? $rol['rol'] ?? ''));
+            $rolId = $rol['ID'] ?? $rol['id'] ?? $rol['ROL_ID'] ?? $rol['rol_id'] ?? null;
+
+            if (
+                $rolNombre === 'ADMIN LIBRERIA' ||
+                $rolNombre === 'ADMIN LIBRERÍA' ||
+                $rolNombre === 'SUPERVISOR' ||
+                (string) $rolId === '20'
+            ) {
                 return true;
             }
         }
@@ -1454,13 +1461,22 @@ class VentaController extends Controller
         }
 
         foreach ($roles as $rol) {
+            $rolNombre = '';
+            $rolId = null;
+
             if (is_array($rol)) {
                 $rolNombre = strtoupper(trim($rol['ROL'] ?? $rol['rol'] ?? ''));
+                $rolId = $rol['ID'] ?? $rol['id'] ?? $rol['ROL_ID'] ?? $rol['rol_id'] ?? null;
             } else {
                 $rolNombre = strtoupper(trim((string) $rol));
             }
 
-            if ($rolNombre === 'ADMIN LIBRERIA' || $rolNombre === 'ADMIN LIBRERÍA') {
+            if (
+                $rolNombre === 'ADMIN LIBRERIA' ||
+                $rolNombre === 'ADMIN LIBRERÍA' ||
+                $rolNombre === 'SUPERVISOR' ||
+                (string) $rolId === '20'
+            ) {
                 return true;
             }
         }

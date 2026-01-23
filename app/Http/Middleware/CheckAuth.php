@@ -25,9 +25,13 @@ class CheckAuth
         // Verificar que el usuario tenga el rol de Admin Librería
         $roles = Session::get('roles', []);
         $tieneRolAdminLibreria = collect($roles)->contains(function ($rol) {
-            return isset($rol['ROL']) && 
-                   (strtoupper(trim($rol['ROL'])) === 'ADMIN LIBRERIA' || 
-                    strtoupper(trim($rol['ROL'])) === 'ADMIN LIBRERÍA');
+            $rolNombre = strtoupper(trim($rol['ROL'] ?? $rol['rol'] ?? ''));
+            $rolId = $rol['ID'] ?? $rol['id'] ?? $rol['ROL_ID'] ?? $rol['rol_id'] ?? null;
+
+            return $rolNombre === 'ADMIN LIBRERIA' ||
+                   $rolNombre === 'ADMIN LIBRERÍA' ||
+                   $rolNombre === 'SUPERVISOR' ||
+                   (string) $rolId === '20';
         });
         
         if (!$tieneRolAdminLibreria) {
@@ -35,7 +39,7 @@ class CheckAuth
             Session::flush();
             
             return redirect()->route('login')
-                ->with('error', 'No tienes permisos para acceder al sistema. Se requiere el rol de Administrador de Librería.');
+                ->with('error', 'No tienes permisos para acceder al sistema. Se requiere el rol de Administrador de Librería o Supervisor.');
         }
 
         return $next($request);
