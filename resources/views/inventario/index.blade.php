@@ -6,13 +6,25 @@
 @section('page-description', 'Gestión y control del inventario de libros')
 
 @section('content')
+@php
+    $isAdminLibreria = \App\Helpers\AuthHelper::isAdminLibreria();
+@endphp
+
 <x-page-layout 
     title="Listado de Libros"
     description="Total: {{ $totalLibros }} libros"
-    button-text="Importar Excel"
-    button-icon="fas fa-file-excel"
-    :button-route="route('inventario.import')"
 >
+    @if($isAdminLibreria)
+        <x-slot name="headerButton">
+            <x-button 
+                variant="success" 
+                icon="fas fa-file-excel"
+                onclick="window.location='{{ route('inventario.import') }}'"
+            >
+                Importar Excel
+            </x-button>
+        </x-slot>
+    @endif
     <x-slot name="header">
         <x-button 
             variant="success" 
@@ -22,13 +34,23 @@
         >
             Sub-Inventarios
         </x-button>
-        <x-button 
-            variant="primary" 
-            icon="fas fa-plus"
-            onclick="window.location='{{ route('inventario.create') }}'"
-        >
-            Registrar Libro
-        </x-button>
+        @if(\App\Helpers\AuthHelper::isAdminLibreria())
+            <x-button 
+                variant="primary" 
+                icon="fas fa-plus"
+                onclick="window.location='{{ route('inventario.create') }}'"
+            >
+                Registrar Libro
+            </x-button>
+        @else
+            <button 
+                disabled
+                class="inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm cursor-not-allowed bg-gray-200 text-gray-400 opacity-60"
+            >
+                <i class="fas fa-plus mr-2"></i>
+                Registrar Libro
+            </button>
+        @endif
     </x-slot>
 
     <!-- Estadísticas rápidas -->
@@ -187,6 +209,7 @@
                         :editRoute="route('inventario.edit', $libro->id)"
                         :deleteRoute="route('inventario.destroy', $libro->id)"
                         deleteMessage="¿Estás seguro de eliminar este libro?"
+                        :requireAdmin="true"
                     />
                 </x-data-table-row>
             @endforeach

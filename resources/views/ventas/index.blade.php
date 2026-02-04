@@ -6,18 +6,32 @@
 @section('page-description', 'Gestión de ventas realizadas')
 
 @section('content')
+@php
+    $isAdminLibreria = \App\Helpers\AuthHelper::isAdminLibreria();
+@endphp
+
 <x-page-layout 
     title="Listado de Ventas"
     description="Total: {{ $ventas->total() }} ventas"
 >
     <x-slot name="header">
-        <x-button 
-            variant="primary" 
-            icon="fas fa-plus"
-            onclick="window.location='{{ route('ventas.create') }}'"
-        >
-            Nueva Venta
-        </x-button>
+        @if($isAdminLibreria)
+            <x-button 
+                variant="primary" 
+                icon="fas fa-plus"
+                onclick="window.location='{{ route('ventas.create') }}'"
+            >
+                Nueva Venta
+            </x-button>
+        @else
+            <button 
+                disabled
+                class="inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm cursor-not-allowed bg-gray-200 text-gray-400 opacity-60"
+            >
+                <i class="fas fa-plus mr-2"></i>
+                Nueva Venta
+            </button>
+        @endif
     </x-slot>
 
     <!-- Estadísticas de ventas filtradas -->
@@ -336,19 +350,8 @@
                                 title="Ver detalles">
                             </x-button>
                             
-                            @php
-                                $roles = session('roles', []);
-                                $isAdmin = false;
-                                foreach ($roles as $rol) {
-                                    $rolNombre = strtoupper(trim($rol['ROL'] ?? ''));
-                                    if ($rolNombre === 'ADMIN LIBRERIA' || $rolNombre === 'ADMIN LIBRERÍA') {
-                                        $isAdmin = true;
-                                        break;
-                                    }
-                                }
-                            @endphp
                             
-                            @if($isAdmin)
+                            @if($isAdminLibreria)
                                 <x-button 
                                     href="{{ route('ventas.edit', $venta) }}" 
                                     variant="warning" 
@@ -356,20 +359,36 @@
                                     icon="fas fa-edit"
                                     title="Editar venta">
                                 </x-button>
+                            @else
+                                <button 
+                                    disabled
+                                    class="inline-flex items-center justify-center px-2 py-1 text-xs font-medium rounded cursor-not-allowed bg-gray-200 text-gray-400 opacity-60"
+                                    title="Solo Admin Librería">
+                                    <i class="fas fa-edit"></i>
+                                </button>
                             @endif
                             
                             @if($venta->estado === 'completada')
-                                <form action="{{ route('ventas.cancelar', $venta) }}" method="POST" class="inline">
-                                    @csrf
-                                    <x-button 
-                                        type="submit" 
-                                        variant="warning" 
-                                        size="sm"
-                                        icon="fas fa-ban"
-                                        title="Cancelar venta"
-                                        onclick="return confirm('¿Estás seguro de cancelar esta venta? Se restaurará el stock.')">
-                                    </x-button>
-                                </form>
+                                @if($isAdminLibreria)
+                                    <form action="{{ route('ventas.cancelar', $venta) }}" method="POST" class="inline">
+                                        @csrf
+                                        <x-button 
+                                            type="submit" 
+                                            variant="warning" 
+                                            size="sm"
+                                            icon="fas fa-ban"
+                                            title="Cancelar venta"
+                                            onclick="return confirm('¿Estás seguro de cancelar esta venta? Se restaurará el stock.')">
+                                        </x-button>
+                                    </form>
+                                @else
+                                    <button 
+                                        disabled
+                                        class="inline-flex items-center justify-center px-2 py-1 text-xs font-medium rounded cursor-not-allowed bg-gray-200 text-gray-400 opacity-60"
+                                        title="Solo Admin Librería">
+                                        <i class="fas fa-ban"></i>
+                                    </button>
+                                @endif
                             @endif
                         </div>
                     </x-data-table-cell>

@@ -6,18 +6,32 @@
 @section('page-description', 'Gestión de clientes')
 
 @section('content')
+@php
+    $isAdminLibreria = \App\Helpers\AuthHelper::isAdminLibreria();
+@endphp
+
 <x-page-layout 
     title="Listado de Clientes"
     description="Total: {{ $totalClientes }} clientes"
 >
     <x-slot name="header">
-        <x-button 
-            variant="primary" 
-            icon="fas fa-plus"
-            onclick="window.location='{{ route('clientes.create') }}'"
-        >
-            Registrar Cliente
-        </x-button>
+        @if($isAdminLibreria)
+            <x-button 
+                variant="primary" 
+                icon="fas fa-plus"
+                onclick="window.location='{{ route('clientes.create') }}'"
+            >
+                Registrar Cliente
+            </x-button>
+        @else
+            <button 
+                disabled
+                class="inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm cursor-not-allowed bg-gray-200 text-gray-400 opacity-60"
+            >
+                <i class="fas fa-plus mr-2"></i>
+                Registrar Cliente
+            </button>
+        @endif
     </x-slot>
 
     <!-- Estadística rápida -->
@@ -128,6 +142,7 @@
                         :editRoute="route('clientes.edit', $cliente->id)"
                         :deleteRoute="route('clientes.destroy', $cliente->id)"
                         deleteMessage="¿Estás seguro de eliminar este cliente?"
+                        :requireAdmin="true"
                     />
                 </x-data-table-row>
             @endforeach

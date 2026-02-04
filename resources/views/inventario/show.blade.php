@@ -6,6 +6,10 @@
 @section('page-description', 'Información completa del libro')
 
 @section('content')
+@php
+    $isAdminLibreria = \App\Helpers\AuthHelper::isAdminLibreria();
+@endphp
+
 <x-page-layout 
     title="Detalle del Libro"
     :description="'Información completa de: ' . $libro->nombre"
@@ -119,21 +123,41 @@
         <!-- Acciones -->
         <x-card title="Acciones">
             <div class="space-y-3">
-                <x-button variant="primary" icon="fas fa-edit" onclick="window.location='{{ route('inventario.edit', $libro->id) }}'" class="w-full justify-center">
-                    Editar
-                </x-button>
+                @if($isAdminLibreria)
+                    <x-button variant="primary" icon="fas fa-edit" onclick="window.location='{{ route('inventario.edit', $libro->id) }}'" class="w-full justify-center">
+                        Editar
+                    </x-button>
+                @else
+                    <button 
+                        disabled
+                        class="w-full inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium text-sm cursor-not-allowed bg-gray-200 text-gray-400 opacity-60"
+                    >
+                        <i class="fas fa-edit mr-2"></i>
+                        Editar
+                    </button>
+                @endif
                 
                 <x-button variant="secondary" icon="fas fa-arrow-left" onclick="window.location='{{ route('inventario.index') }}'" class="w-full justify-center">
                     Volver al Listado
                 </x-button>
                 
-                <form action="{{ route('inventario.destroy', $libro->id) }}" method="POST">
-                    @csrf
-                    @method('DELETE')
-                    <x-button type="submit" variant="danger" icon="fas fa-trash" onclick="return confirm('¿Estás seguro de eliminar este libro?')" class="w-full justify-center">
+                @if($isAdminLibreria)
+                    <form action="{{ route('inventario.destroy', $libro->id) }}" method="POST">
+                        @csrf
+                        @method('DELETE')
+                        <x-button type="submit" variant="danger" icon="fas fa-trash" onclick="return confirm('¿Estás seguro de eliminar este libro?')" class="w-full justify-center">
+                            Eliminar
+                        </x-button>
+                    </form>
+                @else
+                    <button 
+                        disabled
+                        class="w-full inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium text-sm cursor-not-allowed bg-gray-200 text-gray-400 opacity-60"
+                    >
+                        <i class="fas fa-trash mr-2"></i>
                         Eliminar
-                    </x-button>
-                </form>
+                    </button>
+                @endif
             </div>
         </x-card>
     </div>

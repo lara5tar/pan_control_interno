@@ -3,13 +3,33 @@
 @section('title', 'Sub-Inventarios')
 
 @section('content')
+@php
+    $isAdminLibreria = \App\Helpers\AuthHelper::isAdminLibreria();
+@endphp
+
 <x-page-layout 
     title="Sub-Inventarios"
     description="Gestiona los sub-inventarios para días de venta"
-    button-text="Nuevo Sub-Inventario"
-    button-icon="fas fa-plus"
-    :button-route="route('subinventarios.create')"
 >
+    <x-slot name="header">
+        @if($isAdminLibreria)
+            <x-button 
+                variant="primary" 
+                icon="fas fa-plus"
+                onclick="window.location='{{ route('subinventarios.create') }}'"
+            >
+                Nuevo Sub-Inventario
+            </x-button>
+        @else
+            <button 
+                disabled
+                class="inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm cursor-not-allowed bg-gray-200 text-gray-400 opacity-60"
+            >
+                <i class="fas fa-plus mr-2"></i>
+                Nuevo Sub-Inventario
+            </button>
+        @endif
+    </x-slot>
     <!-- Filtros y búsqueda -->
     <x-card class="overflow-visible">
         <form method="GET" action="{{ route('subinventarios.index') }}" class="overflow-visible">
@@ -155,50 +175,70 @@
                                     </a>
                                     
                                     @if($subinventario->estado === 'activo')
-                                        <a href="{{ route('subinventarios.edit', $subinventario) }}" 
-                                           class="text-yellow-600 hover:text-yellow-900"
-                                           title="Editar">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
+                                        @if($isAdminLibreria)
+                                            <a href="{{ route('subinventarios.edit', $subinventario) }}" 
+                                               class="text-yellow-600 hover:text-yellow-900"
+                                               title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
 
-                                        <form action="{{ route('subinventarios.completar', $subinventario) }}" 
-                                              method="POST" 
-                                              class="inline"
-                                              onsubmit="return confirm('¿Completar este sub-inventario? Esto indica que se vendió todo el inventario del sub-inventario.');">
-                                            @csrf
-                                            <button type="submit" 
-                                                    class="text-green-600 hover:text-green-900"
-                                                    title="Completar">
+                                            <form action="{{ route('subinventarios.completar', $subinventario) }}" 
+                                                  method="POST" 
+                                                  class="inline"
+                                                  onsubmit="return confirm('¿Completar este sub-inventario? Esto indica que se vendió todo el inventario del sub-inventario.');">
+                                                @csrf
+                                                <button type="submit" 
+                                                        class="text-green-600 hover:text-green-900"
+                                                        title="Completar">
+                                                    <i class="fas fa-check-circle"></i>
+                                                </button>
+                                            </form>
+
+                                            <form action="{{ route('subinventarios.cancelar', $subinventario) }}" 
+                                                  method="POST" 
+                                                  class="inline"
+                                                  onsubmit="return confirm('¿Cancelar este sub-inventario? El inventario se devolverá.');">
+                                                @csrf
+                                                <button type="submit" 
+                                                        class="text-red-600 hover:text-red-900"
+                                                        title="Cancelar">
+                                                    <i class="fas fa-times-circle"></i>
+                                                </button>
+                                            </form>
+                                        @else
+                                            <button disabled class="text-gray-400 cursor-not-allowed opacity-60" title="Solo Admin Librería">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+
+                                            <button disabled class="text-gray-400 cursor-not-allowed opacity-60" title="Solo Admin Librería">
                                                 <i class="fas fa-check-circle"></i>
                                             </button>
-                                        </form>
 
-                                        <form action="{{ route('subinventarios.cancelar', $subinventario) }}" 
-                                              method="POST" 
-                                              class="inline"
-                                              onsubmit="return confirm('¿Cancelar este sub-inventario? El inventario se devolverá.');">
-                                            @csrf
-                                            <button type="submit" 
-                                                    class="text-red-600 hover:text-red-900"
-                                                    title="Cancelar">
+                                            <button disabled class="text-gray-400 cursor-not-allowed opacity-60" title="Solo Admin Librería">
                                                 <i class="fas fa-times-circle"></i>
                                             </button>
-                                        </form>
+                                        @endif
                                     @endif
 
                                     @if($subinventario->estado !== 'completado')
-                                        <form action="{{ route('subinventarios.destroy', $subinventario) }}" 
-                                              method="POST" 
-                                              class="inline"
-                                              onsubmit="return confirm('¿Eliminar este sub-inventario?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" 
-                                                    class="text-red-600 hover:text-red-900"
-                                                    title="Eliminar">
+                                        @if($isAdminLibreria)
+                                            <form action="{{ route('subinventarios.destroy', $subinventario) }}" 
+                                                  method="POST" 
+                                                  class="inline"
+                                                  onsubmit="return confirm('¿Eliminar este sub-inventario?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" 
+                                                        class="text-red-600 hover:text-red-900"
+                                                        title="Eliminar">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        @else
+                                            <button disabled class="text-gray-400 cursor-not-allowed opacity-60" title="Solo Admin Librería">
                                                 <i class="fas fa-trash"></i>
                                             </button>
-                                        </form>
+                                        @endif
                                     @endif
                                 </td>
                             </tr>
@@ -215,10 +255,18 @@
             <div class="text-center py-8">
                 <i class="fas fa-box-open text-gray-400 text-5xl mb-4"></i>
                 <p class="text-gray-500 text-lg">No hay sub-inventarios registrados</p>
-                <a href="{{ route('subinventarios.create') }}" 
-                   class="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                    <i class="fas fa-plus mr-2"></i>Crear primer sub-inventario
-                </a>
+                @if($isAdminLibreria)
+                    <a href="{{ route('subinventarios.create') }}" 
+                       class="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        <i class="fas fa-plus mr-2"></i>Crear primer sub-inventario
+                    </a>
+                @else
+                    <button 
+                        disabled
+                        class="mt-4 inline-flex items-center px-4 py-2 rounded-lg cursor-not-allowed bg-gray-200 text-gray-400 opacity-60">
+                        <i class="fas fa-plus mr-2"></i>Crear primer sub-inventario
+                    </button>
+                @endif
             </div>
         @endif
     </x-card>

@@ -12,8 +12,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Middleware global para verificar acceso al sistema (excepto login y logout)
+        $middleware->web(append: [
+            \App\Http\Middleware\CheckSystemAccess::class,
+        ]);
+
         $middleware->alias([
             'checkauth' => \App\Http\Middleware\CheckAuth::class,
+            'admin.libreria' => \App\Http\Middleware\CheckAdminLibreria::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

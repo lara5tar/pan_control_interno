@@ -6,6 +6,10 @@
 @section('page-description', 'Resumen general del sistema')
 
 @section('content')
+@php
+    $isAdminLibreria = \App\Helpers\AuthHelper::isAdminLibreria();
+@endphp
+
 <x-page-layout 
     title="Panel de Control"
     description="Resumen general del inventario y movimientos"
@@ -43,10 +47,17 @@
                     <i class="fas fa-boxes text-gray-800 mr-2"></i>
                     Ver Inventario de Libros
                 </a>
-                <a href="{{ route('inventario.create') }}" class="block p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
-                    <i class="fas fa-plus text-green-600 mr-2"></i>
-                    Agregar Nuevo Libro
-                </a>
+                @if(\App\Helpers\AuthHelper::isAdminLibreria())
+                    <a href="{{ route('inventario.create') }}" class="block p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                        <i class="fas fa-plus text-green-600 mr-2"></i>
+                        Agregar Nuevo Libro
+                    </a>
+                @else
+                    <div class="block p-4 bg-gray-200 rounded-lg cursor-not-allowed opacity-60">
+                        <i class="fas fa-plus text-gray-400 mr-2"></i>
+                        Agregar Nuevo Libro
+                    </div>
+                @endif
             </div>
         </x-card>
 
@@ -56,18 +67,32 @@
                     <i class="fas fa-cash-register text-green-600 mr-2"></i>
                     Ver Ventas
                 </a>
-                <a href="{{ route('ventas.create') }}" class="block p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors">
-                    <i class="fas fa-plus-circle text-green-600 mr-2"></i>
-                    Registrar Nueva Venta
-                </a>
+                @if(\App\Helpers\AuthHelper::isAdminLibreria())
+                    <a href="{{ route('ventas.create') }}" class="block p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors">
+                        <i class="fas fa-plus-circle text-green-600 mr-2"></i>
+                        Registrar Nueva Venta
+                    </a>
+                @else
+                    <div class="block p-4 bg-gray-200 rounded-lg cursor-not-allowed opacity-60">
+                        <i class="fas fa-plus-circle text-gray-400 mr-2"></i>
+                        Registrar Nueva Venta
+                    </div>
+                @endif
                 <a href="{{ route('movimientos.index') }}" class="block p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
                     <i class="fas fa-exchange-alt text-blue-600 mr-2"></i>
                     Ver Movimientos
                 </a>
-                <a href="{{ route('movimientos.create') }}" class="block p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
-                    <i class="fas fa-plus text-blue-600 mr-2"></i>
-                    Registrar Nuevo Movimiento
-                </a>
+                @if(\App\Helpers\AuthHelper::isAdminLibreria())
+                    <a href="{{ route('movimientos.create') }}" class="block p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+                        <i class="fas fa-plus text-blue-600 mr-2"></i>
+                        Registrar Nuevo Movimiento
+                    </a>
+                @else
+                    <div class="block p-4 bg-gray-200 rounded-lg cursor-not-allowed opacity-60">
+                        <i class="fas fa-plus text-gray-400 mr-2"></i>
+                        Registrar Nuevo Movimiento
+                    </div>
+                @endif
             </div>
         </x-card>
 
@@ -77,10 +102,17 @@
                     <i class="fas fa-bookmark text-purple-600 mr-2"></i>
                     Ver Apartados
                 </a>
-                <button onclick="openAbonoModal()" class="w-full text-left p-4 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors">
-                    <i class="fas fa-dollar-sign text-orange-600 mr-2"></i>
-                    Registrar Abono Rápido
-                </button>
+                @if(\App\Helpers\AuthHelper::isAdminLibreria())
+                    <button onclick="openAbonoModal()" class="w-full text-left p-4 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors">
+                        <i class="fas fa-dollar-sign text-orange-600 mr-2"></i>
+                        Registrar Abono Rápido
+                    </button>
+                @else
+                    <div class="w-full text-left p-4 bg-gray-200 rounded-lg cursor-not-allowed opacity-60">
+                        <i class="fas fa-dollar-sign text-gray-400 mr-2"></i>
+                        Registrar Abono Rápido
+                    </div>
+                @endif
             </div>
         </x-card>
 
@@ -159,7 +191,13 @@
 </div>
 
 <script>
+const isAdminLibreria = {{ $isAdminLibreria ? 'true' : 'false' }};
+
 function openAbonoModal() {
+    if (!isAdminLibreria) {
+        alert('No tienes permisos para realizar esta acción. Solo Admin Librería puede registrar abonos.');
+        return;
+    }
     document.getElementById('abonoModal').classList.remove('hidden');
     document.getElementById('searchFolio').focus();
 }
@@ -173,6 +211,11 @@ function closeAbonoModal() {
 }
 
 async function searchApartado() {
+    if (!isAdminLibreria) {
+        alert('No tienes permisos para realizar esta acción.');
+        return;
+    }
+    
     const folio = document.getElementById('searchFolio').value.trim();
     const cliente = document.getElementById('searchCliente').value.trim();
 
@@ -225,6 +268,10 @@ function displayApartados(apartados) {
 }
 
 function goToAbono(apartadoId) {
+    if (!isAdminLibreria) {
+        alert('No tienes permisos para realizar esta acción. Solo Admin Librería puede registrar abonos.');
+        return;
+    }
     window.location.href = `/apartados/${apartadoId}/abonos/crear`;
 }
 

@@ -3,18 +3,32 @@
 @section('title', 'Apartados')
 
 @section('content')
+@php
+    $isAdminLibreria = \App\Helpers\AuthHelper::isAdminLibreria();
+@endphp
+
 <x-page-layout 
     title="Listado de Apartados"
     description="Total: {{ $apartados->total() }} apartados"
 >
     <x-slot name="header">
-        <x-button 
-            variant="primary" 
-            icon="fas fa-plus"
-            onclick="window.location='{{ route('apartados.create') }}'"
-        >
-            Nuevo Apartado
-        </x-button>
+        @if($isAdminLibreria)
+            <x-button 
+                variant="primary" 
+                icon="fas fa-plus"
+                onclick="window.location='{{ route('apartados.create') }}'"
+            >
+                Nuevo Apartado
+            </x-button>
+        @else
+            <button 
+                disabled
+                class="inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm cursor-not-allowed bg-gray-200 text-gray-400 opacity-60"
+            >
+                <i class="fas fa-plus mr-2"></i>
+                Nuevo Apartado
+            </button>
+        @endif
     </x-slot>
 
     <!-- Estadísticas -->
@@ -201,9 +215,15 @@
                                     <i class="fas fa-eye"></i>
                                 </a>
                                 @if($apartado->estado === 'activo')
-                                    <a href="{{ route('apartados.abonos.create', $apartado) }}" class="text-green-600 hover:text-green-900" title="Registrar abono">
-                                        <i class="fas fa-dollar-sign"></i>
-                                    </a>
+                                    @if($isAdminLibreria)
+                                        <a href="{{ route('apartados.abonos.create', $apartado) }}" class="text-green-600 hover:text-green-900" title="Registrar abono">
+                                            <i class="fas fa-dollar-sign"></i>
+                                        </a>
+                                    @else
+                                        <button disabled class="text-gray-400 cursor-not-allowed opacity-60" title="Solo Admin Librería">
+                                            <i class="fas fa-dollar-sign"></i>
+                                        </button>
+                                    @endif
                                 @endif
                             </div>
                         </td>

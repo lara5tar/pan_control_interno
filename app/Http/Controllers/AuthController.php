@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Log;
+use App\Helpers\AuthHelper;
 
 class AuthController extends Controller
 {
@@ -69,34 +70,28 @@ class AuthController extends Controller
 
             // Guardar el token como codCongregante en la sesión
             if (isset($data['token'])) {
-                // Verificar que el usuario tenga el rol de Admin Librería
-                $roles = $data['roles'] ?? [];
-                $tieneRolAdminLibreria = collect($roles)->contains(function ($rol) {
-                    $rolNombre = strtoupper(trim($rol['ROL'] ?? $rol['rol'] ?? ''));
-                    $rolId = $rol['ID'] ?? $rol['id'] ?? $rol['ROL_ID'] ?? $rol['rol_id'] ?? null;
-
-                    return $rolNombre === 'ADMIN LIBRERIA' ||
-                           $rolNombre === 'ADMIN LIBRERÍA' ||
-                           $rolNombre === 'SUPERVISOR' ||
-                           (string) $rolId === '20';
-                });
-                
-                if (!$tieneRolAdminLibreria) {
-                    Log::warning('Usuario sin rol de Admin Librería intentó acceder', [
-                        'user' => $request->user,
-                        'roles' => $roles
-                    ]);
-                    
-                    return back()->with('error', 'No tienes permisos para acceder al sistema. Se requiere el rol de Administrador de Librería o Supervisor.')
-                        ->withInput($request->only('user'));
-                }
-                
-                Session::put('codCongregante', $data['token']);
-                
-                // Guardar también los roles y otros datos
+                // Guardar temporalmente los roles para verificación
                 if (isset($data['roles'])) {
                     Session::put('roles', $data['roles']);
                 }
+                
+                // Verificar que el usuario tenga acceso al sistema (Admin Librería o Supervisor)
+                if (!AuthHelper::canAccessSystem()) {
+                    // Limpiar la sesión
+                    Session::forget('roles');
+                    
+                    Log::warning('Usuario sin permisos de acceso al sistema', [
+                        'user' => $request->user,
+                        'roles' => $data['roles'] ?? []
+                    ]);
+                    
+                    return back()->with('error', 'No tienes permisos para acceder al sistema. Solo Admin Librería y Supervisor pueden ingresar.')
+                        ->withInput($request->only('user'));
+                }
+                
+                // Usuario autorizado - guardar toda la información en sesión
+                Session::put('codCongregante', $data['token']);
+                
                 if (isset($data['codCasaVida'])) {
                     Session::put('codCasaVida', $data['codCasaVida']);
                 }

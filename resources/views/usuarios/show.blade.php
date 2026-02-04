@@ -6,6 +6,10 @@
 @section('page-description', 'Información completa del congregante')
 
 @section('content')
+@php
+    use App\Helpers\AuthHelper;
+    $isAdminLibreria = AuthHelper::isAdminLibreria();
+@endphp
 <x-page-layout 
     title="Detalle del Congregante"
     :description="'Información completa de: ' . $congregante['NOMBREF']"
@@ -200,14 +204,24 @@
         <!-- Acciones -->
         <x-card title="Acciones">
             <div class="space-y-3">
-                <x-button 
-                    variant="primary" 
-                    icon="fas fa-edit" 
-                    onclick="window.location='{{ route('usuarios.edit', $congregante['CODCONGREGANTE']) }}'" 
-                    class="w-full justify-center"
-                >
-                    Gestionar Roles
-                </x-button>
+                @if($isAdminLibreria)
+                    <x-button 
+                        variant="primary" 
+                        icon="fas fa-edit" 
+                        onclick="window.location='{{ route('usuarios.edit', $congregante['CODCONGREGANTE']) }}'" 
+                        class="w-full justify-center"
+                    >
+                        Gestionar Roles
+                    </x-button>
+                @else
+                    <button 
+                        disabled
+                        class="w-full justify-center inline-flex items-center px-4 py-2 bg-gray-200 text-gray-400 text-sm font-medium rounded-lg opacity-60 cursor-not-allowed"
+                    >
+                        <i class="fas fa-edit mr-2"></i>
+                        Gestionar Roles
+                    </button>
+                @endif
                 
                 <x-button 
                     variant="secondary" 

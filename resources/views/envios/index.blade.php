@@ -6,28 +6,53 @@
 @section('page-description', 'Gestión de envíos a FedEx')
 
 @section('content')
+@php
+    $isAdminLibreria = \App\Helpers\AuthHelper::isAdminLibreria();
+@endphp
+
 <x-page-layout 
     title="Listado de Envíos"
     description="Total: {{ $envios->total() }} envíos"
 >
     <x-slot name="header">
         <div class="flex gap-3">
-            <x-button 
-                variant="primary" 
-                icon="fas fa-plus"
-                onclick="window.location='{{ route('envios.create') }}'"
-            >
-                Nuevo Envío
-            </x-button>
+            @if($isAdminLibreria)
+                <x-button 
+                    variant="primary" 
+                    icon="fas fa-plus"
+                    onclick="window.location='{{ route('envios.create') }}'"
+                >
+                    Nuevo Envío
+                </x-button>
+            @else
+                <button 
+                    disabled
+                    class="inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm cursor-not-allowed bg-gray-200 text-gray-400 opacity-60"
+                >
+                    <i class="fas fa-plus mr-2"></i>
+                    Nuevo Envío
+                </button>
+            @endif
             
-            <x-button 
-                variant="info" 
-                icon="fas fa-magic"
-                onclick="generarEnviosHistoricos()"
-                title="Generar envíos automáticos de todos los periodos anteriores que no tienen envío"
-            >
-                Generar Envíos Históricos
-            </x-button>
+            @if($isAdminLibreria)
+                <x-button 
+                    variant="info" 
+                    icon="fas fa-magic"
+                    onclick="generarEnviosHistoricos()"
+                    title="Generar envíos automáticos de todos los periodos anteriores que no tienen envío"
+                >
+                    Generar Envíos Históricos
+                </x-button>
+            @else
+                <button 
+                    disabled
+                    class="inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm cursor-not-allowed bg-gray-200 text-gray-400 opacity-60"
+                    title="Solo Admin Librería"
+                >
+                    <i class="fas fa-magic mr-2"></i>
+                    Generar Envíos Históricos
+                </button>
+            @endif
         </div>
     </x-slot>
 
@@ -295,13 +320,22 @@
                                 title="Ver detalles">
                             </x-button>
                             
-                            <x-button 
-                                variant="warning" 
-                                size="sm" 
-                                icon="fas fa-edit"
-                                onclick="window.location='{{ route('envios.edit', $envio) }}'"
-                                title="Editar">
-                            </x-button>
+                            @if($isAdminLibreria)
+                                <x-button 
+                                    variant="warning" 
+                                    size="sm" 
+                                    icon="fas fa-edit"
+                                    onclick="window.location='{{ route('envios.edit', $envio) }}'"
+                                    title="Editar">
+                                </x-button>
+                            @else
+                                <button 
+                                    disabled
+                                    class="inline-flex items-center justify-center px-2 py-1 text-xs font-medium rounded cursor-not-allowed bg-gray-200 text-gray-400 opacity-60"
+                                    title="Solo Admin Librería">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            @endif
                         </div>
                     </td>
                 </tr>

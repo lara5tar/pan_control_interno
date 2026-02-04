@@ -6,13 +6,33 @@
 @section('page-description', 'Historial completo de entradas y salidas')
 
 @section('content')
+@php
+    $isAdminLibreria = \App\Helpers\AuthHelper::isAdminLibreria();
+@endphp
+
 <x-page-layout 
     title="Historial de Movimientos"
     description="Total: {{ $totalMovimientos }} movimientos"
-    button-text="Registrar Movimiento"
-    button-icon="fas fa-plus"
-    :button-route="route('movimientos.create')"
 >
+    <x-slot name="header">
+        @if($isAdminLibreria)
+            <x-button 
+                variant="primary" 
+                icon="fas fa-plus"
+                onclick="window.location='{{ route('movimientos.create') }}'"
+            >
+                Registrar Movimiento
+            </x-button>
+        @else
+            <button 
+                disabled
+                class="inline-flex items-center px-4 py-2 rounded-lg font-medium text-sm cursor-not-allowed bg-gray-200 text-gray-400 opacity-60"
+            >
+                <i class="fas fa-plus mr-2"></i>
+                Registrar Movimiento
+            </button>
+        @endif
+    </x-slot>
     <!-- Estadísticas rápidas -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <x-stat-card 

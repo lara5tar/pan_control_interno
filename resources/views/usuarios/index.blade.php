@@ -3,6 +3,10 @@
 @section('title', 'Usuarios')
 
 @section('content')
+@php
+    use App\Helpers\AuthHelper;
+    $isAdminLibreria = AuthHelper::isAdminLibreria();
+@endphp
 <x-page-layout 
     title="Gestión de Usuarios"
     description="Administra los usuarios del sistema"
@@ -162,6 +166,7 @@
                     <x-data-table-actions
                         :viewRoute="route('usuarios.show', $congregante['CODCONGREGANTE'])"
                         :editRoute="route('usuarios.edit', $congregante['CODCONGREGANTE'])"
+                        :requireAdmin="true"
                     />
                 </x-data-table-row>
             @endforeach

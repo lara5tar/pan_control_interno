@@ -6,6 +6,10 @@
 @section('page-description', 'Información completa de la venta')
 
 @section('content')
+@php
+    $isAdminLibreria = \App\Helpers\AuthHelper::isAdminLibreria();
+@endphp
+
 <x-page-layout 
     title="Detalle de Venta"
     :description="'Venta #' . $venta->id"
@@ -295,19 +299,8 @@
         <!-- Acciones -->
         <x-card title="Acciones">
             <div class="space-y-3">
-                @php
-                    $roles = session('roles', []);
-                    $isAdmin = false;
-                    foreach ($roles as $rol) {
-                        $rolNombre = strtoupper(trim($rol['ROL'] ?? ''));
-                        if ($rolNombre === 'ADMIN LIBRERIA' || $rolNombre === 'ADMIN LIBRERÍA') {
-                            $isAdmin = true;
-                            break;
-                        }
-                    }
-                @endphp
                 
-                @if($isAdmin)
+                @if($isAdminLibreria)
                     <x-button 
                         href="{{ route('ventas.edit', $venta) }}" 
                         variant="warning" 
@@ -315,20 +308,38 @@
                         class="w-full justify-center">
                         Editar Venta
                     </x-button>
+                @else
+                    <button 
+                        disabled
+                        class="w-full inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium text-sm cursor-not-allowed bg-gray-200 text-gray-400 opacity-60"
+                    >
+                        <i class="fas fa-edit mr-2"></i>
+                        Editar Venta
+                    </button>
                 @endif
                 
                 @if($venta->estado === 'completada')
-                    <form action="{{ route('ventas.cancelar', $venta) }}" method="POST">
-                        @csrf
-                        <x-button 
-                            type="submit" 
-                            variant="warning" 
-                            icon="fas fa-ban"
-                            onclick="return confirm('¿Estás seguro de cancelar esta venta? Se restaurará el stock de los libros.')"
-                            class="w-full justify-center">
+                    @if($isAdminLibreria)
+                        <form action="{{ route('ventas.cancelar', $venta) }}" method="POST">
+                            @csrf
+                            <x-button 
+                                type="submit" 
+                                variant="warning" 
+                                icon="fas fa-ban"
+                                onclick="return confirm('¿Estás seguro de cancelar esta venta? Se restaurará el stock de los libros.')"
+                                class="w-full justify-center">
+                                Cancelar Venta
+                            </x-button>
+                        </form>
+                    @else
+                        <button 
+                            disabled
+                            class="w-full inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium text-sm cursor-not-allowed bg-gray-200 text-gray-400 opacity-60"
+                        >
+                            <i class="fas fa-ban mr-2"></i>
                             Cancelar Venta
-                        </x-button>
-                    </form>
+                        </button>
+                    @endif
                 @endif
                 
                 <x-button variant="secondary" icon="fas fa-arrow-left" onclick="window.location='{{ route('ventas.index') }}'" class="w-full justify-center">
@@ -336,13 +347,23 @@
                 </x-button>
                 
                 @if($venta->estado !== 'completada')
-                    <form action="{{ route('ventas.destroy', $venta) }}" method="POST">
-                        @csrf
-                        @method('DELETE')
-                        <x-button type="submit" variant="danger" icon="fas fa-trash" onclick="return confirm('¿Estás seguro de eliminar esta venta?')" class="w-full justify-center">
+                    @if($isAdminLibreria)
+                        <form action="{{ route('ventas.destroy', $venta) }}" method="POST">
+                            @csrf
+                            @method('DELETE')
+                            <x-button type="submit" variant="danger" icon="fas fa-trash" onclick="return confirm('¿Estás seguro de eliminar esta venta?')" class="w-full justify-center">
+                                Eliminar
+                            </x-button>
+                        </form>
+                    @else
+                        <button 
+                            disabled
+                            class="w-full inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium text-sm cursor-not-allowed bg-gray-200 text-gray-400 opacity-60"
+                        >
+                            <i class="fas fa-trash mr-2"></i>
                             Eliminar
-                        </x-button>
-                    </form>
+                        </button>
+                    @endif
                 @endif
             </div>
         </x-card>
