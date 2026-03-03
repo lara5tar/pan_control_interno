@@ -16,6 +16,11 @@ class CheckSystemAccess
      */
     public function handle(Request $request, Closure $next): Response
     {
+        // NO aplicar este middleware a rutas API
+        if ($request->is('api/*')) {
+            return $next($request);
+        }
+
         // Permitir acceso a rutas públicas (login, logout, assets)
         $publicRoutes = [
             'login',
