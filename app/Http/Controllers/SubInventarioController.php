@@ -630,6 +630,16 @@ class SubInventarioController extends Controller
      */
     public function apiLibrosSubinventario(Request $request, $id)
     {
+        // Log para debugging
+        \Log::info('apiLibrosSubinventario llamada', [
+            'id' => $id,
+            'cod_congregante' => $request->cod_congregante,
+            'hasAdminAccess' => $this->hasAdminAccess($request),
+            'roles_session' => session('roles', []),
+            'roles_request' => $request->input('roles'),
+            'roles_header' => $request->header('X-Roles')
+        ]);
+
         // Verificar que el subinventario existe y está activo
         $subinventario = SubInventario::where('id', $id)
             ->where('estado', 'activo')
@@ -650,6 +660,11 @@ class SubInventarioController extends Controller
                 ->exists();
             
             if (!$tieneAcceso) {
+                \Log::warning('Usuario sin acceso al subinventario', [
+                    'cod_congregante' => $request->cod_congregante,
+                    'subinventario_id' => $id
+                ]);
+                
                 return response()->json([
                     'success' => false,
                     'message' => 'No tienes acceso a este subinventario'
@@ -854,7 +869,13 @@ class SubInventarioController extends Controller
      */
     private function getRolesFromRequest(Request $request): array
     {
-        $roles = $request->input('roles', null);
+        // Intentar desde query params primero (para GET requests desde móvil)
+        $roles = $request->query('roles', null);
+        
+        // Si no está en query, buscar en body
+        if (!$roles) {
+            $roles = $request->input('roles', null);
+        }
 
         if (is_string($roles)) {
             $roles = json_decode($roles, true);
