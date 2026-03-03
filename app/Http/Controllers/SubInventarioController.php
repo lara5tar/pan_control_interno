@@ -554,7 +554,10 @@ class SubInventarioController extends Controller
      */
     public function apiMisSubinventarios(Request $request, $codCongregante)
     {
-        if ($this->hasAdminAccess($request)) {
+        $esAdmin = $this->hasAdminAccess($request);
+
+        if ($esAdmin) {
+            // Admin Librería y Supervisor: Todos los subinventarios + Inventario General
             $subinventarios = SubInventario::where('estado', 'activo')
                 ->get(['id', 'descripcion', 'fecha_subinventario', 'estado', 'observaciones'])
                 ->map(function($subinventario) {
@@ -575,14 +578,27 @@ class SubInventarioController extends Controller
                     ];
                 });
 
+            // Agregar el Inventario General (ID 0) al inicio
+            $totalLibrosGeneral = Libro::where('stock', '>', 0)->count();
+            $totalUnidadesGeneral = Libro::where('stock', '>', 0)->sum('stock');
+
+            $inventarioGeneral = [
+                'tipo' => 'general',
+                'nombre' => 'Inventario General',
+                'descripcion' => 'Inventario principal'
+            ];
+
             return response()->json([
                 'success' => true,
-                'message' => 'Subinventarios encontrados',
-                'data' => $subinventarios
+                'data' => [
+                    'inventario_general' => $inventarioGeneral,
+                    'subinventarios' => $subinventarios,
+                    'total_subinventarios' => $subinventarios->count()
+                ]
             ], 200);
         }
 
-        // Buscar subinventarios donde el usuario tiene acceso
+        // Vendedores: Solo sus subinventarios asignados
         $subinventariosIds = DB::table('subinventario_user')
             ->where('cod_congregante', $codCongregante)
             ->pluck('subinventario_id');
@@ -597,10 +613,9 @@ class SubInventarioController extends Controller
         
         // Obtener los subinventarios SIN cargar los libros (más rápido)
         $subinventarios = SubInventario::whereIn('id', $subinventariosIds)
-            ->where('estado', 'activo') // Solo activos
+            ->where('estado', 'activo')
             ->get(['id', 'descripcion', 'fecha_subinventario', 'estado', 'observaciones'])
             ->map(function($subinventario) {
-                // Calcular totales sin cargar todos los libros
                 $stats = DB::table('subinventario_libro')
                     ->where('subinventario_id', $subinventario->id)
                     ->where('cantidad', '>', 0)
@@ -635,10 +650,52 @@ class SubInventarioController extends Controller
             'id' => $id,
             'cod_congregante' => $request->cod_congregante,
             'hasAdminAccess' => $this->hasAdminAccess($request),
-            'roles_session' => session('roles', []),
-            'roles_request' => $request->input('roles'),
-            'roles_header' => $request->header('X-Roles')
+            'roles_request' => $request->query('roles'),
         ]);
+
+        $esAdmin = $this->hasAdminAccess($request);
+
+        // ID 0 = Inventario General (todos los libros del sistema)
+        if ($id == 0) {
+            // Solo Admin Librería y Supervisor pueden ver el inventario general
+            if (!$esAdmin) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No tienes acceso al inventario general. Solo Admin Librería y Supervisor.'
+                ], 403);
+            }
+
+            // Obtener TODOS los libros con stock disponible
+            $libros = Libro::where('stock', '>', 0)
+                ->orderBy('nombre')
+                ->get()
+                ->map(function($libro) {
+                    return [
+                        'id' => $libro->id,
+                        'nombre' => $libro->nombre,
+                        'codigo_barras' => $libro->codigo_barras,
+                        'precio' => $libro->precio,
+                        'stock_general' => $libro->stock,
+                        'cantidad_disponible' => $libro->stock
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Inventario general encontrado',
+                'data' => [
+                    'subinventario' => [
+                        'id' => 0,
+                        'descripcion' => 'Inventario General',
+                        'fecha_subinventario' => now(),
+                        'estado' => 'activo'
+                    ],
+                    'total_libros' => $libros->count(),
+                    'total_unidades' => $libros->sum('cantidad_disponible'),
+                    'libros' => $libros
+                ]
+            ], 200);
+        }
 
         // Verificar que el subinventario existe y está activo
         $subinventario = SubInventario::where('id', $id)
@@ -652,23 +709,26 @@ class SubInventarioController extends Controller
             ], 404);
         }
         
-        // Validar acceso del usuario (opcional, si envían cod_congregante)
-        if ($request->filled('cod_congregante') && !$this->hasAdminAccess($request)) {
-            $tieneAcceso = DB::table('subinventario_user')
-                ->where('subinventario_id', $id)
-                ->where('cod_congregante', $request->cod_congregante)
-                ->exists();
-            
-            if (!$tieneAcceso) {
-                \Log::warning('Usuario sin acceso al subinventario', [
-                    'cod_congregante' => $request->cod_congregante,
-                    'subinventario_id' => $id
-                ]);
+        // Admin Librería y Supervisor tienen acceso a TODOS los subinventarios
+        if (!$esAdmin) {
+            // Vendedores: Validar que tengan acceso al subinventario específico
+            if ($request->filled('cod_congregante')) {
+                $tieneAcceso = DB::table('subinventario_user')
+                    ->where('subinventario_id', $id)
+                    ->where('cod_congregante', $request->cod_congregante)
+                    ->exists();
                 
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No tienes acceso a este subinventario'
-                ], 403);
+                if (!$tieneAcceso) {
+                    \Log::warning('Vendedor sin acceso al subinventario', [
+                        'cod_congregante' => $request->cod_congregante,
+                        'subinventario_id' => $id
+                    ]);
+                    
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No tienes acceso a este subinventario. Contacta al administrador.'
+                    ], 403);
+                }
             }
         }
         
