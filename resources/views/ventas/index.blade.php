@@ -116,6 +116,28 @@
                     />
                 </div>
 
+                <!-- Filtro por Tipo de Inventario / Sub-Inventario - PRIMERA FILA DE FILTROS -->
+                <div class="col-span-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-warehouse text-gray-400"></i> Origen de Venta (Inventario / Sub-Inventario)
+                    </label>
+                    <select name="subinventario_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        <option value="">Todos los orígenes</option>
+                        <option value="general" {{ request('subinventario_id') === 'general' ? 'selected' : '' }}>
+                            📦 Inventario General
+                        </option>
+                        @if($subinventarios->count() > 0)
+                            <optgroup label="━━━━━ Sub-Inventarios Disponibles ━━━━━">
+                                @foreach($subinventarios as $sub)
+                                    <option value="{{ $sub->id }}" {{ request('subinventario_id') == $sub->id ? 'selected' : '' }}>
+                                        🏪 Sub-Inventario #{{ $sub->id }} - {{ $sub->descripcion ?: 'Sin descripción' }}
+                                    </option>
+                                @endforeach
+                            </optgroup>
+                        @endif
+                    </select>
+                </div>
+
                 <!-- Filtro por Estado -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -208,7 +230,7 @@
                         Aplicar Filtros
                     </x-button>
 
-                    @if(request()->hasAny(['cliente_id', 'estado', 'tipo_pago', 'estado_pago', 'es_apartado', 'libro_id', 'fecha_desde', 'fecha_hasta', 'vencidas']))
+                    @if(request()->hasAny(['cliente_id', 'estado', 'tipo_pago', 'estado_pago', 'es_apartado', 'libro_id', 'fecha_desde', 'fecha_hasta', 'vencidas', 'tipo_inventario', 'subinventario_id']))
                         <x-button type="button" variant="secondary" icon="fas fa-times" 
                                   onclick="window.location='{{ route('ventas.index') }}'">
                             Limpiar Filtros
@@ -222,7 +244,7 @@
                         type="button" 
                         variant="success" 
                         icon="fas fa-file-excel"
-                        onclick="window.location='{{ route('ventas.export.excel', request()->query()) }}'"
+                        onclick="window.location='{{ route('ventas.export.excel') }}?{{ http_build_query(request()->query()) }}'"
                     >
                         Exportar Excel
                     </x-button>
@@ -231,7 +253,7 @@
                         type="button" 
                         variant="danger" 
                         icon="fas fa-file-pdf"
-                        onclick="window.location='{{ route('ventas.export.pdf', request()->query()) }}'"
+                        onclick="window.location='{{ route('ventas.export.pdf') }}?{{ http_build_query(request()->query()) }}'"
                     >
                         Exportar PDF
                     </x-button>
@@ -243,7 +265,7 @@
     <!-- Tabla de ventas -->
     <x-card>
         <x-data-table 
-            :headers="['ID', 'Fecha', 'Cliente', 'Total', 'Usuario', 'Estado', 'Acciones']"
+            :headers="['ID', 'Fecha', 'Cliente', 'Total', 'Usuario', 'Origen', 'Estado', 'Acciones']"
             :rows="$ventas"
             emptyMessage="No se encontraron ventas"
             emptyIcon="fas fa-shopping-cart"
@@ -323,10 +345,23 @@
                             <div class="font-medium text-gray-700">
                                 <i class="fas fa-user text-gray-400 mr-1"></i>{{ $venta->usuario ?: 'Sistema' }}
                             </div>
+                        </div>
+                    </x-data-table-cell>
+
+                    <!-- Origen -->
+                    <x-data-table-cell>
+                        <div class="text-sm">
                             @if($venta->tipo_inventario === 'subinventario' && $venta->subinventario)
-                                <div class="text-xs text-gray-500 mt-0.5">
-                                    <i class="fas fa-store text-gray-400 mr-1"></i>{{ $venta->subinventario->nombre }}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                    <i class="fas fa-boxes mr-1"></i>#{{ $venta->subinventario->id }}
+                                </span>
+                                <div class="text-xs text-gray-600 mt-1">
+                                    {{ $venta->subinventario->descripcion ?: 'Sin descripción' }}
                                 </div>
+                            @else
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    <i class="fas fa-warehouse mr-1"></i>General
+                                </span>
                             @endif
                         </div>
                     </x-data-table-cell>

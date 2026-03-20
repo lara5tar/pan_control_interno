@@ -101,6 +101,22 @@ class VentaController extends Controller
             $query->conLibro($request->libro_id);
         }
 
+        // Filtro por tipo de inventario (general o sub-inventario)
+        if ($request->filled('tipo_inventario')) {
+            $query->where('tipo_inventario', $request->tipo_inventario);
+        }
+
+        // Filtro por sub-inventario específico
+        if ($request->filled('subinventario_id')) {
+            if ($request->subinventario_id === 'general') {
+                // Filtrar solo ventas del inventario general
+                $query->where('tipo_inventario', '!=', 'subinventario')->orWhereNull('subinventario_id');
+            } else {
+                // Filtrar por sub-inventario específico
+                $query->where('subinventario_id', $request->subinventario_id);
+            }
+        }
+
         // Búsqueda general (ID, cliente, observaciones)
         if ($request->filled('search')) {
             $query->search($request->search);
@@ -142,7 +158,10 @@ class VentaController extends Controller
         // Obtener libros para el filtro
         $libros = \App\Models\Libro::orderBy('nombre')->get();
 
-        return view('ventas.index', compact('ventas', 'estadisticas', 'clientes', 'libros'));
+        // Obtener sub-inventarios para el filtro
+        $subinventarios = \App\Models\SubInventario::orderBy('descripcion')->get();
+
+        return view('ventas.index', compact('ventas', 'estadisticas', 'clientes', 'libros', 'subinventarios'));
     }
 
     /**
@@ -894,6 +913,22 @@ class VentaController extends Controller
             $query->conLibro($request->libro_id);
         }
 
+        // Filtro por tipo de inventario (general o sub-inventario)
+        if ($request->filled('tipo_inventario')) {
+            $query->where('tipo_inventario', $request->tipo_inventario);
+        }
+
+        // Filtro por sub-inventario específico
+        if ($request->filled('subinventario_id')) {
+            if ($request->subinventario_id === 'general') {
+                // Filtrar solo ventas del inventario general
+                $query->where('tipo_inventario', '!=', 'subinventario')->orWhereNull('subinventario_id');
+            } else {
+                // Filtrar por sub-inventario específico
+                $query->where('subinventario_id', $request->subinventario_id);
+            }
+        }
+
         // Ordenar por fecha más reciente
         $query->orderBy('fecha_venta', 'desc');
 
@@ -935,6 +970,17 @@ class VentaController extends Controller
 
         if ($request->filled('vencidas') && $request->vencidas == '1') {
             $filtros[] = 'Ventas: Solo vencidas';
+        }
+
+        if ($request->filled('subinventario_id')) {
+            if ($request->subinventario_id === 'general') {
+                $filtros[] = 'Origen: Inventario General';
+            } else {
+                $subinventario = \App\Models\SubInventario::find($request->subinventario_id);
+                if ($subinventario) {
+                    $filtros[] = 'Origen: Sub-Inventario #' . $subinventario->id . ' - ' . $subinventario->descripcion;
+                }
+            }
         }
 
         if ($request->filled('fecha_desde') && $request->filled('fecha_hasta')) {

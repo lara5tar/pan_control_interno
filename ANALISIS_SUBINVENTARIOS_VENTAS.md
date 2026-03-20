@@ -16,19 +16,19 @@ El sistema de sub-inventarios permite crear **puntos de venta** con una cantidad
 
 ### Tipos de Inventario en Ventas:
 ```
-┌─────────────────────────────────────────┐
-│         TIPO DE INVENTARIO              │
-├─────────────────────────────────────────┤
-│ 1. GENERAL                              │
+┌──────────────────────────────────────────┐
+│         TIPO DE INVENTARIO               │
+├──────────────────────────────────────────┤
+│ 1. GENERAL                               │
 │    • Stock disponible en oficina central │
 │    • Para todos                          │
 │    • Sin restricción de punto de venta   │
-│                                         │
-│ 2. SUBINVENTARIO                        │
+│                                          │
+│ 2. SUBINVENTARIO                         │
 │    • Stock en un punto de venta          │
-│    • Solo libros asignados al punto     │
-│    • Cantidad limitada por asignación   │
-└─────────────────────────────────────────┘
+│    • Solo libros asignados al punto      │
+│    • Cantidad limitada por asignación    │
+└──────────────────────────────────────────┘
 ```
 
 ---
