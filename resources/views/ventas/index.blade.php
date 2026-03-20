@@ -124,13 +124,13 @@
                     <select name="subinventario_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
                         <option value="">Todos los orígenes</option>
                         <option value="general" {{ request('subinventario_id') === 'general' ? 'selected' : '' }}>
-                            📦 Inventario General
+                            Inventario General
                         </option>
                         @if($subinventarios->count() > 0)
-                            <optgroup label="━━━━━ Sub-Inventarios Disponibles ━━━━━">
+                            <optgroup label="Sub-Inventarios Disponibles">
                                 @foreach($subinventarios as $sub)
                                     <option value="{{ $sub->id }}" {{ request('subinventario_id') == $sub->id ? 'selected' : '' }}>
-                                        🏪 Sub-Inventario #{{ $sub->id }} - {{ $sub->descripcion ?: 'Sin descripción' }}
+                                        Sub-Inventario #{{ $sub->id }} - {{ $sub->descripcion ?: 'Sin descripción' }}
                                     </option>
                                 @endforeach
                             </optgroup>
