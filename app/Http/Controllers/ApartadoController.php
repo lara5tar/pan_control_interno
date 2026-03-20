@@ -138,7 +138,7 @@ class ApartadoController extends Controller
             'observaciones' => 'nullable|string',
             'libros' => 'required|array|min:1',
             'libros.*.libro_id' => 'required|exists:libros,id',
-            'libros.*.cantidad' => 'required|integer|min:1',
+            'libros.*.cantidad' => 'required|integer|min:0',
             'libros.*.precio_unitario' => 'required|numeric|min:0',
             'libros.*.descuento' => 'nullable|numeric|min:0|max:100',
         ], [
@@ -769,7 +769,7 @@ class ApartadoController extends Controller
                 'usuario' => 'required|string',
                 'libros' => 'required|array|min:1',
                 'libros.*.libro_id' => 'required|exists:libros,id',
-                'libros.*.cantidad' => 'required|integer|min:1',
+                'libros.*.cantidad' => 'required|integer|min:0',
                 'libros.*.precio_unitario' => 'required|numeric|min:0',
                 'libros.*.descuento' => 'nullable|numeric|min:0|max:100',
             ], [

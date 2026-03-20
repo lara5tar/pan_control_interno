@@ -292,7 +292,7 @@ class SubInventarioController extends Controller
             // Libros
             'libros' => 'required|array|min:1',
             'libros.*.libro_id' => 'required|exists:libros,id',
-            'libros.*.cantidad' => 'required|integer|min:1',
+            'libros.*.cantidad' => 'required|integer|min:0',
         ]);
 
         // Validar que no haya libros duplicados

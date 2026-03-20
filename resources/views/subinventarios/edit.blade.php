@@ -68,7 +68,7 @@
                         <i class="fas fa-book mr-2 text-blue-600"></i>Libros a Sub-Inventario
                     </h3>
                     <button type="button" 
-                            onclick="agregarLibro()" 
+                            onclick="agregarLibroAlInicio()" 
                             class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
                         <i class="fas fa-plus mr-2"></i>Agregar Libro
                     </button>
@@ -87,6 +87,14 @@
                 <div id="emptyMessage" class="text-center py-8 bg-gray-50 rounded-lg" style="display: none;">
                     <i class="fas fa-info-circle text-gray-400 text-3xl mb-2"></i>
                     <p class="text-gray-500">No hay libros agregados. Haz clic en "Agregar Libro" para comenzar.</p>
+                </div>
+
+                <div class="flex justify-center mt-4">
+                    <button type="button" 
+                            onclick="agregarLibro()" 
+                            class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                        <i class="fas fa-plus mr-2"></i>Agregar Libro
+                    </button>
                 </div>
             </div>
 
@@ -121,35 +129,41 @@
         div.className = 'flex gap-3 items-start bg-gray-50 p-4 rounded-lg libro-item';
         div.id = `libro-${libroIndex}`;
         
+        // Encontrar el libro seleccionado si existe
+        const libroSeleccionado = libroId ? libros.find(l => l.id == libroId) : null;
+        const stockDisponible = libroSeleccionado ? (libroSeleccionado.stock_disponible_edicion || libroSeleccionado.stock) : 0;
+        
         div.innerHTML = `
             <div class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Libro *</label>
-                    <select name="libros[${libroIndex}][libro_id]" 
-                            required
-                            onchange="actualizarStockDisponible(${libroIndex})"
-                            class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <option value="">Selecciona un libro</option>
-                        ${libros.map(libro => `
-                            <option value="${libro.id}" 
-                                    data-stock="${libro.stock_disponible_edicion || libro.stock}" 
-                                    data-subinventario="${libro.stock_subinventario || 0}"
-                                    ${libroId == libro.id ? 'selected' : ''}>
-                                ${libro.nombre} - Stock: ${libro.stock_disponible_edicion || libro.stock} disponibles
-                            </option>
-                        `).join('')}
-                    </select>
+                    <div class="relative">
+                        <input type="hidden" 
+                               name="libros[${libroIndex}][libro_id]" 
+                               id="libro_id_${libroIndex}"
+                               value="${libroId}"
+                               required>
+                        <input type="text" 
+                               id="search_${libroIndex}"
+                               placeholder="Busca un libro..." 
+                               autocomplete="off"
+                               class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-3 py-2"
+                               value="${libroSeleccionado ? libroSeleccionado.nombre : ''}"
+                               data-index="${libroIndex}">
+                        <div id="dropdown_${libroIndex}" class="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50" style="display: none;"></div>
+                    </div>
                 </div>
                 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Cantidad *</label>
                     <input type="number" 
                            name="libros[${libroIndex}][cantidad]" 
-                           min="1" 
+                           min="0" 
                            value="${cantidad}"
+                           max="${stockDisponible}"
                            required
                            class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                    <p id="stock-info-${libroIndex}" class="mt-1 text-xs text-gray-500"></p>
+                    <p id="stock-info-${libroIndex}" class="mt-1 text-xs text-gray-500">${libroSeleccionado ? 'Stock disponible: ' + stockDisponible : ''}</p>
                 </div>
             </div>
             
@@ -163,64 +177,151 @@
         container.appendChild(div);
         emptyMessage.style.display = 'none';
         
-        // Actualizar stock disponible si se seleccionó un libro
-        if (libroId) {
-            actualizarStockDisponible(libroIndex);
-        }
+        // Agregar event listeners para búsqueda
+        const searchInput = div.querySelector(`#search_${libroIndex}`);
+        const dropdown = div.querySelector(`#dropdown_${libroIndex}`);
+        
+        searchInput.addEventListener('input', () => filtrarLibros(libroIndex));
+        searchInput.addEventListener('focus', () => filtrarLibros(libroIndex));
+        
+        document.addEventListener('click', (e) => {
+            if (!div.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
         
         libroIndex++;
-        
-        // Actualizar libros disponibles
         actualizarLibrosDisponibles();
     }
 
-    function actualizarStockDisponible(index) {
-        const select = document.querySelector(`select[name="libros[${index}][libro_id]"]`);
-        const stockInfo = document.getElementById(`stock-info-${index}`);
+    function filtrarLibros(index) {
+        const searchInput = document.getElementById(`search_${index}`);
+        const dropdown = document.getElementById(`dropdown_${index}`);
+        const valor = searchInput.value.toLowerCase();
         
-        if (select.value) {
-            const option = select.options[select.selectedIndex];
-            const stockDisponible = parseInt(option.dataset.stock);
-            
-            stockInfo.textContent = `Stock disponible: ${stockDisponible}`;
-            
-            // Actualizar el max del input de cantidad
-            const cantidadInput = document.querySelector(`input[name="libros[${index}][cantidad]"]`);
-            cantidadInput.max = stockDisponible;
+        // Obtener libros ya seleccionados
+        const librosSeleccionados = Array.from(document.querySelectorAll('input[id^="libro_id_"]'))
+            .map(el => el.value)
+            .filter(v => v && v !== '');
+        
+        // Filtrar libros
+        const librosFiltrados = libros
+            .filter(l => !librosSeleccionados.includes(l.id.toString()) || document.getElementById(`libro_id_${index}`).value == l.id)
+            .filter(l => l.nombre.toLowerCase().includes(valor))
+            .slice(0, 15); // Limitar a 15 resultados
+        
+        // Mostrar dropdown
+        if (librosFiltrados.length > 0 && valor.length > 0 || searchInput === document.activeElement) {
+            dropdown.innerHTML = librosFiltrados.map(libro => `
+                <div class="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b" 
+                     data-libro-id="${libro.id}" 
+                     data-libro-nombre="${libro.nombre}"
+                     data-stock="${libro.stock_disponible_edicion || libro.stock}"
+                     onclick="seleccionarLibro(${index}, ${libro.id}, '${libro.nombre.replace(/'/g, "\\'")}', ${libro.stock_disponible_edicion || libro.stock})">
+                    <div class="font-medium text-gray-900">${libro.nombre}</div>
+                    <div class="text-xs text-gray-500">Stock: ${libro.stock_disponible_edicion || libro.stock}</div>
+                </div>
+            `).join('');
+            dropdown.style.display = 'block';
         } else {
-            stockInfo.textContent = '';
+            dropdown.style.display = 'none';
         }
+    }
+
+    function seleccionarLibro(index, libroId, libroNombre, stock) {
+        document.getElementById(`libro_id_${index}`).value = libroId;
+        document.getElementById(`search_${index}`).value = libroNombre;
+        document.getElementById(`dropdown_${index}`).style.display = 'none';
+        document.getElementById(`stock-info-${index}`).textContent = `Stock disponible: ${stock}`;
         
-        // Actualizar libros disponibles en todos los selects
+        // Actualizar max del input cantidad
+        const cantidadInput = document.querySelector(`input[name="libros[${index}][cantidad]"]`);
+        cantidadInput.max = stock;
+        
         actualizarLibrosDisponibles();
     }
 
     function actualizarLibrosDisponibles() {
-        // Obtener todos los libros seleccionados
-        const selects = document.querySelectorAll('[name^="libros["][name$="][libro_id]"]');
-        const librosSeleccionados = Array.from(selects)
-            .map(select => select.value)
-            .filter(value => value !== '');
+        // No es necesario deshabilitar opciones con este sistema
+    }
+
+    function agregarLibroAlInicio(libroId = '', cantidad = 1) {
+        const container = document.getElementById('librosContainer');
+        const emptyMessage = document.getElementById('emptyMessage');
         
-        // Actualizar cada select
-        selects.forEach(select => {
-            const valorActual = select.value;
-            Array.from(select.options).forEach(option => {
-                if (option.value && option.value !== valorActual) {
-                    // Deshabilitar si ya está seleccionado en otro select
-                    option.disabled = librosSeleccionados.includes(option.value);
-                    
-                    // Agregar indicador visual
-                    if (option.disabled) {
-                        if (!option.text.includes('(Ya agregado)')) {
-                            option.text = option.text + ' (Ya agregado)';
-                        }
-                    } else {
-                        option.text = option.text.replace(' (Ya agregado)', '');
-                    }
-                }
-            });
+        const div = document.createElement('div');
+        div.className = 'flex gap-3 items-start bg-gray-50 p-4 rounded-lg libro-item';
+        div.id = `libro-${libroIndex}`;
+        
+        // Encontrar el libro seleccionado si existe
+        const libroSeleccionado = libroId ? libros.find(l => l.id == libroId) : null;
+        const stockDisponible = libroSeleccionado ? (libroSeleccionado.stock_disponible_edicion || libroSeleccionado.stock) : 0;
+        
+        div.innerHTML = `
+            <div class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Libro *</label>
+                    <div class="relative">
+                        <input type="hidden" 
+                               name="libros[${libroIndex}][libro_id]" 
+                               id="libro_id_${libroIndex}"
+                               value="${libroId}"
+                               required>
+                        <input type="text" 
+                               id="search_${libroIndex}"
+                               placeholder="Busca un libro..." 
+                               autocomplete="off"
+                               class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-3 py-2"
+                               value="${libroSeleccionado ? libroSeleccionado.nombre : ''}"
+                               data-index="${libroIndex}">
+                        <div id="dropdown_${libroIndex}" class="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50" style="display: none;"></div>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Cantidad *</label>
+                    <input type="number" 
+                           name="libros[${libroIndex}][cantidad]" 
+                           min="0" 
+                           value="${cantidad}"
+                           max="${stockDisponible}"
+                           required
+                           class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    <p id="stock-info-${libroIndex}" class="mt-1 text-xs text-gray-500">${libroSeleccionado ? 'Stock disponible: ' + stockDisponible : ''}</p>
+                </div>
+            </div>
+            
+            <button type="button" 
+                    onclick="eliminarLibro(${libroIndex})" 
+                    class="mt-7 text-red-600 hover:text-red-900">
+                <i class="fas fa-trash"></i>
+            </button>
+        `;
+        
+        // Agregar al INICIO del contenedor
+        if (container.children.length > 0) {
+            container.insertBefore(div, container.firstChild);
+        } else {
+            container.appendChild(div);
+        }
+        
+        emptyMessage.style.display = 'none';
+        
+        // Agregar event listeners para búsqueda
+        const searchInput = div.querySelector(`#search_${libroIndex}`);
+        const dropdown = div.querySelector(`#dropdown_${libroIndex}`);
+        
+        searchInput.addEventListener('input', () => filtrarLibros(libroIndex));
+        searchInput.addEventListener('focus', () => filtrarLibros(libroIndex));
+        
+        document.addEventListener('click', (e) => {
+            if (!div.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
         });
+        
+        libroIndex++;
+        actualizarLibrosDisponibles();
     }
 
     function eliminarLibro(index) {
@@ -234,7 +335,6 @@
             emptyMessage.style.display = 'block';
         }
         
-        // Actualizar libros disponibles
         actualizarLibrosDisponibles();
     }
 

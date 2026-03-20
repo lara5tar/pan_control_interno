@@ -227,7 +227,7 @@ class VentaController extends Controller
             // Movimientos
             'libros' => 'required|array|min:1',
             'libros.*.libro_id' => 'required|exists:libros,id',
-            'libros.*.cantidad' => 'required|integer|min:1',
+            'libros.*.cantidad' => 'required|integer|min:0',
             'libros.*.descuento' => 'nullable|numeric|min:0|max:100',
             'libros.*.precio_custom' => 'nullable|numeric|min:0',
         ], [
@@ -465,7 +465,7 @@ class VentaController extends Controller
             // Movimientos
             'libros' => 'required|array|min:1',
             'libros.*.libro_id' => 'required|exists:libros,id',
-            'libros.*.cantidad' => 'required|integer|min:1',
+            'libros.*.cantidad' => 'required|integer|min:0',
             'libros.*.descuento' => 'nullable|numeric|min:0|max:100',
             'libros.*.precio_custom' => 'nullable|numeric|min:0',
         ], [
@@ -981,7 +981,7 @@ class VentaController extends Controller
             // Libros
             'libros' => 'required|array|min:1',
             'libros.*.libro_id' => 'required|exists:libros,id',
-            'libros.*.cantidad' => 'required|integer|min:1',
+            'libros.*.cantidad' => 'required|integer|min:0',
             'libros.*.descuento' => 'nullable|numeric|min:0|max:100',
         ], [
             'subinventario_id.required' => 'Debes seleccionar un punto de venta',
@@ -990,7 +990,6 @@ class VentaController extends Controller
             'libros.min' => 'Debes agregar al menos un libro',
             'tipo_pago.required' => 'Debes seleccionar un tipo de pago',
         ]);
-
         DB::beginTransaction();
         try {
             // 1. VALIDAR ACCESO AL SUBINVENTARIO
@@ -1239,7 +1238,7 @@ class VentaController extends Controller
 
             'libros' => 'required|array|min:1',
             'libros.*.libro_id' => 'required|exists:libros,id',
-            'libros.*.cantidad' => 'required|integer|min:1',
+            'libros.*.cantidad' => 'required|integer|min:0',
             'libros.*.descuento' => 'nullable|numeric|min:0|max:100',
         ], [
             'tipo_inventario.required' => 'Debes seleccionar el tipo de inventario',
@@ -1248,7 +1247,6 @@ class VentaController extends Controller
             'libros.min' => 'Debes agregar al menos un libro',
             'tipo_pago.required' => 'Debes seleccionar un tipo de pago',
         ]);
-
         DB::beginTransaction();
 
         try {
