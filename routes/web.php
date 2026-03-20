@@ -77,6 +77,11 @@ Route::middleware('checkauth')->group(function () {
         Route::post('/subinventarios/{subinventario}/cancelar', [SubInventarioController::class, 'cancelar'])->name('subinventarios.cancelar');
         Route::post('/subinventarios/{subinventario}/devolver-parcial', [SubInventarioController::class, 'devolverParcial'])->name('subinventarios.devolver-parcial');
         
+        // Importar libros en lote al subinventario
+        Route::get('/subinventarios/{subinventario}/importar-libros', [SubInventarioController::class, 'showImportForm'])->name('subinventarios.import-form');
+        Route::post('/subinventarios/{subinventario}/importar-libros', [SubInventarioController::class, 'importLibros'])->name('subinventarios.import');
+        Route::get('/subinventarios/{subinventario}/descargar-plantilla', [SubInventarioController::class, 'descargarPlantilla'])->name('subinventarios.download-template');
+        
         // Clientes - Solo crear, editar, eliminar requieren Admin Librería
         Route::get('/clientes/create', [ClienteController::class, 'create'])->name('clientes.create');
         Route::post('/clientes', [ClienteController::class, 'store'])->name('clientes.store');

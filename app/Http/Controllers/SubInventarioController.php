@@ -9,6 +9,8 @@ use App\Services\PdfReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class SubInventarioController extends Controller
 {
@@ -913,15 +915,51 @@ class SubInventarioController extends Controller
      */
     private function hasAdminAccess(Request $request): bool
     {
+        // 1. Verificar sesión (para web)
         $rolesSesion = session('roles', []);
-
         if ($this->hasAdminRole($rolesSesion)) {
             return true;
         }
 
+        // 2. Verificar request (query params, body o headers)
         $rolesRequest = $this->getRolesFromRequest($request);
+        if ($this->hasAdminRole($rolesRequest)) {
+            return true;
+        }
 
-        return $this->hasAdminRole($rolesRequest);
+        // 3. FALLBACK: Si envió cod_congregante pero no roles, buscar en API externa
+        if ($request->filled('cod_congregante')) {
+            $roles = $this->getRolesFromAPI($request->cod_congregante);
+            if ($this->hasAdminRole($roles)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Obtener roles del congregante desde la API externa
+     */
+    private function getRolesFromAPI(string $codCongregante): array
+    {
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(3)->get(
+                'https://www.sistemasdevida.com/pan/rest2/index.php/app/roles/' . $codCongregante
+            );
+
+            if ($response->successful()) {
+                $data = $response->json();
+                return $data['roles'] ?? [];
+            }
+        } catch (\Exception $e) {
+            \Log::warning('No se pudieron obtener roles de API externa', [
+                'cod_congregante' => $codCongregante,
+                'error' => $e->getMessage()
+            ]);
+        }
+
+        return [];
     }
 
     /**
@@ -956,23 +994,36 @@ class SubInventarioController extends Controller
      */
     private function hasAdminRole(array $roles): bool
     {
+        if (empty($roles)) {
+            return false;
+        }
+
         foreach ($roles as $rol) {
             $rolNombre = '';
             $rolId = null;
 
             if (is_array($rol)) {
                 $rolNombre = strtoupper(trim($rol['ROL'] ?? $rol['rol'] ?? ''));
-                $rolId = $rol['ID'] ?? $rol['id'] ?? $rol['ROL_ID'] ?? $rol['rol_id'] ?? null;
+                $rolId = $rol['ID'] ?? $rol['id'] ?? $rol['ROL_ID'] ?? $rol['rol_id'] ?? $rol['CODROL'] ?? $rol['codrol'] ?? null;
             } else {
                 $rolNombre = strtoupper(trim((string) $rol));
             }
 
+            // Verificar por nombre de rol
             if (
                 $rolNombre === 'ADMIN LIBRERIA' ||
                 $rolNombre === 'ADMIN LIBRERÍA' ||
-                $rolNombre === 'SUPERVISOR' ||
+                $rolNombre === 'SUPERVISOR'
+            ) {
+                return true;
+            }
+
+            // Verificar por ID (Admin Librería = 20, Supervisor = 19)
+            if (
                 (string) $rolId === '20' ||
-                $rolNombre === '20'
+                (string) $rolId === '19' ||
+                $rolNombre === '20' ||
+                $rolNombre === '19'
             ) {
                 return true;
             }
@@ -1270,18 +1321,23 @@ class SubInventarioController extends Controller
         ]);
 
         // Si se proporciona cod_congregante, validar que el subinventario le pertenezca
+        // EXCEPTO si es Admin Librería o Supervisor (tienen acceso a todo)
         if ($request->filled('cod_congregante') && $request->filled('subinventario_id')) {
-            $tieneAcceso = DB::table('subinventario_user')
-                ->where('cod_congregante', $validated['cod_congregante'])
-                ->where('subinventario_id', $validated['subinventario_id'])
-                ->exists();
+            $esAdmin = $this->hasAdminAccess($request);
             
-            if (!$tieneAcceso) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'El subinventario seleccionado no está asignado a este usuario',
-                    'error' => 'unauthorized_subinventario'
-                ], 403);
+            if (!$esAdmin) {
+                $tieneAcceso = DB::table('subinventario_user')
+                    ->where('cod_congregante', $validated['cod_congregante'])
+                    ->where('subinventario_id', $validated['subinventario_id'])
+                    ->exists();
+                
+                if (!$tieneAcceso) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'El subinventario seleccionado no está asignado a este usuario',
+                        'error' => 'unauthorized_subinventario'
+                    ], 403);
+                }
             }
         }
 
@@ -1471,6 +1527,193 @@ class SubInventarioController extends Controller
             compact('subinventario', 'libros', 'styles'),
             $filename
         );
+    }
+
+    /**
+     * Mostrar formulario para importar libros en lote
+     */
+    public function showImportForm(SubInventario $subinventario)
+    {
+        // Solo permitir importar a subinventarios activos
+        if ($subinventario->estado !== 'activo') {
+            return redirect()->route('subinventarios.show', $subinventario)
+                ->with('warning', 'Solo se pueden importar libros a sub-inventarios activos');
+        }
+
+        return view('subinventarios.import-libros', compact('subinventario'));
+    }
+
+    /**
+     * Importar libros en lote desde Excel
+     * Se espera un archivo Excel con las columnas: id, cantidad
+     */
+    public function importLibros(Request $request, SubInventario $subinventario)
+    {
+        $validated = $request->validate([
+            'archivo' => 'required|file|mimes:xlsx,xls,csv',
+        ], [
+            'archivo.required' => 'Debes seleccionar un archivo',
+            'archivo.mimes' => 'El archivo debe ser Excel o CSV',
+        ]);
+
+        // Solo permitir importar a subinventarios activos
+        if ($subinventario->estado !== 'activo') {
+            return redirect()->route('subinventarios.show', $subinventario)
+                ->with('error', 'Solo se pueden importar libros a sub-inventarios activos');
+        }
+
+        try {
+            // Leer el archivo
+            $file = $request->file('archivo');
+            $reader = new \PhpOffice\PhpSpreadsheet\Reader\Xlsx();
+            $spreadsheet = $reader->load($file->getPathname());
+            $sheet = $spreadsheet->getActiveSheet();
+            
+            $librosAgregados = [];
+            $errores = [];
+            $fila = 2; // Comenzar desde la fila 2 (después de encabezados)
+            
+            foreach ($sheet->getRowIterator(2) as $row) {
+                $id = $sheet->getCell('A' . $fila)->getValue();
+                $cantidad = $sheet->getCell('B' . $fila)->getValue();
+                
+                // Si no hay datos, saltar
+                if (empty($id) || empty($cantidad)) {
+                    $fila++;
+                    continue;
+                }
+                
+                // Buscar el libro por ID
+                $libro = Libro::find((int)$id);
+                
+                if (!$libro) {
+                    $errores[] = "Fila $fila: Libro con ID '$id' no encontrado";
+                    $fila++;
+                    continue;
+                }
+                
+                // Validar cantidad
+                if (!is_numeric($cantidad) || $cantidad < 1) {
+                    $errores[] = "Fila $fila: Cantidad inválida ($cantidad)";
+                    $fila++;
+                    continue;
+                }
+                
+                // Validar stock disponible
+                if ($libro->stock < $cantidad) {
+                    $errores[] = "Fila $fila: Stock insuficiente para '{$libro->nombre}' (disponible: {$libro->stock})";
+                    $fila++;
+                    continue;
+                }
+                
+                // Agregar o actualizar el libro en el subinventario
+                $this->agregarLibroAlSubinventario(
+                    $subinventario, 
+                    $libro->id, 
+                    (int)$cantidad
+                );
+                
+                $librosAgregados[] = [
+                    'nombre' => $libro->nombre,
+                    'id' => $id,
+                    'cantidad' => $cantidad
+                ];
+                
+                $fila++;
+            }
+            
+            $mensaje = count($librosAgregados) . ' libro(s) agregado(s) correctamente';
+            if (!empty($errores)) {
+                $mensaje .= '. ' . count($errores) . ' fila(s) con error';
+            }
+            
+            return redirect()->route('subinventarios.show', $subinventario)
+                ->with('success', $mensaje)
+                ->with('libros_agregados', $librosAgregados)
+                ->with('errores_importacion', $errores);
+                
+        } catch (\Exception $e) {
+            Log::error('Error al importar libros', [
+                'error' => $e->getMessage(),
+                'subinventario_id' => $subinventario->id
+            ]);
+            
+            return redirect()->route('subinventarios.show', $subinventario)
+                ->with('error', 'Error al procesar el archivo: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Método auxiliar para agregar o actualizar un libro en el subinventario
+     */
+    private function agregarLibroAlSubinventario(SubInventario $subinventario, int $libroId, int $cantidad)
+    {
+        // Verificar si el libro ya existe en el subinventario
+        $existe = $subinventario->libros()->where('libro_id', $libroId)->exists();
+        
+        if ($existe) {
+            // Actualizar cantidad (sumar)
+            $subinventario->libros()->updateExistingPivot($libroId, [
+                'cantidad' => DB::raw('cantidad + ' . $cantidad)
+            ]);
+        } else {
+            // Agregar nuevo
+            $subinventario->libros()->attach($libroId, [
+                'cantidad' => $cantidad
+            ]);
+        }
+        
+        // Actualizar el stock_subinventario del libro
+        $libro = Libro::find($libroId);
+        $totalEnSubinventarios = DB::table('subinventario_libro')
+            ->where('libro_id', $libroId)
+            ->sum('cantidad');
+        
+        $libro->update([
+            'stock_subinventario' => $totalEnSubinventarios
+        ]);
+    }
+
+    /**
+     * Descargar plantilla Excel para importar libros
+     */
+    public function descargarPlantilla(SubInventario $subinventario)
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Importar Libros');
+        
+        // Encabezados
+        $sheet->setCellValue('A1', 'ID');
+        $sheet->setCellValue('B1', 'Cantidad');
+        
+        // Hacer los encabezados bold
+        $sheet->getStyle('A1:B1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:B1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFD3D3D3');
+        
+        // Agregar algunos libros disponibles como ejemplo
+        $libros = Libro::where('stock', '>', 0)->limit(5)->get();
+        $row = 2;
+        
+        foreach ($libros as $libro) {
+            $sheet->setCellValue('A' . $row, $libro->id);
+            $sheet->setCellValue('B' . $row, 1);
+            $row++;
+        }
+        
+        // Auto ajustar ancho de columnas
+        $sheet->getColumnDimension('A')->setAutoSize(true);
+        $sheet->getColumnDimension('B')->setAutoSize(true);
+        
+        // Descargar
+        $writer = new Xlsx($spreadsheet);
+        $filename = 'Plantilla_Importar_Libros_' . date('Y-m-d_His') . '.xlsx';
+        
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        
+        $writer->save('php://output');
+        exit;
     }
 }
 
