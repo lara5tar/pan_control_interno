@@ -152,7 +152,8 @@ class SubInventarioController extends Controller
      */
     public function show(SubInventario $subinventario)
     {
-        $subinventario->load('libros');
+        // Obtener libros paginados (15 por página)
+        $libros = $subinventario->libros()->paginate(15);
         
         // Obtener usuarios asignados a este subinventario
         $usuariosAsignados = DB::table('subinventario_user')
@@ -160,7 +161,7 @@ class SubInventarioController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
         
-        return view('subinventarios.show', compact('subinventario', 'usuariosAsignados'));
+        return view('subinventarios.show', compact('subinventario', 'libros', 'usuariosAsignados'));
     }
 
     /**
@@ -478,28 +479,19 @@ class SubInventarioController extends Controller
                 return back()->with('error', 'La cantidad a devolver es mayor a la cantidad en sub-inventario');
             }
 
-            // Devolver al stock y reducir el sub-inventario
+            // Devolver al stock general
             $libroModel = Libro::findOrFail($validated['libro_id']);
-            $libroModel->decrement('stock_subinventario', $validated['cantidad']); // Cambiaremos este nombre después
+            $libroModel->increment('stock', $validated['cantidad']);
+            $libroModel->decrement('stock_subinventario', $validated['cantidad']);
 
-            // Si se devuelve todo, eliminar la relación
-            if ($validated['cantidad'] == $libro->pivot->cantidad) {
-                $subinventario->libros()->detach($validated['libro_id']);
-            } else {
-                // Actualizar la cantidad en la tabla pivote
-                $subinventario->libros()->updateExistingPivot($validated['libro_id'], [
-                    'cantidad' => $libro->pivot->cantidad - $validated['cantidad']
-                ]);
-            }
-
-            // Si no quedan libros en el sub-inventario, cancelarlo
-            if ($subinventario->libros()->count() == 0) {
-                $subinventario->update(['estado' => 'cancelado']);
-            }
+            // Actualizar la cantidad a 0 en la tabla pivote (mantener el libro en la lista)
+            $subinventario->libros()->updateExistingPivot($validated['libro_id'], [
+                'cantidad' => 0
+            ]);
 
             DB::commit();
 
-            return back()->with('success', 'Stock devuelto parcialmente exitosamente');
+            return back()->with('success', 'Stock devuelto exitosamente. La cantidad se ha puesto a 0.');
 
         } catch (\Exception $e) {
             DB::rollBack();

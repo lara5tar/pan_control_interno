@@ -53,7 +53,7 @@
             </div>
             
             <!-- Botones de exportación e importación -->
-            @if($subinventario->libros->count() > 0)
+            @if($subinventario->getTotalLibros() > 0)
                 <div class="flex gap-3">
                     @if($subinventario->estado === 'activo')
                         <x-button 
@@ -107,7 +107,7 @@
             @endif
         </div>
 
-        @if($subinventario->libros->count() > 0)
+        @if($libros->count() > 0)
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
@@ -123,7 +123,7 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                        @foreach($subinventario->libros as $libro)
+                        @foreach($libros as $libro)
                             <tr class="hover:bg-gray-50">
                                 <td class="px-6 py-4">
                                     <div class="text-sm font-medium text-gray-900">{{ $libro->nombre }}</div>
@@ -147,9 +147,9 @@
                                 </td>
                                 @if($subinventario->estado === 'activo')
                                     <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                        <button onclick="mostrarModalDevolver({{ $libro->id }}, '{{ $libro->nombre }}', {{ $libro->pivot->cantidad }})"
+                                        <button onclick="devolverLibro({{ $libro->id }}, '{{ $libro->nombre }}', {{ $libro->pivot->cantidad }})"
                                                 class="text-orange-600 hover:text-orange-900"
-                                                title="Devolver parcialmente">
+                                                title="Devolver al inventario general">
                                             <i class="fas fa-undo mr-1"></i>Devolver
                                         </button>
                                     </td>
@@ -159,6 +159,13 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- Paginación -->
+            @if($libros->hasPages())
+                <div class="mt-4 px-6 py-4 border-t border-gray-200">
+                    {{ $libros->links() }}
+                </div>
+            @endif
         @else
             <div class="text-center py-8">
                 <i class="fas fa-inbox text-gray-400 text-5xl mb-4"></i>
@@ -313,48 +320,6 @@
     </div>
 </div>
 
-<!-- Modal para devolver parcialmente -->
-<div id="modalDevolver" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-        <div class="mt-3">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">Devolver Stock</h3>
-            <p class="text-sm text-gray-600 mb-4">
-                <strong id="libroNombre"></strong><br>
-                Cantidad apartada: <span id="cantidadApartada"></span>
-            </p>
-            
-            <form id="formDevolver" action="" method="POST">
-                @csrf
-                <input type="hidden" name="libro_id" id="libroId">
-                
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Cantidad a devolver
-                    </label>
-                    <input type="number" 
-                           name="cantidad" 
-                           id="cantidadDevolver"
-                           min="1" 
-                           required
-                           class="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                </div>
-
-                <div class="flex justify-end gap-3">
-                    <button type="button" 
-                            onclick="cerrarModalDevolver()"
-                            class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
-                        Cancelar
-                    </button>
-                    <button type="submit" 
-                            class="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700">
-                        <i class="fas fa-undo mr-2"></i>Devolver
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 @push('scripts')
 <script>
     function mostrarModalAsignar() {
@@ -372,29 +337,20 @@
         }
     });
 
-    function mostrarModalDevolver(libroId, libroNombre, cantidadApartada) {
-        document.getElementById('libroId').value = libroId;
-        document.getElementById('libroNombre').textContent = libroNombre;
-        document.getElementById('cantidadApartada').textContent = cantidadApartada;
-        document.getElementById('cantidadDevolver').max = cantidadApartada;
-        document.getElementById('cantidadDevolver').value = 1;
-        
-        const form = document.getElementById('formDevolver');
-        form.action = "{{ route('subinventarios.devolver-parcial', $subinventario) }}";
-        
-        document.getElementById('modalDevolver').classList.remove('hidden');
-    }
-
-    function cerrarModalDevolver() {
-        document.getElementById('modalDevolver').classList.add('hidden');
-    }
-
-    // Cerrar modal al hacer clic fuera
-    document.getElementById('modalDevolver').addEventListener('click', function(e) {
-        if (e.target === this) {
-            cerrarModalDevolver();
+    function devolverLibro(libroId, libroNombre, cantidad) {
+        if (confirm(`¿Devolver todo el stock de "${libroNombre}" (${cantidad} unidades) al inventario general? La cantidad se pondrá a 0.`)) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = "{{ route('subinventarios.devolver-parcial', $subinventario) }}";
+            form.innerHTML = `
+                @csrf
+                <input type="hidden" name="libro_id" value="${libroId}">
+                <input type="hidden" name="cantidad" value="${cantidad}">
+            `;
+            document.body.appendChild(form);
+            form.submit();
         }
-    });
+    }
 </script>
 @endpush
 @endsection
