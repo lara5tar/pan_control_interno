@@ -166,12 +166,6 @@
                     <p id="stock-info-${libroIndex}" class="mt-1 text-xs text-gray-500">${libroSeleccionado ? 'Stock disponible: ' + stockDisponible : ''}</p>
                 </div>
             </div>
-            
-            <button type="button" 
-                    onclick="eliminarLibro(${libroIndex})" 
-                    class="mt-7 text-red-600 hover:text-red-900">
-                <i class="fas fa-trash"></i>
-            </button>
         `;
         
         container.appendChild(div);
@@ -290,12 +284,6 @@
                     <p id="stock-info-${libroIndex}" class="mt-1 text-xs text-gray-500">${libroSeleccionado ? 'Stock disponible: ' + stockDisponible : ''}</p>
                 </div>
             </div>
-            
-            <button type="button" 
-                    onclick="eliminarLibro(${libroIndex})" 
-                    class="mt-7 text-red-600 hover:text-red-900">
-                <i class="fas fa-trash"></i>
-            </button>
         `;
         
         // Agregar al INICIO del contenedor
@@ -321,20 +309,6 @@
         });
         
         libroIndex++;
-        actualizarLibrosDisponibles();
-    }
-
-    function eliminarLibro(index) {
-        const elemento = document.getElementById(`libro-${index}`);
-        elemento.remove();
-        
-        const container = document.getElementById('librosContainer');
-        const emptyMessage = document.getElementById('emptyMessage');
-        
-        if (container.children.length === 0) {
-            emptyMessage.style.display = 'block';
-        }
-        
         actualizarLibrosDisponibles();
     }
 
