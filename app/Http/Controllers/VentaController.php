@@ -35,6 +35,9 @@ class VentaController extends Controller
     {
         $query = Venta::with(['movimientos.libro', 'cliente', 'pagos', 'apartado']);
 
+        // Debug: Log de filtros recibidos
+        \Log::info('Filtros recibidos en VentaController.index:', $request->all());
+
         // ===== FILTROS PARA REPORTES =====
 
         // Filtro por rango de fechas (MUY IMPORTANTE PARA REPORTES)

@@ -517,5 +517,43 @@ function exportarPdf() {
         button.innerHTML = originalText;
     });
 }
+
+// Auto-submit del formulario cuando se cambian los filtros
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form[action*="ventas"]');
+    if (!form) return;
+    
+    // Agregar listeners a todos los select e inputs
+    const filterElements = form.querySelectorAll('select, input[type="date"], input[type="text"], input[type="number"]');
+    filterElements.forEach(element => {
+        // Ignorar el input de cliente_id ya que tiene su propio manejo
+        if (element.classList.contains('cliente-search-input') || element.classList.contains('libro-search-input')) {
+            return;
+        }
+        
+        element.addEventListener('change', function() {
+            console.log('[Filtros] Cambio detectado en:', element.name);
+            // Auto-submit después de 500ms para que se registre el cambio
+            setTimeout(() => {
+                form.submit();
+            }, 500);
+        });
+    });
+    
+    // También aplicar a los inputs del cliente search si existen
+    const clienteInputs = form.querySelectorAll('.cliente-id-input');
+    clienteInputs.forEach(input => {
+        // Crear observer para cambios
+        const originalValue = input.value;
+        setInterval(() => {
+            if (input.value !== originalValue && input.value !== '') {
+                console.log('[Filtros] Cambio en cliente detectado');
+                setTimeout(() => {
+                    form.submit();
+                }, 300);
+            }
+        }, 100);
+    });
+});
 </script>
 @endpush
