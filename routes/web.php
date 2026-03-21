@@ -148,8 +148,8 @@ Route::middleware('checkauth')->group(function () {
     
     // Clientes - Rutas de lectura disponibles para todos
     Route::get('/clientes', [ClienteController::class, 'index'])->name('clientes.index');
+    Route::get('/clientes/search', [ClienteController::class, 'search'])->name('clientes.search'); // Debe ir ANTES del {cliente}
     Route::get('/clientes/{cliente}', [ClienteController::class, 'show'])->name('clientes.show');
-    Route::get('/clientes/search', [ClienteController::class, 'search'])->name('clientes.search');
     
     // Rutas de pagos (dentro del módulo de ventas) - Disponibles para todos
     Route::get('/ventas/{venta}/pagos/crear', [PagoController::class, 'create'])->name('ventas.pagos.create');

@@ -154,10 +154,19 @@ class ClienteSearchDynamic {
             });
             
             if (!response.ok) {
-                throw new Error('Error al cargar clientes');
+                console.error('[Cliente Search] Response status:', response.status);
+                throw new Error('Error al cargar clientes (status: ' + response.status + ')');
             }
             
             const clientes = await response.json();
+            console.log('[Cliente Search] Clientes cargados:', clientes.length);
+            
+            if (!Array.isArray(clientes)) {
+                console.error('[Cliente Search] Response is not an array:', clientes);
+                this.renderError();
+                return;
+            }
+            
             this.renderResults(clientes.slice(0, 20)); // Limitar a 20 como libros
             this.dropdown.classList.remove('hidden');
         } catch (error) {
@@ -178,10 +187,19 @@ class ClienteSearchDynamic {
             });
             
             if (!response.ok) {
-                throw new Error('Error en la búsqueda');
+                console.error('[Cliente Search] Response status:', response.status);
+                throw new Error('Error en la búsqueda (status: ' + response.status + ')');
             }
             
             const clientes = await response.json();
+            console.log('[Cliente Search] Búsqueda completada, resultados:', clientes.length);
+            
+            if (!Array.isArray(clientes)) {
+                console.error('[Cliente Search] Response is not an array:', clientes);
+                this.renderError();
+                return;
+            }
+            
             this.renderResults(clientes);
             this.dropdown.classList.remove('hidden');
         } catch (error) {
