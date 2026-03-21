@@ -230,34 +230,39 @@ class VentaController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'tipo_inventario' => 'required|in:general,subinventario',
-            'subinventario_id' => 'nullable|required_if:tipo_inventario,subinventario|exists:subinventarios,id',
-            'cliente_id' => 'nullable|exists:clientes,id',
-            'fecha_venta' => 'required|date',
-            'tipo_pago' => 'required|in:contado,credito,mixto',
-            'descuento_global' => 'nullable|numeric|min:0|max:100',
-            'observaciones' => 'nullable|string|max:500',
-            'es_a_plazos' => 'nullable|boolean',
-            'tiene_envio' => 'nullable|boolean',
-            'costo_envio' => 'nullable|numeric|min:0',
-            'fecha_limite' => 'nullable|date|after:today',
-            
-            // Movimientos
-            'libros' => 'required|array|min:1',
-            'libros.*.libro_id' => 'required|exists:libros,id',
-            'libros.*.cantidad' => 'required|integer|min:0',
-            'libros.*.descuento' => 'nullable|numeric|min:0|max:100',
-            'libros.*.precio_custom' => 'nullable|numeric|min:0',
-        ], [
-            'tipo_inventario.required' => 'Debes seleccionar el tipo de inventario',
-            'subinventario_id.required_if' => 'Debes seleccionar un subinventario',
-            'fecha_venta.required' => 'La fecha de venta es obligatoria',
-            'tipo_pago.required' => 'Debes seleccionar el tipo de pago',
-            'libros.required' => 'Debes agregar al menos un libro a la venta',
-            'libros.min' => 'Debes agregar al menos un libro a la venta',
-            'fecha_limite.after' => 'La fecha límite debe ser posterior a hoy',
-        ]);
+        try {
+            $validated = $request->validate([
+                'tipo_inventario' => 'required|in:general,subinventario',
+                'subinventario_id' => 'nullable|required_if:tipo_inventario,subinventario|exists:subinventarios,id',
+                'cliente_id' => 'nullable|exists:clientes,id',
+                'fecha_venta' => 'required|date',
+                'tipo_pago' => 'required|in:contado,credito,mixto',
+                'descuento_global' => 'nullable|numeric|min:0|max:100',
+                'observaciones' => 'nullable|string|max:500',
+                'es_a_plazos' => 'nullable|boolean',
+                'tiene_envio' => 'nullable|boolean',
+                'costo_envio' => 'nullable|numeric|min:0',
+                'fecha_limite' => 'nullable|date|after:today',
+                
+                // Movimientos
+                'libros' => 'required|array|min:1',
+                'libros.*.libro_id' => 'required|exists:libros,id',
+                'libros.*.cantidad' => 'required|integer|min:0',
+                'libros.*.descuento' => 'nullable|numeric|min:0|max:100',
+                'libros.*.precio_custom' => 'nullable|numeric|min:0',
+            ], [
+                'tipo_inventario.required' => 'Debes seleccionar el tipo de inventario',
+                'subinventario_id.required_if' => 'Debes seleccionar un subinventario',
+                'fecha_venta.required' => 'La fecha de venta es obligatoria',
+                'tipo_pago.required' => 'Debes seleccionar el tipo de pago',
+                'libros.required' => 'Debes agregar al menos un libro a la venta',
+                'libros.min' => 'Debes agregar al menos un libro a la venta',
+                'fecha_limite.after' => 'La fecha límite debe ser posterior a hoy',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Rethrow para que se maneje normalmente
+            throw $e;
+        }
 
         DB::beginTransaction();
         try {
@@ -266,13 +271,15 @@ class VentaController extends Controller
             $subinventarioId = $validated['subinventario_id'] ?? null;
             
             // VALIDACIÓN: Si es subinventario, verificar que el usuario tenga acceso
-            if ($tipoInventario === 'subinventario' && $subinventarioId) {
+            // Los admins tienen acceso a TODOS los subinventarios
+            if ($tipoInventario === 'subinventario' && $subinventarioId && !$this->isAdmin()) {
                 $tieneAcceso = DB::table('subinventario_user')
                     ->where('subinventario_id', $subinventarioId)
                     ->where('cod_congregante', session('codCongregante'))
                     ->exists();
                 
                 if (!$tieneAcceso) {
+                    DB::rollBack();
                     return back()->withErrors([
                         'error' => 'No tienes acceso a este punto de venta (subinventario)'
                     ])->withInput();
@@ -408,6 +415,11 @@ class VentaController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error('Error al crear venta: ' . $e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return back()->withErrors(['error' => 'Error al registrar la venta: ' . $e->getMessage()])
                 ->withInput();
         }
