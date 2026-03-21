@@ -244,7 +244,7 @@
                         type="button" 
                         variant="success" 
                         icon="fas fa-file-excel"
-                        onclick="window.location='{{ route('ventas.export.excel') }}?{{ http_build_query(request()->query()) }}'"
+                        onclick="exportarExcel()"
                     >
                         Exportar Excel
                     </x-button>
@@ -253,7 +253,7 @@
                         type="button" 
                         variant="danger" 
                         icon="fas fa-file-pdf"
-                        onclick="window.location='{{ route('ventas.export.pdf') }}?{{ http_build_query(request()->query()) }}'"
+                        onclick="exportarPdf()"
                     >
                         Exportar PDF
                     </x-button>
@@ -444,4 +444,78 @@
 @push('scripts')
 <script src="{{ asset('js/cliente-search-dynamic.js') }}"></script>
 <script src="{{ asset('js/libro-search-dynamic.js') }}"></script>
+
+<script>
+/**
+ * Exportar a Excel
+ */
+function exportarExcel() {
+    const queryString = window.location.search;
+    window.location.href = '{{ route("ventas.export.excel") }}' + queryString;
+}
+
+/**
+ * Exportar a PDF con validación
+ */
+function exportarPdf() {
+    const queryString = window.location.search;
+    const url = '{{ route("ventas.export.pdf") }}' + queryString;
+    
+    // Mostrar loading
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando PDF...';
+    
+    // Hacer petición AJAX para validar y generar
+    fetch(url, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => {
+        // Verificar si es una respuesta JSON (error) o blob (PDF exitoso)
+        const contentType = response.headers.get('content-type');
+        
+        if (response.status === 422 || response.status === 500) {
+            // Error - parsear JSON
+            return response.json().then(data => {
+                alert('⚠️ ' + data.message);
+                button.disabled = false;
+                button.innerHTML = originalText;
+            });
+        }
+        
+        if (!response.ok) {
+            alert('Error al generar el PDF. Intenta de nuevo.');
+            button.disabled = false;
+            button.innerHTML = originalText;
+            return;
+        }
+        
+        // Éxito - descargar PDF
+        return response.blob().then(blob => {
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = 'reporte_ventas_detallado.pdf';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(downloadUrl);
+            document.body.removeChild(a);
+            
+            button.disabled = false;
+            button.innerHTML = originalText;
+        });
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al generar el PDF. Revisa la consola para más detalles.');
+        button.disabled = false;
+        button.innerHTML = originalText;
+    });
+}
+</script>
 @endpush

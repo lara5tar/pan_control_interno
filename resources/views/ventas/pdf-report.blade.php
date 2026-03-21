@@ -6,11 +6,28 @@
     <title>Reporte de Ventas</title>
     <style>
         {!! $styles !!}
+        
+        .section-break {
+            page-break-after: always;
+            margin-top: 40px;
+            margin-bottom: 40px;
+            border-top: 2px solid #ddd;
+            padding-top: 20px;
+        }
+        
+        .section-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #1F2937;
+            margin: 20px 0 15px 0;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #3B82F6;
+        }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>REPORTE DE VENTAS</h1>
+        <h1>REPORTE DE VENTAS DETALLADO</h1>
         <p>Generado el {{ date('d/m/Y H:i:s') }}</p>
     </div>
 
@@ -24,6 +41,9 @@
             </ul>
         </div>
     @endif
+
+    {{-- ===== SECCIÓN 1: RESUMEN DE VENTAS ===== --}}
+    <div class="section-title">RESUMEN DE VENTAS</div>
 
     {{-- Resumen de estadísticas --}}
     @if(isset($estadisticas))
@@ -112,15 +132,57 @@
                 @endforeach
             </tbody>
         </table>
-
-        <div class="footer">
-            <p>Total de registros: {{ $ventas->count() }}</p>
-            <p>Pan de Vida - Sistema de Control Interno</p>
-        </div>
     @else
         <div class="empty">
             No hay ventas para mostrar con los filtros aplicados
         </div>
     @endif
+
+    {{-- ===== SECCIÓN 2: DETALLE DE PRODUCTOS ===== --}}
+    @if($ventas->count() > 0)
+        <div class="section-break"></div>
+        <div class="section-title">DETALLE DE PRODUCTOS POR VENTA</div>
+
+        @foreach($ventas as $venta)
+            @if($venta->movimientos->count() > 0)
+                <div style="margin-bottom: 20px; padding: 10px; background-color: #f9f9f9; border-left: 3px solid #3B82F6;">
+                    <strong style="color: #1F2937;">Venta #{{ $venta->id }} - {{ $venta->fecha_venta->format('d/m/Y H:i') }}</strong> 
+                    | Cliente: {{ $venta->cliente?->nombre ?: 'Sin cliente' }}
+                    | Total: <span style="color: #10B981; font-weight: bold;">${{ number_format($venta->total, 2) }}</span>
+                </div>
+
+                <table style="margin-bottom: 20px; width: 100%; font-size: 11px;">
+                    <thead>
+                        <tr style="background-color: #f0f0f0;">
+                            <th style="text-align: left; padding: 5px;">Libro</th>
+                            <th style="text-align: center; padding: 5px;">Cantidad</th>
+                            <th style="text-align: right; padding: 5px;">Precio Unit.</th>
+                            <th style="text-align: center; padding: 5px;">Desc. %</th>
+                            <th style="text-align: right; padding: 5px;">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($venta->movimientos as $movimiento)
+                            @php
+                                $subtotal = ($movimiento->precio_unitario - ($movimiento->precio_unitario * $movimiento->descuento / 100)) * $movimiento->cantidad;
+                            @endphp
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 5px;">{{ $movimiento->libro?->nombre ?: 'Producto eliminado' }}</td>
+                                <td style="text-align: center; padding: 5px;">{{ $movimiento->cantidad }}</td>
+                                <td style="text-align: right; padding: 5px;">${{ number_format($movimiento->precio_unitario, 2) }}</td>
+                                <td style="text-align: center; padding: 5px;">{{ $movimiento->descuento ? $movimiento->descuento . '%' : '-' }}</td>
+                                <td style="text-align: right; padding: 5px; font-weight: bold;">${{ number_format($subtotal, 2) }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            @endif
+        @endforeach
+    @endif
+
+    <div class="footer">
+        <p>Total de ventas: {{ $ventas->count() }}</p>
+        <p>Pan de Vida - Sistema de Control Interno</p>
+    </div>
 </body>
 </html>

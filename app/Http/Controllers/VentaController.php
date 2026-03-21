@@ -748,7 +748,9 @@ class VentaController extends Controller
     }
 
     /**
-     * Exportar ventas filtradas a Excel
+     * Exportar ventas filtradas a Excel con DOS HOJAS
+     * Hoja 1: Resumen de Ventas
+     * Hoja 2: Detalle de Productos por Venta
      */
     public function exportExcel(Request $request)
     {
@@ -758,42 +760,45 @@ class VentaController extends Controller
         
         // Crear spreadsheet
         $spreadsheet = $this->excelReportService->createSpreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
+        
+        // ===== HOJA 1: RESUMEN DE VENTAS =====
+        $sheet1 = $spreadsheet->getActiveSheet();
+        $sheet1->setTitle('Resumen de Ventas');
         
         // Título
-        $row = $this->excelReportService->setTitle($sheet, 'REPORTE DE VENTAS', 'H', 1);
+        $row = $this->excelReportService->setTitle($sheet1, 'REPORTE DE VENTAS - RESUMEN', 'J', 1);
         $row++; // Espacio
         
         // Filtros aplicados
         $filtros = $this->buildFiltersList($request);
-        $row = $this->excelReportService->setFilters($sheet, $filtros, $row);
+        $row = $this->excelReportService->setFilters($sheet1, $filtros, $row);
         
-        // Estadísticas
+        // Estadísticas generales
         if ($ventas->count() > 0) {
             $totalMonto = $ventas->sum('total');
             $totalUnidades = $ventas->sum(function($v) { return $v->movimientos->sum('cantidad'); });
             $ventasConEnvio = $ventas->where('tiene_envio', true)->count();
             
-            $sheet->setCellValue('A' . $row, 'RESUMEN:');
-            $sheet->getStyle('A' . $row)->getFont()->setBold(true);
+            $sheet1->setCellValue('A' . $row, 'ESTADÍSTICAS GENERALES:');
+            $sheet1->getStyle('A' . $row)->getFont()->setBold(true);
             $row++;
             
-            $sheet->setCellValue('A' . $row, 'Total de ventas: ' . $ventas->count());
+            $sheet1->setCellValue('A' . $row, 'Total de ventas: ' . $ventas->count());
             $row++;
-            $sheet->setCellValue('A' . $row, 'Monto total: $' . number_format($totalMonto, 2));
+            $sheet1->setCellValue('A' . $row, 'Monto total: $' . number_format($totalMonto, 2));
             $row++;
-            $sheet->setCellValue('A' . $row, 'Unidades vendidas: ' . $totalUnidades);
+            $sheet1->setCellValue('A' . $row, 'Unidades vendidas: ' . $totalUnidades);
             $row++;
-            $sheet->setCellValue('A' . $row, 'Ventas con envío: ' . $ventasConEnvio);
+            $sheet1->setCellValue('A' . $row, 'Ventas con envío: ' . $ventasConEnvio);
             $row += 2; // Espacio
         }
         
-        // Encabezados de tabla
-        $headers = ['ID', 'Fecha', 'Cliente', 'Origen', 'Apartado', 'Libros', 'Unidades', 'Tipo Pago', 'Desc.', 'Total', 'Envío', 'Estado'];
-        $row = $this->excelReportService->setTableHeaders($sheet, $headers, $row);
+        // Encabezados de tabla resumen
+        $headers = ['ID Venta', 'Fecha', 'Cliente', 'Origen', 'Apartado', '# Libros', 'Total Unidades', 'Tipo Pago', 'Descuento', 'Total Venta', 'Con Envío', 'Estado'];
+        $row = $this->excelReportService->setTableHeaders($sheet1, $headers, $row);
         
-        // Datos
-        $data = [];
+        // Datos del resumen
+        $dataSummary = [];
         foreach ($ventas as $venta) {
             // Determinar origen
             $origen = 'General';
@@ -807,7 +812,7 @@ class VentaController extends Controller
                 $apartado = 'Sí (Apt #' . $venta->apartado->id . ')';
             }
             
-            $data[] = [
+            $dataSummary[] = [
                 $venta->id,
                 $venta->fecha_venta->format('d/m/Y H:i'),
                 $venta->cliente?->nombre ?: 'Sin cliente',
@@ -823,52 +828,106 @@ class VentaController extends Controller
             ];
         }
         
-        $lastRow = $this->excelReportService->fillData($sheet, $data, $row);
+        $this->excelReportService->fillData($sheet1, $dataSummary, $row);
+        $this->excelReportService->autoSizeColumns($sheet1, ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']);
         
-        // Auto ajustar columnas
-        $this->excelReportService->autoSizeColumns($sheet, ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']);
+        // ===== HOJA 2: DETALLE DE PRODUCTOS =====
+        $sheet2 = $spreadsheet->createSheet();
+        $sheet2->setTitle('Detalle de Productos');
+        
+        // Título
+        $row2 = $this->excelReportService->setTitle($sheet2, 'REPORTE DE VENTAS - DETALLE DE PRODUCTOS', 'H', 1);
+        $row2++; // Espacio
+        
+        // Encabezados del detalle
+        $headersDetail = ['ID Venta', 'Fecha Venta', 'Cliente', 'Nombre Libro', 'Cantidad', 'Precio Unitario', 'Descuento %', 'Subtotal'];
+        $row2 = $this->excelReportService->setTableHeaders($sheet2, $headersDetail, $row2);
+        
+        // Datos del detalle
+        $dataDetail = [];
+        foreach ($ventas as $venta) {
+            foreach ($venta->movimientos as $movimiento) {
+                $subtotal = ($movimiento->precio_unitario - ($movimiento->precio_unitario * $movimiento->descuento / 100)) * $movimiento->cantidad;
+                
+                $dataDetail[] = [
+                    $venta->id,
+                    $venta->fecha_venta->format('d/m/Y H:i'),
+                    $venta->cliente?->nombre ?: 'Sin cliente',
+                    $movimiento->libro?->nombre ?: 'Producto eliminado',
+                    $movimiento->cantidad,
+                    '$' . number_format($movimiento->precio_unitario, 2),
+                    $movimiento->descuento ? $movimiento->descuento . '%' : '0%',
+                    '$' . number_format($subtotal, 2),
+                ];
+            }
+        }
+        
+        $this->excelReportService->fillData($sheet2, $dataDetail, $row2);
+        $this->excelReportService->autoSizeColumns($sheet2, ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']);
         
         // Descargar
-        $filename = $this->excelReportService->generateFilename('reporte_ventas');
+        $filename = $this->excelReportService->generateFilename('reporte_ventas_detallado');
         $this->excelReportService->download($spreadsheet, $filename);
     }
 
     /**
      * Exportar ventas filtradas a PDF
+     * Nota: Solo funciona con menos de 50 ventas para evitar problemas de memoria
      */
     public function exportPdf(Request $request)
     {
-        // Construir query con filtros
-        $query = $this->buildFilteredQuery($request);
-        $ventas = $query->get();
-        
-        // Preparar filtros
-        $filtros = $this->buildFiltersList($request);
-        
-        // Calcular estadísticas (excluyendo canceladas)
-        $ventasActivas = $ventas->where('estado', '!=', 'cancelada');
-        
-        $estadisticas = [
-            'total' => $ventasActivas->count(),
-            'monto_total' => $ventasActivas->sum('total'),
-            'unidades_vendidas' => $ventasActivas->sum(function($v) { return $v->movimientos->sum('cantidad'); }),
-            'ventas_con_envio' => $ventasActivas->where('tiene_envio', true)->count(),
-            'completadas' => $ventas->where('estado', 'completada')->count(),
-            'canceladas' => $ventas->where('estado', 'cancelada')->count(),
-        ];
-        
-        // Obtener estilos base
-        $styles = $this->pdfReportService->getBaseStyles();
-        
-        // Generar PDF
-        $filename = $this->pdfReportService->generateFilename('reporte_ventas');
-        
-        return $this->pdfReportService->generate(
-            'ventas.pdf-report',
-            compact('ventas', 'filtros', 'estadisticas', 'styles'),
-            $filename,
-            ['orientation' => 'landscape'] // Landscape para más columnas
-        );
+        try {
+            // Construir query con filtros
+            $query = $this->buildFilteredQuery($request);
+            $ventas = $query->get();
+            
+            // Validar que no haya demasiadas ventas (DOMPDF tiene limitaciones de memoria)
+            if ($ventas->count() > 50) {
+                return response()->json([
+                    'error' => true,
+                    'message' => 'El reporte PDF solo soporta hasta 50 ventas. Tienes ' . $ventas->count() . ' ventas en los resultados. Por favor, usa el formato Excel para reportes más grandes, o aplica filtros adicionales para reducir los resultados.'
+                ], 422);
+            }
+            
+            // Preparar filtros
+            $filtros = $this->buildFiltersList($request);
+            
+            // Calcular estadísticas (excluyendo canceladas)
+            $ventasActivas = $ventas->where('estado', '!=', 'cancelada');
+            
+            $estadisticas = [
+                'total' => $ventasActivas->count(),
+                'monto_total' => $ventasActivas->sum('total'),
+                'unidades_vendidas' => $ventasActivas->sum(function($v) { return $v->movimientos->sum('cantidad'); }),
+                'ventas_con_envio' => $ventasActivas->where('tiene_envio', true)->count(),
+                'completadas' => $ventas->where('estado', 'completada')->count(),
+                'canceladas' => $ventas->where('estado', 'cancelada')->count(),
+            ];
+            
+            // Obtener estilos base
+            $styles = $this->pdfReportService->getBaseStyles();
+            
+            // Generar PDF
+            $filename = $this->pdfReportService->generateFilename('reporte_ventas_detallado');
+            
+            return $this->pdfReportService->generate(
+                'ventas.pdf-report',
+                compact('ventas', 'filtros', 'estadisticas', 'styles'),
+                $filename,
+                ['orientation' => 'landscape'] // Landscape para más columnas
+            );
+        } catch (\Exception $e) {
+            \Log::error('Error al generar PDF de ventas', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+            
+            return response()->json([
+                'error' => true,
+                'message' => 'Error al generar el PDF: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
