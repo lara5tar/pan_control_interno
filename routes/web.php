@@ -179,12 +179,14 @@ Route::middleware('checkauth')->group(function () {
     
     // Sub-inventarios - Rutas de lectura disponibles para todos
     Route::get('/subinventarios', [SubInventarioController::class, 'index'])->name('subinventarios.index');
-    Route::get('/subinventarios/{subinventario}', [SubInventarioController::class, 'show'])->name('subinventarios.show');
     
-    // Rutas de búsqueda y exportación de sub-inventarios - Disponibles para todos
+    // Rutas de búsqueda y exportación de sub-inventarios - ANTES de rutas con parámetros
     Route::get('/subinventarios/buscar-congregantes', [SubInventarioController::class, 'buscarCongregantes'])->name('subinventarios.buscar-congregantes');
     Route::get('/subinventarios-export/excel', [SubInventarioController::class, 'exportExcel'])->name('subinventarios.export.excel');
     Route::get('/subinventarios-export/pdf', [SubInventarioController::class, 'exportPdf'])->name('subinventarios.export.pdf');
+    
+    // Rutas con parámetros - Al final para evitar conflictos
+    Route::get('/subinventarios/{subinventario}', [SubInventarioController::class, 'show'])->name('subinventarios.show');
     
     // Rutas para exportar libros de un subinventario específico - Disponibles para todos
     Route::get('/subinventarios/{subinventario}/libros-export/excel', [SubInventarioController::class, 'exportLibrosExcel'])->name('subinventarios.libros.export.excel');

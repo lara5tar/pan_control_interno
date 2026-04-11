@@ -189,11 +189,36 @@ function buscarCongregantes(termino) {
     const url = `{{ route('subinventarios.buscar-congregantes') }}?termino=${encodeURIComponent(termino)}`;
     console.log('Buscando en URL:', url);
     
-    fetch(url)
+    // Obtener CSRF token del meta tag
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    
+    fetch(url, {
+        method: 'GET',
+        credentials: 'include', // Enviar cookies de sesión
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-Token': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
         .then(response => {
             console.log('Response status:', response.status);
+            console.log('Response headers:', response.headers);
+            
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                // Validar error específico
+                if (response.status === 419) {
+                    throw new Error('Sesión expirada. Por favor recarga la página y vuelve a intentar.');
+                }
+                if (response.status === 401) {
+                    throw new Error('No autorizado. Por favor inicia sesión nuevamente.');
+                }
+                
+                return response.json().then(data => {
+                    throw new Error(data.message || `HTTP error! status: ${response.status}`);
+                }).catch(e => {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                });
             }
             return response.json();
         })
@@ -201,12 +226,16 @@ function buscarCongregantes(termino) {
             console.log('Datos recibidos:', data);
             
             if (data.error) {
-                searchResults.innerHTML = `<div class="p-4 text-center text-red-500">Error: ${data.message || 'Error al buscar'}</div>`;
+                searchResults.innerHTML = `<div class="p-4 text-center text-red-500">
+                    <i class="fas fa-exclamation-circle mr-2"></i>
+                    <div>Error: ${data.message || 'Error al buscar'}</div>
+                    <small class="text-gray-600">Intenta de nuevo o contacta al administrador</small>
+                </div>`;
                 return;
             }
             
             if (!data.congregantes || data.congregantes.length === 0) {
-                searchResults.innerHTML = '<div class="p-4 text-center text-gray-500">No se encontraron congregantes</div>';
+                searchResults.innerHTML = '<div class="p-4 text-center text-gray-500"><i class="fas fa-search mr-2"></i>No se encontraron congregantes</div>';
                 return;
             }
             
@@ -229,7 +258,11 @@ function buscarCongregantes(termino) {
         })
         .catch(error => {
             console.error('Error completo:', error);
-            searchResults.innerHTML = `<div class="p-4 text-center text-red-500">Error al conectar<br><small class="text-xs">${error.message}</small></div>`;
+            searchResults.innerHTML = `<div class="p-4 text-center text-red-500">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                <div>Error al conectar</div>
+                <small class="text-xs text-gray-600">${error.message || 'Error desconocido'}</small>
+            </div>`;
         });
 }
 

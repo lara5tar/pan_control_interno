@@ -1201,23 +1201,37 @@ class SubInventarioController extends Controller
         
         Log::info('Búsqueda de congregantes iniciada', [
             'termino' => $termino,
-            'codCongregante' => $codCongregante ? 'presente' : 'ausente'
+            'codCongregante' => $codCongregante ? 'presente' : 'ausente',
+            'usuario_auth' => auth()->user() ? 'presente' : 'ausente'
         ]);
         
-        // Verificar sesión
+        // Verificar sesión - Primero intenta con la sesión, luego con auth
+        if (!$codCongregante && auth()->check()) {
+            // Si el usuario está autenticado pero no hay sesión de codCongregante,
+            // asignamos un placeholder para intentar la búsqueda
+            $codCongregante = auth()->user()->email ?? 'GUEST_USER';
+            Log::info('Usando código del usuario autenticado: ' . $codCongregante);
+        }
+        
         if (!$codCongregante) {
+            Log::warning('No se encontró codCongregante en sesión ni usuario autenticado');
             return response()->json([
                 'error' => true,
                 'message' => 'Sesión no válida. Por favor, inicia sesión nuevamente.'
             ], 401);
         }
         
-        if (empty($termino) || strlen($termino) < 2) {
+        if (empty($termino) || strlen(trim($termino)) < 2) {
+            Log::info('Término de búsqueda muy corto', ['termino_length' => strlen($termino), 'termino' => $termino]);
             return response()->json([
                 'error' => false,
-                'congregantes' => []
+                'congregantes' => [],
+                'message' => 'Por favor ingresa al menos 2 caracteres'
             ]);
         }
+        
+        // Sanitizar el término
+        $termino = trim($termino);
 
         try {
             $url = 'https://www.sistemasdevida.com/pan/rest2/index.php/congregante/buscar_paginado';
@@ -1246,23 +1260,33 @@ class SubInventarioController extends Controller
                     $congregantes = collect($data['congregantes'] ?? [])
                         ->map(function($congregante) {
                             return [
-                                'cod_congregante' => $congregante['CODCONGREGANTE'],
-                                'nombre_completo' => trim($congregante['NOMBREF'] ?? $congregante['NOMBRE'] . ' ' . $congregante['APELLIDOS']),
+                                'cod_congregante' => $congregante['CODCONGREGANTE'] ?? $congregante['codCongregante'] ?? '',
+                                'nombre_completo' => trim(
+                                    $congregante['NOMBREF'] ?? 
+                                    (($congregante['NOMBRE'] ?? '') . ' ' . ($congregante['APELLIDOS'] ?? ''))
+                                ),
                                 'ciudad' => $congregante['CIUDAD'] ?? '',
                                 'celular' => $congregante['CEL'] ?? '',
                             ];
                         })
+                        ->filter(function($congregante) {
+                            return !empty($congregante['nombre_completo']) && !empty($congregante['cod_congregante']);
+                        })
                         ->take(10) // Limitar a 10 resultados
                         ->values();
+                    
+                    Log::info('Congregantes encontrados: ' . $congregantes->count());
                     
                     return response()->json([
                         'error' => false,
                         'congregantes' => $congregantes
                     ]);
                 } else {
+                    $errorMsg = $data['message'] ?? 'Error en la API externa';
+                    Log::error('Error de API externa: ' . $errorMsg);
                     return response()->json([
                         'error' => true,
-                        'message' => $data['message'] ?? 'Error en la API externa'
+                        'message' => $errorMsg
                     ], 400);
                 }
             }
@@ -1274,9 +1298,30 @@ class SubInventarioController extends Controller
 
             return response()->json([
                 'error' => true,
-                'message' => 'La API externa no respondió correctamente'
+                'message' => 'La API externa no respondió correctamente (Status: ' . $response->status() . ')'
             ], 500);
 
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            Log::error('Error de conexión con API externa', [
+                'message' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'error' => true,
+                'message' => 'Error de conexión: No se puede conectar con el servidor de búsqueda'
+            ], 500);
+            
+        } catch (\Illuminate\Http\Client\RequestException $e) {
+            Log::error('Excepción de solicitud', [
+                'message' => $e->getMessage(),
+                'response' => $e->response ? $e->response->body() : 'sin respuesta'
+            ]);
+            
+            return response()->json([
+                'error' => true,
+                'message' => 'Error en la solicitud: ' . $e->getMessage()
+            ], 500);
+            
         } catch (\Exception $e) {
             Log::error('Excepción al buscar congregantes', [
                 'message' => $e->getMessage(),

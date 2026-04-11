@@ -523,8 +523,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('form[action*="ventas"]');
     if (!form) return;
     
-    // Agregar listeners a todos los select e inputs
-    const filterElements = form.querySelectorAll('select, input[type="date"], input[type="text"], input[type="number"]');
+    // Agregar listeners a todos los select e inputs (EXCEPTO los de fecha)
+    const filterElements = form.querySelectorAll('select, input[type="text"], input[type="number"]');
     filterElements.forEach(element => {
         // Ignorar el input de cliente_id ya que tiene su propio manejo
         if (element.classList.contains('cliente-search-input') || element.classList.contains('libro-search-input')) {
