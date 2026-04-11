@@ -102,7 +102,7 @@
 
                 <button type="submit" 
                         id="submit_btn"
-                        class="w-full bg-gray-400 text-white px-4 py-3 rounded-lg font-medium cursor-not-allowed transition-colors"
+                        style="width: 100%; background-color: #d1d5db; color: white; padding: 0.75rem 1rem; border-radius: 0.5rem; font-weight: 500; cursor: not-allowed; border: none; transition: background-color 0.3s ease;"
                         disabled>
                     <i class="fas fa-check mr-2"></i>Asignar Congregante
                 </button>
@@ -277,10 +277,10 @@ function selectCongregante(congregante) {
     searchInput.value = '';
     searchResults.classList.add('hidden');
     
-    // Cambiar estilos del botón visualmente
+    // Cambiar estilos inline del botón
     submitBtn.disabled = false;
-    submitBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
-    submitBtn.classList.add('bg-purple-600', 'hover:bg-purple-700');
+    submitBtn.style.backgroundColor = '#9333ea';
+    submitBtn.style.cursor = 'pointer';
 }
 
 function clearSelection() {
@@ -288,8 +288,8 @@ function clearSelection() {
     document.getElementById('nombre_congregante').value = '';
     selectedDiv.classList.add('hidden');
     submitBtn.disabled = true;
-    submitBtn.classList.remove('bg-purple-600', 'hover:bg-purple-700');
-    submitBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+    submitBtn.style.backgroundColor = '#d1d5db';
+    submitBtn.style.cursor = 'not-allowed';
     searchInput.value = '';
 }
 
@@ -303,9 +303,22 @@ document.addEventListener('click', function(event) {
 // Inicializar estado del botón (fallback)
 window.addEventListener('DOMContentLoaded', function() {
     if (submitBtn.disabled) {
-        submitBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
-        submitBtn.classList.remove('bg-purple-600', 'hover:bg-purple-700');
+        submitBtn.style.backgroundColor = '#d1d5db';
+        submitBtn.style.cursor = 'not-allowed';
     }
+    
+    // Agregar efecto hover
+    submitBtn.addEventListener('mouseover', function() {
+        if (!this.disabled) {
+            this.style.backgroundColor = '#7c2d12';
+        }
+    });
+    
+    submitBtn.addEventListener('mouseout', function() {
+        if (!this.disabled) {
+            this.style.backgroundColor = '#9333ea';
+        }
+    });
 });
 </script>
 @endsection
