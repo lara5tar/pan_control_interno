@@ -102,8 +102,8 @@
 
                 <button type="submit" 
                         id="submit_btn"
-                        disabled
-                        class="w-full bg-purple-600 text-white px-4 py-3 rounded-lg hover:bg-purple-700 font-medium disabled:bg-gray-400 disabled:cursor-not-allowed">
+                        class="w-full bg-gray-400 text-white px-4 py-3 rounded-lg font-medium cursor-not-allowed transition-colors"
+                        disabled>
                     <i class="fas fa-check mr-2"></i>Asignar Congregante
                 </button>
             </form>
@@ -276,7 +276,11 @@ function selectCongregante(congregante) {
     selectedDiv.classList.remove('hidden');
     searchInput.value = '';
     searchResults.classList.add('hidden');
+    
+    // Cambiar estilos del botón visualmente
     submitBtn.disabled = false;
+    submitBtn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+    submitBtn.classList.add('bg-purple-600', 'hover:bg-purple-700');
 }
 
 function clearSelection() {
@@ -284,6 +288,8 @@ function clearSelection() {
     document.getElementById('nombre_congregante').value = '';
     selectedDiv.classList.add('hidden');
     submitBtn.disabled = true;
+    submitBtn.classList.remove('bg-purple-600', 'hover:bg-purple-700');
+    submitBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
     searchInput.value = '';
 }
 
@@ -291,6 +297,14 @@ function clearSelection() {
 document.addEventListener('click', function(event) {
     if (!searchInput.contains(event.target) && !searchResults.contains(event.target)) {
         searchResults.classList.add('hidden');
+    }
+});
+
+// Inicializar estado del botón (fallback)
+window.addEventListener('DOMContentLoaded', function() {
+    if (submitBtn.disabled) {
+        submitBtn.classList.add('bg-gray-400', 'cursor-not-allowed');
+        submitBtn.classList.remove('bg-purple-600', 'hover:bg-purple-700');
     }
 });
 </script>

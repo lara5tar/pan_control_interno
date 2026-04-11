@@ -186,7 +186,9 @@
                 </p>
             </div>
             <a href="{{ route('subinventarios.usuarios', $subinventario) }}" 
-               class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 text-sm shadow-md border-2 border-purple-800">
+               style="background-color: #9333ea; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; font-size: 0.875rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); display: inline-block; border: 2px solid #7c2d12; transition: background-color 0.3s ease;"
+               onmouseover="this.style.backgroundColor='#7c2d12'"
+               onmouseout="this.style.backgroundColor='#9333ea'">
                 <i class="fas fa-users-cog mr-2"></i>Gestionar Usuarios
             </a>
         </div>
@@ -253,9 +255,13 @@
                     Editar
                 </x-button>
 
-                <x-button variant="info" icon="fas fa-users" href="{{ route('subinventarios.usuarios', $subinventario) }}" class="w-full justify-center">
-                    Gestionar Usuarios
-                </x-button>
+                <a href="{{ route('subinventarios.usuarios', $subinventario) }}"
+                   style="background-color: #2563eb; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; width: 100%; text-decoration: none; font-weight: 500; transition: background-color 0.3s ease; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);"
+                   onmouseover="this.style.backgroundColor='#1d4ed8'"
+                   onmouseout="this.style.backgroundColor='#2563eb'">
+                    <i class="fas fa-users mr-2"></i>
+                    <span>Gestionar Usuarios</span>
+                </a>
 
                 <form action="{{ route('subinventarios.completar', $subinventario) }}" 
                       method="POST"
